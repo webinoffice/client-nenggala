@@ -1,6 +1,6 @@
 import Hero from "@/components/sections/Hero";
 import OurMoment from "@/components/sections/OurMoment";
-import BeltStory from "@/components/sections/BeltStory";
+import ImageCarousel from "@/components/sections/ImageCarousel";
 import EventBanner from "@/components/sections/EventBanner";
 
 export default function GalleryPage() {
@@ -8,7 +8,7 @@ export default function GalleryPage() {
     <>
       <Hero />
       <OurMoment />
-      <BeltStory />
+      <ImageCarousel title="Every Belt Has a Story" />
       <EventBanner />
     </>
   );

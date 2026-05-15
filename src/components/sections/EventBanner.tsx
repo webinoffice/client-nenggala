@@ -1,10 +1,20 @@
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 
-export default function EventBanner() {
+interface EventBannerProps {
+  sectionTitle?: string;
+}
+
+export default function EventBanner({ sectionTitle }: EventBannerProps = {}) {
   return (
     <section className="bg-paper py-16 md:py-20">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
+        {sectionTitle && (
+          <h2 className="mb-10 text-center font-display text-3xl font-bold uppercase tracking-tight md:text-4xl">
+            {sectionTitle}
+          </h2>
+        )}
+
         <div className="grid gap-6 md:grid-cols-5">
           <article className="md:col-span-3 rounded-sm bg-accent p-8 text-accent-foreground md:p-10">
             <p className="text-xs font-bold uppercase tracking-widest">
@@ -28,7 +38,7 @@ export default function EventBanner() {
             </a>
           </article>
 
-          <article className="md:col-span-2 relative aspect-4/3 md:aspect-auto overflow-hidden rounded-sm bg-ink">
+          <article className="md:col-span-2 relative aspect-[4/3] md:aspect-auto overflow-hidden rounded-sm bg-ink">
             <Image
               src="/images/event-ukt-promo.jpg"
               alt="UKT 21 Promo"

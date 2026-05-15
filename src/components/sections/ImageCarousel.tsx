@@ -4,21 +4,20 @@ import Image from "next/image";
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-interface BeltStoryItem {
-  id: string;
-  image: string;
-  alt: string;
-}
-
-const STORIES: BeltStoryItem[] = [
-  { id: "s1", image: "/images/story-1.jpg", alt: "Atlet Nenggala bertanding" },
-  { id: "s2", image: "/images/story-2.jpg", alt: "Tim Nenggala juara" },
-  { id: "s3", image: "/images/story-3.jpg", alt: "Latihan kelompok" },
-  { id: "s4", image: "/images/story-4.jpg", alt: "Demonstrasi tim" },
-  { id: "s5", image: "/images/story-5.jpg", alt: "Acara Hanmadang" },
+// Single source of truth — same endpoint will serve both /gallery and /program/taekwondo
+const GALLERY_IMAGES = [
+  { id: "g1", src: "/images/story-1.jpg", alt: "Atlet Nenggala bertanding" },
+  { id: "g2", src: "/images/story-2.jpg", alt: "Tim Nenggala juara" },
+  { id: "g3", src: "/images/story-3.jpg", alt: "Latihan kelompok" },
+  { id: "g4", src: "/images/story-4.jpg", alt: "Demonstrasi tim" },
+  { id: "g5", src: "/images/story-5.jpg", alt: "Acara Hanmadang" },
 ];
 
-export default function BeltStory() {
+interface ImageCarouselProps {
+  title: string;
+}
+
+export default function ImageCarousel({ title }: ImageCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollByAmount = (dir: "left" | "right") => {
@@ -35,7 +34,7 @@ export default function BeltStory() {
     <section className="bg-neutral-200 py-16 md:py-20">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <h2 className="text-center font-display text-3xl font-bold uppercase tracking-tight md:text-4xl">
-          Every Belt Has a Story
+          {title}
         </h2>
 
         <div className="relative mt-10">
@@ -43,15 +42,15 @@ export default function BeltStory() {
             ref={scrollRef}
             className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4"
           >
-            {STORIES.map((s) => (
+            {GALLERY_IMAGES.map((img) => (
               <article
-                key={s.id}
+                key={img.id}
                 className="w-[75%] flex-shrink-0 snap-center sm:w-[45%] md:w-[calc(25%-0.75rem)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden rounded-sm bg-ink shadow-sm">
                   <Image
-                    src={s.image}
-                    alt={s.alt}
+                    src={img.src}
+                    alt={img.alt}
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 75vw, 25vw"
@@ -61,7 +60,6 @@ export default function BeltStory() {
             ))}
           </div>
 
-          {/* Desktop nav arrows */}
           <button
             type="button"
             onClick={() => scrollByAmount("left")}
