@@ -10,6 +10,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
+import Pagination from "@/components/app/Pagination";
 import UserFormModal, { type UserFormValues } from "./UserFormModal";
 
 export type UserStatus = "Active" | "Inactive";
@@ -149,6 +150,10 @@ export default function MasterRolesClient() {
   const [confirming, setConfirming] = useState<AppUser | null>(null);
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
 
+  // pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const filtered = useMemo(() => {
     return users.filter((u) => {
       const matchName =
@@ -161,11 +166,22 @@ export default function MasterRolesClient() {
     });
   }, [users, applied]);
 
+  // derived pagination values
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
+
   const hasFilter =
     applied.name !== "" || applied.role !== "All" || applied.status !== "All";
 
   const handleSearch = () => {
     setApplied({ name: nameInput, role: roleInput, status: statusInput });
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
@@ -173,6 +189,7 @@ export default function MasterRolesClient() {
     setRoleInput("All");
     setStatusInput("All");
     setApplied({ name: "", role: "All", status: "All" });
+    setCurrentPage(1);
   };
 
   const handleAdd = () => {
@@ -304,7 +321,7 @@ export default function MasterRolesClient() {
         </div>
       </div>
 
-      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden">
+      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -321,7 +338,7 @@ export default function MasterRolesClient() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <tr>
                   <td
                     colSpan={9}
@@ -331,7 +348,7 @@ export default function MasterRolesClient() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((u) => {
+                paginatedUsers.map((u) => {
                   const isActive = u.status === "Active";
                   const isRevealed = revealed.has(u.id);
                   return (
@@ -416,6 +433,18 @@ export default function MasterRolesClient() {
             </tbody>
           </table>
         </div>
+        {/* pagination footer */}
+        {totalItems > 0 && (
+          <div className="px-4 py-4 border-t border-ink/10 bg-paper">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       <UserFormModal

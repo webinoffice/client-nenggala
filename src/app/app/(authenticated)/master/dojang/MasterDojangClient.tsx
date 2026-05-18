@@ -9,6 +9,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
+import Pagination from "@/components/app/Pagination";
 import DojangFormModal, { type DojangFormValues } from "./DojangFormModal";
 
 export type DojangStatus = "Active" | "Inactive";
@@ -109,6 +110,10 @@ export default function MasterDojangClient() {
   const [editing, setEditing] = useState<Dojang | null>(null);
   const [confirming, setConfirming] = useState<Dojang | null>(null);
 
+  // pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const filtered = useMemo(() => {
     return dojangs.filter((d) => {
       const matchId = applied.id === "" || String(d.id) === applied.id.trim();
@@ -121,11 +126,22 @@ export default function MasterDojangClient() {
     });
   }, [dojangs, applied]);
 
+  // derived pagination values
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedDojangs = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
+
   const hasFilter =
     applied.id !== "" || applied.dojang !== "" || applied.status !== "All";
 
   const handleSearch = () => {
     setApplied({ id: idInput, dojang: dojangInput, status: statusInput });
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
@@ -133,6 +149,7 @@ export default function MasterDojangClient() {
     setDojangInput("");
     setStatusInput("All");
     setApplied({ id: "", dojang: "", status: "All" });
+    setCurrentPage(1);
   };
 
   const handleAdd = () => {
@@ -206,7 +223,7 @@ export default function MasterDojangClient() {
         }
       />
 
-      {/* Filter card */}
+      {/* filter card */}
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <Input
@@ -245,8 +262,8 @@ export default function MasterDojangClient() {
         </div>
       </div>
 
-      {/* Data table */}
-      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden">
+      {/* data table */}
+      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -260,7 +277,7 @@ export default function MasterDojangClient() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedDojangs.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
@@ -270,7 +287,7 @@ export default function MasterDojangClient() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((d) => {
+                paginatedDojangs.map((d) => {
                   const isActive = d.status === "Active";
                   return (
                     <tr
@@ -328,6 +345,18 @@ export default function MasterDojangClient() {
             </tbody>
           </table>
         </div>
+        {/* pagination footer */}
+        {totalItems > 0 && (
+          <div className="px-4 py-4 border-t border-ink/10 bg-paper">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       <DojangFormModal

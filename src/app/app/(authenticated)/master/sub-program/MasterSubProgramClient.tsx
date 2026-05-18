@@ -9,6 +9,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
+import Pagination from "@/components/app/Pagination";
 import SubProgramFormModal, {
   type SubProgramFormValues,
 } from "./SubProgramFormModal";
@@ -133,6 +134,10 @@ export default function MasterSubProgramClient() {
   const [editing, setEditing] = useState<SubProgram | null>(null);
   const [confirming, setConfirming] = useState<SubProgram | null>(null);
 
+  // pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const filtered = useMemo(() => {
     return subPrograms.filter((sp) => {
       const matchProgram =
@@ -151,6 +156,16 @@ export default function MasterSubProgramClient() {
     });
   }, [subPrograms, applied]);
 
+  // derived pagination values
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedSubPrograms = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
+
   const hasFilter =
     applied.programId !== "All" ||
     applied.subId !== "" ||
@@ -164,6 +179,7 @@ export default function MasterSubProgramClient() {
       name: nameInput,
       status: statusInput,
     });
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
@@ -172,6 +188,7 @@ export default function MasterSubProgramClient() {
     setNameInput("");
     setStatusInput("All");
     setApplied({ programId: "All", subId: "", name: "", status: "All" });
+    setCurrentPage(1);
   };
 
   const handleAdd = () => {
@@ -296,7 +313,7 @@ export default function MasterSubProgramClient() {
         </div>
       </div>
 
-      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden">
+      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -312,7 +329,7 @@ export default function MasterSubProgramClient() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedSubPrograms.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -322,7 +339,7 @@ export default function MasterSubProgramClient() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((sp) => {
+                paginatedSubPrograms.map((sp) => {
                   const isActive = sp.status === "Active";
                   return (
                     <tr
@@ -388,6 +405,18 @@ export default function MasterSubProgramClient() {
             </tbody>
           </table>
         </div>
+        {/* pagination footer */}
+        {totalItems > 0 && (
+          <div className="px-4 py-4 border-t border-ink/10 bg-paper">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       <SubProgramFormModal

@@ -1,12 +1,13 @@
 // src/app/app/(authenticated)/master/schedule-period/MasterSchedulePeriodClient.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
+import Pagination from "@/components/app/Pagination";
 import SchedulePeriodFormModal, {
   type SchedulePeriodFormValues,
 } from "./SchedulePeriodFormModal";
@@ -101,6 +102,20 @@ export default function MasterSchedulePeriodClient() {
   const [editing, setEditing] = useState<SchedulePeriod | null>(null);
   const [confirming, setConfirming] = useState<SchedulePeriod | null>(null);
 
+  // pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  // derived pagination values
+  const totalItems = periods.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedPeriods = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return periods.slice(start, start + pageSize);
+  }, [periods, safePage, pageSize]);
+
   const handleAdd = () => {
     setEditing(null);
     setFormOpen(true);
@@ -176,7 +191,7 @@ export default function MasterSchedulePeriodClient() {
         }
       />
 
-      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden">
+      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -191,7 +206,7 @@ export default function MasterSchedulePeriodClient() {
               </tr>
             </thead>
             <tbody>
-              {periods.length === 0 ? (
+              {paginatedPeriods.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
@@ -201,7 +216,7 @@ export default function MasterSchedulePeriodClient() {
                   </td>
                 </tr>
               ) : (
-                periods.map((p) => {
+                paginatedPeriods.map((p) => {
                   const isActive = p.status === "Active";
                   return (
                     <tr
@@ -266,6 +281,18 @@ export default function MasterSchedulePeriodClient() {
             </tbody>
           </table>
         </div>
+        {/* pagination footer */}
+        {totalItems > 0 && (
+          <div className="px-4 py-4 border-t border-ink/10 bg-paper">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       <SchedulePeriodFormModal

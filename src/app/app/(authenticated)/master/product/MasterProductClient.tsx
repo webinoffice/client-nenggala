@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
+import Pagination from "@/components/app/Pagination";
 import ProductFormModal, { type ProductFormValues } from "./ProductFormModal";
 
 export type Product = {
@@ -104,6 +105,10 @@ export default function MasterProductClient() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [confirming, setConfirming] = useState<Product | null>(null);
 
+  // pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const matchType =
@@ -116,16 +121,28 @@ export default function MasterProductClient() {
     });
   }, [products, applied]);
 
+  // derived pagination values
+  const totalItems = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
+
   const hasFilter = applied.typeId !== "" || applied.product !== "";
 
   const handleSearch = () => {
     setApplied({ typeId: typeIdInput, product: productInput });
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
     setTypeIdInput("");
     setProductInput("");
     setApplied({ typeId: "", product: "" });
+    setCurrentPage(1);
   };
 
   const handleAdd = () => {
@@ -219,7 +236,7 @@ export default function MasterProductClient() {
       </div>
 
       {/* Data table */}
-      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden">
+      <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -235,7 +252,7 @@ export default function MasterProductClient() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedProducts.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -245,7 +262,7 @@ export default function MasterProductClient() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p) => (
+                paginatedProducts.map((p) => (
                   <tr
                     key={p.typeId}
                     className={cn(
@@ -293,6 +310,18 @@ export default function MasterProductClient() {
             </tbody>
           </table>
         </div>
+        {/* pagination footer */}
+        {totalItems > 0 && (
+          <div className="px-4 py-4 border-t border-ink/10 bg-paper">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
 
       <ProductFormModal
