@@ -51,23 +51,28 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
       { label: "Events", href: "/app/content/events", roles: ADMIN_PLUS },
     ],
   },
-  {
-    label: "Student Management",
-    icon: GraduationCap,
-    roles: ["super-admin", "admin", "coach"],
-    children: [
-      {
-        label: "Students",
-        href: "/app/student/list",
-        roles: ["super-admin", "admin", "coach"],
-      },
-      {
-        label: "Enrollment",
-        href: "/app/student/enrollment",
-        roles: ADMIN_PLUS,
-      },
-    ],
-  },
+{
+  label: "Student Management",
+  icon: GraduationCap,
+  roles: ["super-admin", "admin", "coach"],
+  children: [
+    {
+      label: "Data",
+      href: "/app/student/data",
+      roles: ["super-admin", "admin", "coach"],
+    },
+    {
+      label: "Attendance",
+      href: "/app/student/attendance",
+      roles: ["super-admin", "admin", "coach"],
+    },
+    {
+      label: "Score",
+      href: "/app/student/score",
+      roles: ["super-admin", "admin", "coach"],
+    },
+  ],
+},
   {
     label: "Coach Management",
     icon: UserCog,
