@@ -95,14 +95,12 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     roles: SUPER,
     children: [
       { label: "Program", href: "/app/master/program", roles: SUPER },
-      {
-        label: "Grading Belt",
-        href: "/app/master/grading-belt",
-        roles: SUPER,
-      },
+      { label: "Sub Program", href: "/app/master/sub-program", roles: SUPER },
+      { label: "Grading Belt", href: "/app/master/grading-belt", roles: SUPER },
       { label: "Dojang", href: "/app/master/dojang", roles: SUPER },
       { label: "Product", href: "/app/master/product", roles: SUPER },
       { label: "Roles", href: "/app/master/roles", roles: SUPER },
+      { label: "Schedule Period", href: "/app/master/schedule-period", roles: SUPER },
     ],
   },
 ];
