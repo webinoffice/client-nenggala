@@ -1,19 +1,19 @@
 // src/app/app/(authenticated)/student/_shared/academic.ts
 
 export type Period = {
-  id: string;           // "32"
-  startMonth: string;   // "2026-01"
-  endMonth: string;     // "2026-06"
+  id: string; // "32"
+  startMonth: string; // "2026-01"
+  endMonth: string; // "2026-06"
 };
 
 export type Program = {
-  id: string;           // "TKD"
-  name: string;         // "Taekwondo"
+  id: string; // "TKD"
+  name: string; // "Taekwondo"
 };
 
 export type SubProgram = {
-  id: string;           // "TKD-01"
-  name: string;         // "Kelas Pemula"
+  id: string; // "TKD-01"
+  name: string; // "Kelas Pemula"
   programId: string;
 };
 
@@ -31,35 +31,113 @@ export const PERIODS: Period[] = [
   { id: "29", startMonth: "2024-07", endMonth: "2024-12" },
 ];
 
-export const PROGRAMS: Program[] = [{ id: "TKD", name: "Taekwondo" }];
+export const PROGRAMS: Program[] = [
+  { id: "TKD", name: "Taekwondo" },
+  { id: "NCK", name: "Nunchaku" },
+  { id: "GYM", name: "Gymnastic" },
+  { id: "BLT", name: "Balet" },
+];
 
 export const SUB_PROGRAMS: SubProgram[] = [
-  { id: "TKD-01", name: "Kelas Pemula", programId: "TKD" },
-  { id: "TKD-02", name: "Kelas Lanjutan", programId: "TKD" },
-  { id: "TKD-03", name: "Kelas Atlet", programId: "TKD" },
+  // Taekwondo
+  { id: "TKD-01", name: "Pomsae", programId: "TKD" },
+  { id: "TKD-02", name: "Regular", programId: "TKD" },
+  { id: "TKD-03", name: "Kyorugi", programId: "TKD" },
+  { id: "TKD-04", name: "Kyukpa", programId: "TKD" },
+  // Nunchaku
+  { id: "NCK-01", name: "Pomsae", programId: "NCK" },
+  // Gymnastic
+  { id: "GYM-01", name: "Kyorugi", programId: "GYM" },
+  // Balet
+  { id: "BLT-01", name: "Regular", programId: "BLT" },
 ];
 
 export const ENROLLMENTS: Enrollment[] = [
   // Period 32 — Kedoya Sport Club
-  { studentUsername: "U0001", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-01" },
-  { studentUsername: "U0002", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-01" },
-  { studentUsername: "U0003", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-02" },
-  { studentUsername: "U0004", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-02" },
-  { studentUsername: "U0005", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-03" },
-  { studentUsername: "U0006", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-03" },
-  { studentUsername: "U0007", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: "TKD-03" },
+  {
+    studentUsername: "U0001",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-01",
+  },
+  {
+    studentUsername: "U0002",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-01",
+  },
+  {
+    studentUsername: "U0003",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-02",
+  },
+  {
+    studentUsername: "U0004",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-02",
+  },
+  {
+    studentUsername: "U0005",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-03",
+  },
+  {
+    studentUsername: "U0006",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-03",
+  },
+  {
+    studentUsername: "U0007",
+    periodId: "32",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-03",
+  },
   // Period 32 — Senayan
-  { studentUsername: "U0008", periodId: "32", dojang: "Senayan Dojang", subProgramId: "TKD-01" },
+  {
+    studentUsername: "U0008",
+    periodId: "32",
+    dojang: "Senayan Dojang",
+    subProgramId: "TKD-01",
+  },
   // Period 30 — Kedoya (historical for U0006)
-  { studentUsername: "U0006", periodId: "30", dojang: "Kedoya Sport Club", subProgramId: "TKD-03" },
-  { studentUsername: "U0007", periodId: "30", dojang: "Kedoya Sport Club", subProgramId: "TKD-03" },
+  {
+    studentUsername: "U0006",
+    periodId: "30",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-03",
+  },
+  {
+    studentUsername: "U0007",
+    periodId: "30",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-03",
+  },
   // Period 29 — Kedoya (historical for U0006)
-  { studentUsername: "U0006", periodId: "29", dojang: "Kedoya Sport Club", subProgramId: "TKD-02" },
+  {
+    studentUsername: "U0006",
+    periodId: "29",
+    dojang: "Kedoya Sport Club",
+    subProgramId: "TKD-02",
+  },
 ];
 
 const MONTHS_ID = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
 ];
 
 export function formatPeriod(p: Period): string {

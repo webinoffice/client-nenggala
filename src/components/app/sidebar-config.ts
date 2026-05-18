@@ -50,35 +50,41 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
       { label: "Events", href: "/app/content/events", roles: ADMIN_PLUS },
     ],
   },
-{
-  label: "Student Management",
-  icon: GraduationCap,
-  roles: ["super-admin", "admin", "coach"],
-  children: [
-    {
-      label: "Data",
-      href: "/app/student/data",
-      roles: ["super-admin", "admin", "coach"],
-    },
-    {
-      label: "Attendance",
-      href: "/app/student/attendance",
-      roles: ["super-admin", "admin", "coach"],
-    },
-    {
-      label: "Score",
-      href: "/app/student/score",
-      roles: ["super-admin", "admin", "coach"],
-    },
-  ],
-},
+  {
+    label: "Student Management",
+    icon: GraduationCap,
+    roles: ["super-admin", "admin", "coach"],
+    children: [
+      {
+        label: "Data",
+        href: "/app/student/data",
+        roles: ["super-admin", "admin", "coach"],
+      },
+      {
+        label: "Attendance",
+        href: "/app/student/attendance",
+        roles: ["super-admin", "admin", "coach"],
+      },
+      {
+        label: "Score",
+        href: "/app/student/score",
+        roles: ["super-admin", "admin", "coach"],
+      },
+    ],
+  },
   {
     label: "Coach Management",
     icon: UserCog,
     roles: ADMIN_PLUS,
     children: [
-      { label: "Coaches", href: "/app/coach/list", roles: ADMIN_PLUS },
+      { label: "Data", href: "/app/coach/data", roles: ADMIN_PLUS },
       { label: "Schedule", href: "/app/coach/schedule", roles: ADMIN_PLUS },
+      { label: "Attendance", href: "/app/coach/attendance", roles: ADMIN_PLUS },
+      {
+        label: "Recommendation",
+        href: "/app/coach/recommendation",
+        roles: ADMIN_PLUS,
+      },
     ],
   },
   {
@@ -98,7 +104,11 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
       { label: "Dojang", href: "/app/master/dojang", roles: SUPER },
       { label: "Product", href: "/app/master/product", roles: SUPER },
       { label: "Roles", href: "/app/master/roles", roles: SUPER },
-      { label: "Schedule Period", href: "/app/master/schedule-period", roles: SUPER },
+      {
+        label: "Schedule Period",
+        href: "/app/master/schedule-period",
+        roles: SUPER,
+      },
     ],
   },
 ];
