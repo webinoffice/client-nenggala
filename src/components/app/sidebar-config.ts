@@ -5,7 +5,6 @@ import {
   GraduationCap,
   UserCog,
   ShieldCheck,
-  Award,
   Database,
   type LucideIcon,
 } from "lucide-react";
@@ -87,12 +86,6 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: ShieldCheck,
     href: "/app/admin",
     roles: SUPER,
-  },
-  {
-    label: "Certificate Approval",
-    icon: Award,
-    href: "/app/certificate",
-    roles: ADMIN_PLUS,
   },
   {
     label: "Master Management",

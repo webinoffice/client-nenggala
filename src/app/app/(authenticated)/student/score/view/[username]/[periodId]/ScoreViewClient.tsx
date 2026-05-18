@@ -86,7 +86,7 @@ export default function ScoreViewClient({ username, periodId }: Props) {
         }
       />
 
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6">
         <section className="bg-paper rounded-sm border border-ink/10 p-6">
           <h2 className="font-display text-sm font-bold uppercase tracking-widest text-ink mb-4">
             Informasi Siswa
@@ -99,7 +99,7 @@ export default function ScoreViewClient({ username, periodId }: Props) {
             />
             <InfoRow label="Nama Lengkap" value={student.namaLengkap} />
             <InfoRow label="Dojang" value={student.dojang} />
-            <InfoRow label="Sabuk" value={student.sabuk || "-"} />
+            <InfoRow label="Sabuk" value={record.sabukAtSubmit} />{" "}
             <InfoRow
               label="Submitted By"
               value={`${record.submittedBy} · ${new Date(record.submitDate).toLocaleString()}`}

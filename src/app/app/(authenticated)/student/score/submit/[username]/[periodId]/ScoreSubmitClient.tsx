@@ -118,10 +118,11 @@ export default function ScoreSubmitClient({ username, periodId }: Props) {
   const allFilled = applicableCategories.every((c) => scores[c.key] !== null);
 
   const performSubmit = (reasonBelowAttendance: string | null) => {
-    const total = calculateTotal(scores, attendance);
+    const total = calculateTotal(scores, student.sabuk);
     const record: ScoreRecord = {
       studentUsername: username,
       periodId,
+      sabukAtSubmit: student.sabuk,
       agilityFisik: scores.agilityFisik,
       pomsaeWajib: scores.pomsaeWajib,
       pomsaePilihan: scores.pomsaePilihan,
@@ -133,7 +134,7 @@ export default function ScoreSubmitClient({ username, periodId }: Props) {
       attendance,
       reasonBelowAttendance,
       total,
-      result: determineResult(total),
+      result: determineResult(total, student.sabuk),
       submittedBy: CURRENT_USER,
       submitDate: new Date().toISOString(),
     };
@@ -171,7 +172,7 @@ export default function ScoreSubmitClient({ username, periodId }: Props) {
         }
       />
 
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6">
         {/* Student info card */}
         <section className="bg-paper rounded-sm border border-ink/10 p-6">
           <h2 className="font-display text-sm font-bold uppercase tracking-widest text-ink mb-4">

@@ -36,25 +36,17 @@ import {
   SCORE_CATEGORIES,
   isCategoryApplicable,
 } from "../_shared/scores";
+import * as XLSX from "xlsx";
 
-function downloadCSV(filename: string, rows: (string | number)[][]) {
-  const csv = rows
-    .map((r) =>
-      r
-        .map((c) => {
-          const s = String(c ?? "");
-          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-        })
-        .join(","),
-    )
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+function downloadXLSX(
+  filename: string,
+  rows: (string | number)[][],
+  sheetName: string,
+) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
 }
 
 export default function ScoreClient() {
@@ -117,9 +109,10 @@ export default function ScoreClient() {
         ),
       ]);
     });
-    downloadCSV(
-      `score-template_${selection.subProgramId}_P${selection.periodId}.csv`,
+    downloadXLSX(
+      `score-template_${selection.subProgramId}_P${selection.periodId}.xlsx`,
       rows,
+      "Template",
     );
   };
 
@@ -142,20 +135,39 @@ export default function ScoreClient() {
         }),
       ]);
     });
-    downloadCSV(
-      `scores_${selection.subProgramId}_P${selection.periodId}.csv`,
+    downloadXLSX(
+      `scores_${selection.subProgramId}_P${selection.periodId}.xlsx`,
       rows,
+      "Scores",
     );
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-picking the same file
+    e.target.value = "";
     if (!file) return;
-    // Demo: stub. Real import would parse CSV → validate → preview → confirm.
-    alert(
-      `🚧 Import preview\n\nFile: ${file.name}\n\nIn production this would parse rows, validate against the current sub-program roster, and show a confirmation table before applying. Backend integration required.`,
-    );
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const firstSheetName = wb.SheetNames[0];
+        const firstSheet = wb.Sheets[firstSheetName];
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, {
+          header: 1,
+        });
+        alert(
+          `🚧 Import preview\n\nFile: ${file.name}\nSheet: ${firstSheetName}\nRows: ${rows.length}\n\nIn production this would validate each row against the current sub-program roster and show a confirmation table before applying. Backend integration required.`,
+        );
+      } catch (err) {
+        alert(
+          `Failed to read Excel file: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   return (
@@ -196,7 +208,7 @@ export default function ScoreClient() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.xlsx,.xls"
+              accept=".xlsx,.xls"
               className="hidden"
               onChange={handleImportFile}
             />
