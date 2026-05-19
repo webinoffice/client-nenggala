@@ -1,0 +1,97 @@
+// src/app/app/(authenticated)/master/_shared/ebooks.ts
+
+export type EbookStatus = "Active" | "Inactive";
+
+export type Ebook = {
+  id: number;
+  sabuk: string;
+  volume: string; // "1.1", "2.3", etc
+  title: string;
+  pdfFile: string; // filename, e.g. "putih-cara-menendang.pdf"
+  status: EbookStatus;
+  updatedBy: string;
+  updateDate: string;
+};
+
+export const INITIAL_EBOOKS: Ebook[] = [
+  {
+    id: 1,
+    sabuk: "Putih",
+    volume: "1.1",
+    title: "Cara Menendang",
+    pdfFile: "putih-cara-menendang.pdf",
+    status: "Active",
+    updatedBy: "Carolina",
+    updateDate: "2026-02-19T10:00:00",
+  },
+  {
+    id: 2,
+    sabuk: "Putih",
+    volume: "1.2",
+    title: "Sikap Dasar & Salam",
+    pdfFile: "putih-sikap-dasar.pdf",
+    status: "Active",
+    updatedBy: "Carolina",
+    updateDate: "2026-02-19T10:05:00",
+  },
+  {
+    id: 3,
+    sabuk: "Kuning",
+    volume: "2.1",
+    title: "Pomsae Taegeuk Il Jang",
+    pdfFile: "kuning-taegeuk-1.pdf",
+    status: "Active",
+    updatedBy: "Carolina",
+    updateDate: "2026-01-15T09:00:00",
+  },
+  {
+    id: 4,
+    sabuk: "Hijau",
+    volume: "3.1",
+    title: "Pomsae Taegeuk Sam Jang",
+    pdfFile: "hijau-taegeuk-3.pdf",
+    status: "Active",
+    updatedBy: "Andre",
+    updateDate: "2025-12-20T14:00:00",
+  },
+  {
+    id: 5,
+    sabuk: "Biru",
+    volume: "4.1",
+    title: "Teknik Tendangan Lanjutan",
+    pdfFile: "biru-tendangan-lanjutan.pdf",
+    status: "Active",
+    updatedBy: "Andre",
+    updateDate: "2025-11-10T11:30:00",
+  },
+  {
+    id: 6,
+    sabuk: "Merah",
+    volume: "5.1",
+    title: "Kyorugi Strategi Bertanding",
+    pdfFile: "merah-kyorugi-strategi.pdf",
+    status: "Active",
+    updatedBy: "Carolina",
+    updateDate: "2025-10-05T16:00:00",
+  },
+  {
+    id: 7,
+    sabuk: "Hitam DAN-1",
+    volume: "6.1",
+    title: "14 Basic Movements Hyungs",
+    pdfFile: "hitam-14-basic.pdf",
+    status: "Active",
+    updatedBy: "Carolina",
+    updateDate: "2025-09-01T08:00:00",
+  },
+  {
+    id: 8,
+    sabuk: "Kuning",
+    volume: "2.2",
+    title: "Sikap Kuda-Kuda",
+    pdfFile: "kuning-kuda-kuda.pdf",
+    status: "Inactive",
+    updatedBy: "Andre",
+    updateDate: "2025-08-15T13:00:00",
+  },
+];

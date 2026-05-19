@@ -1,7 +1,18 @@
-// src/app/app/(authenticated)/dashboard/page.tsx
+// src/app/app/(authenticated)/dashboard/DashboardRouter.tsx
+"use client";
+
+import { useRole } from "@/lib/role-context";
+import StudentDashboard from "./StudentDashboard";
 import PageHeader from "@/components/app/PageHeader";
 
-export default function DashboardPage() {
+export default function DashboardRouter() {
+  const { role } = useRole();
+
+  if (role === "student") {
+    return <StudentDashboard />;
+  }
+
+  // Admin / super-admin / coach — placeholder until client provides specs.
   return (
     <>
       <PageHeader

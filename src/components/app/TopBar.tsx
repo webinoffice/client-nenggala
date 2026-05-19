@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { ROLES, ROLE_LABELS } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { getCurrentDisplayName } from "@/lib/current-user";
 
 export default function TopBar() {
   const { role, setRole } = useRole();
@@ -75,10 +76,10 @@ export default function TopBar() {
 
           <div className="flex items-center gap-3">
             <span className="font-display text-xs uppercase tracking-widest font-bold">
-              Carolina
+              {getCurrentDisplayName(role)}
             </span>
             <div className="h-9 w-9 rounded-full bg-paper-soft overflow-hidden flex items-center justify-center text-ink text-sm font-bold font-display">
-              C
+              {getCurrentDisplayName(role).charAt(0)}
             </div>
           </div>
         </div>

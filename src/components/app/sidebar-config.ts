@@ -6,6 +6,10 @@ import {
   UserCog,
   ShieldCheck,
   Database,
+  User,        
+  Calendar,    
+  Trophy,      
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/lib/roles";
@@ -32,14 +36,49 @@ export type SidebarLinkItem = {
 
 export type SidebarItem = SidebarGroupItem | SidebarLinkItem;
 
-const ALL: Role[] = ["super-admin", "admin", "coach", "student"];
 const ADMIN_PLUS: Role[] = ["super-admin", "admin"];
 const SUPER: Role[] = ["super-admin"];
+const STUDENT_ONLY: Role[] = ["student"];
 
 // NOTE: children for Content/Student/Coach Management are placeholders.
 // Replace these arrays as we design each section.
 export const SIDEBAR_ITEMS: SidebarItem[] = [
-  { label: "Dashboard", icon: Home, href: "/app/dashboard", roles: ALL },
+  {
+    label: "Dashboard",
+    icon: Home,
+    href: "/app/dashboard",
+    roles: ["super-admin", "admin", "coach"],
+  },
+  {
+    label: "My Profile",
+    icon: User,
+    href: "/app/dashboard",
+    roles: STUDENT_ONLY,
+  },
+  {
+    label: "Class Schedule",
+    icon: Calendar,
+    roles: STUDENT_ONLY,
+    children: [
+      { label: "Schedule", href: "/app/me/schedule", roles: STUDENT_ONLY },
+      { label: "E-Book", href: "/app/me/ebook", roles: STUDENT_ONLY },
+    ],
+  },
+  {
+    label: "My Score",
+    icon: Trophy,
+    roles: STUDENT_ONLY,
+    children: [
+      { label: "Score", href: "/app/me/score", roles: STUDENT_ONLY },
+      { label: "Certificate", href: "/app/me/certificate", roles: STUDENT_ONLY },
+    ],
+  },
+  {
+    label: "Contact Us",
+    icon: MessageCircle,
+    href: "/app/me/contact",
+    roles: STUDENT_ONLY,
+  },
   {
     label: "Content Management",
     icon: FileText,
@@ -100,6 +139,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     children: [
       { label: "Program", href: "/app/master/program", roles: SUPER },
       { label: "Sub Program", href: "/app/master/sub-program", roles: SUPER },
+      { label: "E-Book", href: "/app/master/ebook", roles: SUPER },
       { label: "Grading Belt", href: "/app/master/grading-belt", roles: SUPER },
       { label: "Dojang", href: "/app/master/dojang", roles: SUPER },
       { label: "Product", href: "/app/master/product", roles: SUPER },
