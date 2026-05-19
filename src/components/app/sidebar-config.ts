@@ -39,6 +39,7 @@ export type SidebarItem = SidebarGroupItem | SidebarLinkItem;
 const ADMIN_PLUS: Role[] = ["super-admin", "admin"];
 const SUPER: Role[] = ["super-admin"];
 const STUDENT_ONLY: Role[] = ["student"];
+const COACH_ONLY: Role[] = ["coach"];
 
 // NOTE: children for Content/Student/Coach Management are placeholders.
 // Replace these arrays as we design each section.
@@ -47,7 +48,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Dashboard",
     icon: Home,
     href: "/app/dashboard",
-    roles: ["super-admin", "admin", "coach"],
+    roles: ["super-admin", "admin"],
   },
   {
     label: "My Profile",
@@ -80,6 +81,21 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     roles: STUDENT_ONLY,
   },
   {
+    label: "My Profile",
+    icon: User,
+    href: "/app/dashboard",
+    roles: COACH_ONLY,
+  },
+  {
+    label: "Class Schedule",
+    icon: Calendar,
+    roles: COACH_ONLY,
+    children: [
+      { label: "Schedule", href: "/app/coach-me/schedule", roles: COACH_ONLY },
+      { label: "Report", href: "/app/coach-me/report", roles: COACH_ONLY },
+    ],
+  },
+  {
     label: "Content Management",
     icon: FileText,
     roles: ADMIN_PLUS,
@@ -92,22 +108,22 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
   {
     label: "Student Management",
     icon: GraduationCap,
-    roles: ["super-admin", "admin", "coach"],
+    roles: ADMIN_PLUS,
     children: [
       {
         label: "Data",
         href: "/app/student/data",
-        roles: ["super-admin", "admin", "coach"],
+        roles: ADMIN_PLUS,
       },
       {
         label: "Attendance",
         href: "/app/student/attendance",
-        roles: ["super-admin", "admin", "coach"],
+        roles: ADMIN_PLUS,
       },
       {
         label: "Score",
         href: "/app/student/score",
-        roles: ["super-admin", "admin", "coach"],
+        roles: ADMIN_PLUS,
       },
     ],
   },

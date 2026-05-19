@@ -4,6 +4,7 @@
 import { useRole } from "@/lib/role-context";
 import StudentDashboard from "./StudentDashboard";
 import PageHeader from "@/components/app/PageHeader";
+import CoachDashboard from "./CoachDashboard";
 
 export default function DashboardRouter() {
   const { role } = useRole();
@@ -12,7 +13,11 @@ export default function DashboardRouter() {
     return <StudentDashboard />;
   }
 
-  // Admin / super-admin / coach — placeholder until client provides specs.
+  if (role === "coach") {
+    return <CoachDashboard />;
+  }
+
+  // Admin / super-admin — placeholder until client provides specs.
   return (
     <>
       <PageHeader
