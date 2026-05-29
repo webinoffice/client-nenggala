@@ -1,37 +1,17 @@
-import Link from "next/link";
-import Image from "next/image";
-
-const COLUMNS = [
-  {
-    title: "Our Academy",
-    links: [
-      { label: "About Us", href: "/about" },
-      { label: "Product", href: "/product" },
-      { label: "Event", href: "/event" },
-    ],
-  },
-  {
-    title: "Our Program",
-    links: [
-      { label: "Taekwondo", href: "/program/taekwondo" },
-      { label: "Nunchaku-Do", href: "/program/nunchaku" },
-      { label: "Gymnastic", href: "/program/gymnastic" },
-    ],
-  },
-];
-
 const CONTACTS = ["0876 1234 5678", "0815 1234 5678"];
+
 const SOCIALS = [
   { handle: "@nenggalaacademy", href: "#" },
   { handle: "@nenggalakedoya", href: "#" },
   { handle: "@nenggalameruya", href: "#" },
 ];
 
-const PARTNERS = [
-  { name: "Adidas", src: "/images/partner-adidas.png" },
-  { name: "Partner 2", src: "/images/partner-2.png" },
-  { name: "Partner 3", src: "/images/partner-3.png" },
-];
+// --- Placeholder — replace with your real headquarters address ---
+const ADDRESS = {
+  line1: "Jl. Panjang No. 1",
+  line2: "Kedoya Utara, Kebon Jeruk",
+  line3: "Jakarta Barat 11520",
+};
 
 function InstagramIcon({ size = 14 }: { size?: number }) {
   return (
@@ -58,8 +38,8 @@ export default function Footer() {
   return (
     <footer className="bg-ink text-paper">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-12 md:px-8">
-        {/* Brand + Partners */}
-        <div className="md:col-span-4">
+        {/* Brand */}
+        <div className="md:col-span-3">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-brand font-display text-2xl font-bold">
               N
@@ -73,53 +53,24 @@ export default function Footer() {
               </p>
             </div>
           </div>
-
-          <div className="mt-8">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Great Partners
-            </p>
-            <div className="mt-3 flex items-center gap-4">
-              {PARTNERS.map((p) => (
-                <div
-                  key={p.name}
-                  className="relative h-10 w-20 overflow-hidden rounded-sm bg-paper/5"
-                >
-                  <Image
-                    src={p.src}
-                    alt={p.name}
-                    fill
-                    className="object-contain p-1"
-                    sizes="80px"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
-        {/* Link columns */}
-        {COLUMNS.map((col) => (
-          <div key={col.title} className="md:col-span-2">
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-brand">
-              {col.title}
-            </p>
-            <ul className="space-y-2">
-              {col.links.map((l) => (
-                <li key={l.href}>
-                  <Link
-                    href={l.href}
-                    className="text-sm text-paper/80 transition-colors hover:text-brand"
-                  >
-                    {l.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {/* Address */}
+        <div className="md:col-span-3">
+          <p className="mb-4 text-xs font-bold uppercase tracking-widest text-brand">
+            Address
+          </p>
+          <address className="text-sm not-italic leading-relaxed text-paper/80">
+            {ADDRESS.line1}
+            <br />
+            {ADDRESS.line2}
+            <br />
+            {ADDRESS.line3}
+          </address>
+        </div>
 
         {/* Contact */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-3">
           <p className="mb-4 text-xs font-bold uppercase tracking-widest text-brand">
             Contact
           </p>
@@ -133,7 +84,7 @@ export default function Footer() {
         </div>
 
         {/* Social */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-3">
           <p className="mb-4 text-xs font-bold uppercase tracking-widest text-brand">
             Social Media
           </p>

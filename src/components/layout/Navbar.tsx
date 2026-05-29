@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
+  { label: "Program", href: "/program" },
+  { label: "Event", href: "/event" },
+  { label: "Gallery", href: "/gallery" },
   { label: "Product", href: "/product" },
   { label: "About Us", href: "/about-us" },
-  { label: "Gallery", href: "/gallery" },
-  { label: "Event", href: "/event" },
-  { label: "Program", href: "/program" },
 ];
 
 export default function Navbar() {

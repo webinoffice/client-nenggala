@@ -4,6 +4,8 @@ import Locations from "@/components/sections/Locations";
 import Activity from "@/components/sections/Activity";
 import Mindset from "@/components/sections/Mindset";
 import EventBanner from "@/components/sections/EventBanner";
+import ImageCarousel from "@/components/sections/ImageCarousel";
+import Partner from "@/components/sections/Partner";
 
 export default function HomePage() {
   return (
@@ -11,7 +13,8 @@ export default function HomePage() {
       <Hero />
       <Champion />
       <Locations />
-      <Activity />
+      <ImageCarousel title="Our Activity" />
+      <Partner />
       <Mindset />
       <EventBanner />
     </>

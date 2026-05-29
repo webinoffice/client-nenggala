@@ -2,6 +2,8 @@ import Hero from "@/components/sections/Hero";
 import OurProfile from "@/components/sections/OurProfile";
 import Founder from "@/components/sections/Founder";
 import CoachList from "@/components/sections/CoachList";
+import ImageCarousel from "@/components/sections/ImageCarousel";
+import Facility from "@/components/sections/Facility";
 
 const HEAD_COACH = {
   id: "hc-1",
@@ -102,6 +104,8 @@ export default function AboutUsPage() {
         featured={HEAD_ASSISTANT}
         others={ASSISTANT_COACHES}
       />
+      <ImageCarousel title="Our Activity" />
+      <Facility />
     </>
   );
 }

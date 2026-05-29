@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Single source of truth — same endpoint will serve both /gallery and /program/taekwondo
@@ -13,22 +13,86 @@ const GALLERY_IMAGES = [
   { id: "g5", src: "/images/story-5.jpg", alt: "Acara Hanmadang" },
 ];
 
+const GAP = 24; // px — matches Tailwind gap-6 (1.5rem)
+const DRAG_THRESHOLD = 60; // px the user must drag before the slide commits
+
+function getPerView(width: number): number {
+  if (width < 768) return 1; // mobile
+  if (width < 1024) return 2; // tablet
+  return 3; // desktop
+}
+
 interface ImageCarouselProps {
   title: string;
 }
 
 export default function ImageCarousel({ title }: ImageCarouselProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const [perView, setPerView] = useState(3);
+  const [index, setIndex] = useState(0);
 
-  const scrollByAmount = (dir: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const amount = el.clientWidth * 0.7;
-    el.scrollBy({
-      left: dir === "left" ? -amount : amount,
-      behavior: "smooth",
-    });
+  // drag state
+  const dragState = useRef<{ active: boolean; startX: number }>({
+    active: false,
+    startX: 0,
+  });
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const maxIndex = Math.max(0, GALLERY_IMAGES.length - perView);
+  const cardWidth =
+    viewportWidth > 0 ? (viewportWidth - GAP * (perView - 1)) / perView : 0;
+
+  // Measure viewport + decide how many cards fit, re-run on resize.
+  useEffect(() => {
+    const update = () => {
+      const el = viewportRef.current;
+      if (!el) return;
+      setViewportWidth(el.offsetWidth);
+      setPerView(getPerView(window.innerWidth));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Keep the active index valid when perView changes.
+  useEffect(() => {
+    setIndex((i) => Math.min(i, Math.max(0, GALLERY_IMAGES.length - perView)));
+  }, [perView]);
+
+  const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const goNext = useCallback(
+    () => setIndex((i) => Math.min(maxIndex, i + 1)),
+    [maxIndex],
+  );
+
+  // --- Pointer / touch drag handlers ---
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragState.current = { active: true, startX: e.clientX };
+    setIsDragging(true);
   };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState.current.active) return;
+    setDragOffset(e.clientX - dragState.current.startX);
+  };
+
+  const endDrag = () => {
+    if (!dragState.current.active) return;
+    const offset = dragOffset;
+    dragState.current.active = false;
+    setIsDragging(false);
+    setDragOffset(0);
+    if (offset <= -DRAG_THRESHOLD) goNext();
+    else if (offset >= DRAG_THRESHOLD) goPrev();
+  };
+
+  const atStart = index === 0;
+  const atEnd = index >= maxIndex;
+
+  const translateX = -(index * (cardWidth + GAP)) + dragOffset;
 
   return (
     <section className="bg-neutral-200 py-16 md:py-20">
@@ -37,45 +101,96 @@ export default function ImageCarousel({ title }: ImageCarouselProps) {
           {title}
         </h2>
 
-        <div className="relative mt-10">
+        {/* Carousel */}
+        <div className="mt-10">
           <div
-            ref={scrollRef}
-            className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4"
+            ref={viewportRef}
+            // -my-2 / py-2 lets the cards' shadows breathe vertically
+            // while the horizontal overflow stays clipped.
+            className="-my-2 overflow-hidden py-2"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerLeave={endDrag}
+            onPointerCancel={endDrag}
+            style={{
+              touchAction: "pan-y",
+              cursor: isDragging ? "grabbing" : "grab",
+            }}
           >
-            {GALLERY_IMAGES.map((img) => (
-              <article
-                key={img.id}
-                className="w-[75%] flex-shrink-0 snap-center sm:w-[45%] md:w-[calc(25%-0.75rem)]"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden rounded-sm bg-ink shadow-sm">
-                  <Image
-                    src={img.src}
-                    alt={img.alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 75vw, 25vw"
-                  />
-                </div>
-              </article>
-            ))}
+            <div
+              className="flex"
+              style={{
+                gap: `${GAP}px`,
+                transform: `translateX(${translateX}px)`,
+                transition: isDragging
+                  ? "none"
+                  : "transform 500ms cubic-bezier(0.22, 1, 0.36, 1)",
+              }}
+            >
+              {GALLERY_IMAGES.map((img) => (
+                <article
+                  key={img.id}
+                  className="shrink-0"
+                  style={{
+                    width:
+                      cardWidth > 0 ? `${cardWidth}px` : `${100 / perView}%`,
+                  }}
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-sm bg-ink shadow-sm">
+                    <Image
+                      src={img.src}
+                      alt={img.alt}
+                      fill
+                      draggable={false}
+                      className="select-none object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => scrollByAmount("left")}
-            className="absolute left-0 top-1/2 hidden -translate-y-1/2 -translate-x-3 items-center justify-center rounded-full bg-paper p-2 shadow-md transition-colors hover:bg-paper-soft md:flex"
-            aria-label="Previous"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollByAmount("right")}
-            className="absolute right-0 top-1/2 hidden -translate-y-1/2 translate-x-3 items-center justify-center rounded-full bg-paper p-2 shadow-md transition-colors hover:bg-paper-soft md:flex"
-            aria-label="Next"
-          >
-            <ChevronRight size={20} />
-          </button>
+          {/* Controls: prev arrow — dots — next arrow */}
+          <div className="mt-10 flex items-center justify-center gap-6">
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={atStart}
+              aria-label="Previous"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/20 text-ink transition-colors duration-300 hover:border-ink hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink"
+            >
+              <ChevronLeft size={18} strokeWidth={2.5} />
+            </button>
+
+            <div className="flex items-center gap-2">
+              {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setIndex(i)}
+                  aria-label={`Go to slide ${i + 1}`}
+                  aria-current={i === index}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    i === index
+                      ? "w-8 bg-ink"
+                      : "w-1.5 bg-ink/25 hover:bg-ink/50"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={atEnd}
+              aria-label="Next"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/20 text-ink transition-colors duration-300 hover:border-ink hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink"
+            >
+              <ChevronRight size={18} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       </div>
     </section>
