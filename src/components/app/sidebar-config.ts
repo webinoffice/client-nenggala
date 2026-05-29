@@ -48,7 +48,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Dashboard",
     icon: Home,
     href: "/app/dashboard",
-    roles: ["super-admin", "admin"],
+    roles: SUPER,
   },
   {
     label: "My Profile",
@@ -98,7 +98,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
   {
     label: "Content Management",
     icon: FileText,
-    roles: ADMIN_PLUS,
+    roles: SUPER,
     children: [
       { label: "Homepage", href: "/app/content/homepage", roles: ADMIN_PLUS },
       { label: "About", href: "/app/content/about", roles: ADMIN_PLUS },
@@ -151,7 +151,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
   {
     label: "Master Management",
     icon: Database,
-    roles: SUPER,
+    roles: ADMIN_PLUS,
     children: [
       { label: "Program", href: "/app/master/program", roles: SUPER },
       { label: "Sub Program", href: "/app/master/sub-program", roles: SUPER },
@@ -163,7 +163,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
       {
         label: "Schedule Period",
         href: "/app/master/schedule-period",
-        roles: SUPER,
+        roles: ADMIN_PLUS,
       },
     ],
   },

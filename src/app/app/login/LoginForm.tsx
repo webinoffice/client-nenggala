@@ -50,12 +50,6 @@ export default function LoginForm() {
             >
               Password
             </label>
-            <Link
-              href="#"
-              className="text-xs font-semibold text-brand transition-colors hover:text-brand-hover"
-            >
-              Lupa Password?
-            </Link>
           </div>
           <input
             id="password"
