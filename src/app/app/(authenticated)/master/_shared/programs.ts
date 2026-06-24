@@ -4,13 +4,14 @@ export type ProgramStatus = "Active" | "Inactive";
 export type Program = {
   id: string;
   programName: string;
+  isMain?: boolean; // the main program (Taekwondo) — cannot be disabled
   status: ProgramStatus;
   updatedBy: string;
   updateDate: string;
 };
 
 export const INITIAL_PROGRAMS: Program[] = [
-  { id: "TKD", programName: "Taekwondo", status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
+  { id: "TKD", programName: "Taekwondo", isMain: true, status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
   { id: "TGD", programName: "Tang Soo Do", status: "Active", updatedBy: "Andre", updateDate: "2025-12-15T10:00:00" },
   { id: "HKD", programName: "Hapkido", status: "Active", updatedBy: "Carolina", updateDate: "2025-11-20T14:00:00" },
   { id: "KRT", programName: "Karate", status: "Active", updatedBy: "Andre", updateDate: "2025-10-15T09:30:00" },

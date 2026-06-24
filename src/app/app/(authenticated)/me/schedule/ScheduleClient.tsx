@@ -108,7 +108,6 @@ export default function ScheduleClient() {
                 <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                   <th className="text-left px-4 py-3.5">Day / Week</th>
                   <th className="text-left px-4 py-3.5">Class</th>
-                  <th className="text-left px-4 py-3.5">Type</th>
                   <th className="text-left px-4 py-3.5">Coach</th>
                   <th className="text-left px-4 py-3.5">Start Time</th>
                   <th className="text-left px-4 py-3.5">End Time</th>
@@ -118,7 +117,7 @@ export default function ScheduleClient() {
                 {mySchedules.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                     >
                       No classes enrolled this period
@@ -127,7 +126,6 @@ export default function ScheduleClient() {
                 ) : (
                   mySchedules.map((s) => {
                     const program = getProgramById(s.programId);
-                    const subProgram = getSubProgramById(s.subProgramId);
                     const coach = coachByUsername.get(s.primaryCoachUsername);
                     return (
                       <tr
@@ -139,9 +137,6 @@ export default function ScheduleClient() {
                         </td>
                         <td className="px-4 py-3 text-ink">
                           {program?.name ?? s.programId}
-                        </td>
-                        <td className="px-4 py-3 text-ink/70">
-                          {subProgram?.name ?? s.subProgramId}
                         </td>
                         <td className="px-4 py-3 text-ink/70">
                           {coach?.namaLengkap ?? s.primaryCoachUsername}

@@ -32,15 +32,13 @@ export default function MasterProgramClient() {
 
   const [programs, setPrograms] = useState<Program[]>(INITIAL_PROGRAMS);
 
-  const [idInput, setIdInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [statusInput, setStatusInput] = useState<StatusFilter>("All");
 
   const [applied, setApplied] = useState<{
-    id: string;
     name: string;
     status: StatusFilter;
-  }>({ id: "", name: "", status: "All" });
+  }>({ name: "", status: "All" });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Program | null>(null);
@@ -52,15 +50,12 @@ export default function MasterProgramClient() {
 
   const filtered = useMemo(() => {
     return programs.filter((p) => {
-      const matchId =
-        applied.id === "" ||
-        p.id.toLowerCase().includes(applied.id.toLowerCase().trim());
       const matchName =
         applied.name === "" ||
         p.programName.toLowerCase().includes(applied.name.toLowerCase());
       const matchStatus =
         applied.status === "All" || p.status === applied.status;
-      return matchId && matchName && matchStatus;
+      return matchName && matchStatus;
     });
   }, [programs, applied]);
 
@@ -74,19 +69,17 @@ export default function MasterProgramClient() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, safePage, pageSize]);
 
-  const hasFilter =
-    applied.id !== "" || applied.name !== "" || applied.status !== "All";
+  const hasFilter = applied.name !== "" || applied.status !== "All";
 
   const handleSearch = () => {
-    setApplied({ id: idInput, name: nameInput, status: statusInput });
+    setApplied({ name: nameInput, status: statusInput });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
-    setIdInput("");
     setNameInput("");
     setStatusInput("All");
-    setApplied({ id: "", name: "", status: "All" });
+    setApplied({ name: "", status: "All" });
     setCurrentPage(1);
   };
 
@@ -118,7 +111,7 @@ export default function MasterProgramClient() {
     } else {
       setPrograms((prev) => [
         {
-          id: values.id,
+          id: `PRG-${Date.now()}`, // auto-generated; real id comes from backend
           programName: values.programName,
           status: "Active",
           updatedBy: currentUserName,
@@ -162,10 +155,10 @@ export default function MasterProgramClient() {
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <Input
-            label="ID"
-            value={idInput}
-            onChange={(e) => setIdInput(e.target.value)}
-            placeholder="e.g. TKD"
+            label="Name"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="e.g. Taekwondo"
           />
           <Select
             label="Status"
@@ -176,12 +169,6 @@ export default function MasterProgramClient() {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </Select>
-          <Input
-            label="Name"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="e.g. Taekwondo"
-          />
         </div>
         <div className="flex items-center justify-end gap-2 mt-6">
           {hasFilter && (
@@ -201,7 +188,6 @@ export default function MasterProgramClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">ID</th>
                 <th className="text-left px-4 py-3.5">Program Name</th>
                 <th className="text-left px-4 py-3.5">Status</th>
                 <th className="text-left px-4 py-3.5">Updated By</th>
@@ -213,7 +199,7 @@ export default function MasterProgramClient() {
               {paginatedPrograms.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No programs found
@@ -227,8 +213,16 @@ export default function MasterProgramClient() {
                       key={p.id}
                       className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-ink font-medium">{p.id}</td>
-                      <td className="px-4 py-3 text-ink">{p.programName}</td>
+                      <td className="px-4 py-3 text-ink">
+                        <span className="inline-flex items-center gap-2">
+                          {p.programName}
+                          {p.isMain && (
+                            <span className="text-[9px] font-bold uppercase tracking-widest bg-accent text-accent-foreground px-1.5 py-0.5 rounded-sm">
+                              Main
+                            </span>
+                          )}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
                           <span
@@ -258,17 +252,19 @@ export default function MasterProgramClient() {
                           >
                             Update
                           </button>
-                          <button
-                            onClick={() => setConfirming(p)}
-                            className={cn(
-                              "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
-                              isActive
-                                ? "bg-brand text-brand-foreground hover:bg-brand-hover"
-                                : "bg-ink text-paper hover:bg-ink-soft",
-                            )}
-                          >
-                            {isActive ? "Disable" : "Enable"}
-                          </button>
+                          {!p.isMain && (
+                            <button
+                              onClick={() => setConfirming(p)}
+                              className={cn(
+                                "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
+                                isActive
+                                  ? "bg-brand text-brand-foreground hover:bg-brand-hover"
+                                  : "bg-ink text-paper hover:bg-ink-soft",
+                              )}
+                            >
+                              {isActive ? "Disable" : "Enable"}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -299,7 +295,6 @@ export default function MasterProgramClient() {
           setEditing(null);
         }}
         initial={editing}
-        existingIds={programs.map((p) => p.id)}
         onSubmit={handleSubmit}
       />
 

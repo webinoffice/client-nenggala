@@ -161,26 +161,29 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
   },
 ];
 
-// Aggregate by coach × program × period × dojang (with optional month filter)
+// A coach is not bound to a single dojang, so we aggregate by
+// coach × program × period and keep the dojang per individual session.
+export type AttendanceSession = {
+  date: string; // YYYY-MM-DD
+  dojang: string;
+};
+
 export type AggregatedAttendance = {
   coachUsername: string;
   programId: string;
-  dojang: string;
   periodId: string;
   count: number;
-  dates: string[];
+  sessions: AttendanceSession[];
 };
 
 export function aggregateAttendance(opts: {
   monthFilter?: string; // YYYY-MM
-  dojangFilter?: string;
   periodFilter?: string;
   coachUsernameFilter?: string;
   nameMatcher?: (coachUsername: string) => boolean;
 }): AggregatedAttendance[] {
   const filtered = COACH_ATTENDANCE.filter((r) => {
     if (opts.monthFilter && !r.date.startsWith(opts.monthFilter)) return false;
-    if (opts.dojangFilter && r.dojang !== opts.dojangFilter) return false;
     if (opts.periodFilter && r.periodId !== opts.periodFilter) return false;
     if (
       opts.coachUsernameFilter &&
@@ -192,19 +195,18 @@ export function aggregateAttendance(opts: {
   });
   const map = new Map<string, AggregatedAttendance>();
   for (const r of filtered) {
-    const key = `${r.coachUsername}|${r.programId}|${r.dojang}|${r.periodId}`;
+    const key = `${r.coachUsername}|${r.programId}|${r.periodId}`;
     const existing = map.get(key);
     if (existing) {
       existing.count += 1;
-      existing.dates.push(r.date);
+      existing.sessions.push({ date: r.date, dojang: r.dojang });
     } else {
       map.set(key, {
         coachUsername: r.coachUsername,
         programId: r.programId,
-        dojang: r.dojang,
         periodId: r.periodId,
         count: 1,
-        dates: [r.date],
+        sessions: [{ date: r.date, dojang: r.dojang }],
       });
     }
   }

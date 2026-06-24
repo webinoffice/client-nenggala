@@ -222,7 +222,7 @@ export default function ScheduleListClient() {
                   Type
                 </th>
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                  Student List
+                  Member List
                 </th>
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
                   Start Time
@@ -359,14 +359,69 @@ export default function ScheduleListClient() {
       >
         {viewing && (
           <div className="space-y-4">
+            {/* Coaches */}
+            <div>
+              <div className="text-xs text-muted uppercase tracking-widest font-bold mb-2">
+                Coaches
+              </div>
+              <div className="border border-ink/10 rounded-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
+                    <tr>
+                      <th className="text-left px-3 py-2">No. Reg</th>
+                      <th className="text-left px-3 py-2">Nama</th>
+                      <th className="text-left px-3 py-2">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-ink/5">
+                      <td className="px-3 py-2 font-medium text-ink">
+                        {viewing.primaryCoachUsername}
+                      </td>
+                      <td className="px-3 py-2 text-ink">
+                        {coachByUsername.get(viewing.primaryCoachUsername)
+                          ?.namaLengkap ?? viewing.primaryCoachUsername}
+                      </td>
+                      <td className="px-3 py-2 text-ink/70">Primary Coach</td>
+                    </tr>
+                    {viewing.secondaryCoachUsernames.map((u) => (
+                      <tr key={u} className="border-t border-ink/5">
+                        <td className="px-3 py-2 font-medium text-ink">{u}</td>
+                        <td className="px-3 py-2 text-ink">
+                          {coachByUsername.get(u)?.namaLengkap ?? u}
+                        </td>
+                        <td className="px-3 py-2 text-ink/70">Coach</td>
+                      </tr>
+                    ))}
+                    {viewing.assistantUsernames.map((u) => (
+                      <tr key={u} className="border-t border-ink/5">
+                        <td className="px-3 py-2 font-medium text-ink">{u}</td>
+                        <td className="px-3 py-2 text-ink">
+                          {coachByUsername.get(u)?.namaLengkap ??
+                            studentByUsername.get(u)?.namaLengkap ??
+                            u}
+                        </td>
+                        <td className="px-3 py-2 text-ink/70">
+                          {coachByUsername.has(u)
+                            ? "Assistant (Coach)"
+                            : "Assistant (Student)"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Members */}
             <div className="text-xs text-muted uppercase tracking-widest font-bold">
-              {viewing.studentUsernames.length} students enrolled
+              {viewing.studentUsernames.length} members enrolled
             </div>
             <div className="border border-ink/10 rounded-sm overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                   <tr>
-                    <th className="text-left px-3 py-2">No</th>
+                    <th className="text-left px-3 py-2">No. Reg</th>
                     <th className="text-left px-3 py-2">Nama</th>
                     <th className="text-left px-3 py-2">Dojang</th>
                     <th className="text-left px-3 py-2">Sabuk</th>

@@ -41,10 +41,10 @@ export default function SubmitAttendanceModal({
   studentByUsername,
 }: Props) {
   const [date, setDate] = useState(today());
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  // Coach's own attendance — the only toggle; members are always present.
+  const [coachPresent, setCoachPresent] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
-  // Check if attendance for this schedule+date already exists
   const existing = useMemo(
     () => (schedule ? getSessionAttendanceFor(schedule.id, date) : null),
     [schedule, date],
@@ -56,7 +56,7 @@ export default function SubmitAttendanceModal({
   if (scheduleId !== lastScheduleId) {
     setLastScheduleId(scheduleId);
     setDate(today());
-    setChecked(new Set());
+    setCoachPresent(true);
     setSubmitted(false);
   }
 
@@ -72,28 +72,11 @@ export default function SubmitAttendanceModal({
   const subProgram = getSubProgramById(schedule.subProgramId);
 
   const isReadOnly = existing !== null && !submitted;
-  const displayedChecked = isReadOnly
-    ? new Set(existing!.attendingStudentUsernames)
-    : checked;
-
-  const toggle = (u: string) => {
-    if (isReadOnly) return;
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(u)) next.delete(u);
-      else next.add(u);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    if (isReadOnly) return;
-    if (checked.size === schedule.studentUsernames.length) {
-      setChecked(new Set());
-    } else {
-      setChecked(new Set(schedule.studentUsernames));
-    }
-  };
+  // Members are always counted present; submission can't uncheck them.
+  const presentStudents = isReadOnly
+    ? existing!.attendingStudentUsernames
+    : schedule.studentUsernames;
+  const coachAttended = isReadOnly ? existing!.coachAttended ?? false : coachPresent;
 
   const handleSubmit = () => {
     submitSessionAttendance({
@@ -101,7 +84,8 @@ export default function SubmitAttendanceModal({
       scheduleId: schedule.id,
       date,
       coachUsername,
-      attendingStudentUsernames: Array.from(checked),
+      coachAttended: coachPresent,
+      attendingStudentUsernames: [...schedule.studentUsernames],
       submittedBy: coachDisplayName,
       submitDate: new Date().toISOString(),
     });
@@ -140,7 +124,8 @@ export default function SubmitAttendanceModal({
               Cancel
             </Button>
             <Button variant="primary" size="sm" onClick={handleSubmit}>
-              Submit ({checked.size}/{schedule.studentUsernames.length})
+              Submit ({schedule.studentUsernames.length}/
+              {schedule.studentUsernames.length})
             </Button>
           </>
         )
@@ -155,8 +140,8 @@ export default function SubmitAttendanceModal({
             Attendance saved for {date}.
           </p>
           <p className="text-xs text-muted mt-1">
-            {checked.size} of {schedule.studentUsernames.length} students marked
-            present.
+            All {schedule.studentUsernames.length} members marked present
+            {coachPresent ? " · coach attended" : ""}.
           </p>
         </div>
       ) : (
@@ -202,48 +187,62 @@ export default function SubmitAttendanceModal({
             </div>
           )}
 
+          {/* Coach's own attendance */}
+          <label
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-sm border transition-colors",
+              coachAttended
+                ? "border-emerald-500/40 bg-emerald-500/5"
+                : "border-ink/10",
+              !isReadOnly && "cursor-pointer hover:bg-paper-soft",
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={coachAttended}
+              onChange={(e) => setCoachPresent(e.target.checked)}
+              disabled={isReadOnly}
+              className="h-4 w-4 accent-emerald-600 cursor-pointer disabled:cursor-default"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-ink font-medium">
+                {coachDisplayName}
+              </div>
+              <div className="text-[11px] text-muted">
+                Coach attendance · {coachUsername}
+              </div>
+            </div>
+          </label>
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-display text-[11px] font-bold uppercase tracking-widest text-ink">
-                Students ({displayedChecked.size}/
+                Members ({presentStudents.length}/
                 {schedule.studentUsernames.length} present)
               </h3>
-              {!isReadOnly && (
-                <button
-                  onClick={toggleAll}
-                  className="text-[10px] font-bold uppercase tracking-widest text-brand hover:text-brand-hover transition"
-                >
-                  {checked.size === schedule.studentUsernames.length
-                    ? "Uncheck All"
-                    : "Check All"}
-                </button>
-              )}
+              <span className="text-[10px] uppercase tracking-widest text-muted font-bold">
+                All present
+              </span>
             </div>
 
             <div className="border border-ink/10 rounded-sm overflow-hidden divide-y divide-ink/5 max-h-[360px] overflow-y-auto">
               {schedule.studentUsernames.length === 0 ? (
                 <div className="text-center py-8 text-muted uppercase tracking-widest text-xs font-bold">
-                  No students enrolled
+                  No members enrolled
                 </div>
               ) : (
                 schedule.studentUsernames.map((u) => {
                   const s = studentByUsername.get(u);
-                  const isChecked = displayedChecked.has(u);
                   return (
                     <label
                       key={u}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 transition-colors",
-                        !isReadOnly && "hover:bg-paper-soft cursor-pointer",
-                        isChecked && "bg-emerald-500/5",
-                      )}
+                      className="flex items-center gap-3 px-3 py-2.5 bg-emerald-500/5"
                     >
                       <input
                         type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggle(u)}
-                        disabled={isReadOnly}
-                        className="h-4 w-4 accent-emerald-600 cursor-pointer disabled:cursor-default"
+                        checked
+                        disabled
+                        className="h-4 w-4 accent-emerald-600 cursor-default"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-ink font-medium">

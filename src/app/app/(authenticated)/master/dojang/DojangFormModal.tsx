@@ -9,6 +9,7 @@ import type { Dojang } from "./MasterDojangClient";
 
 export type DojangFormValues = {
   dojangName: string;
+  image: string;
 };
 
 interface DojangFormModalProps {
@@ -53,6 +54,7 @@ function DojangFormBody({
   onSubmit: (values: DojangFormValues) => void;
 }) {
   const [dojangName, setDojangName] = useState(initial?.dojangName ?? "");
+  const [image, setImage] = useState(initial?.image ?? "");
   const [errors, setErrors] = useState<{ dojangName?: string }>({});
 
   const isEditing = initial !== null;
@@ -64,21 +66,24 @@ function DojangFormBody({
       setErrors(next);
       return;
     }
-    onSubmit({ dojangName: dojangName.trim() });
+    onSubmit({ dojangName: dojangName.trim(), image: image.trim() });
   };
 
   return (
     <>
       <div className="space-y-4">
-        {isEditing && (
-          <Input label="ID" value={String(initial!.id)} disabled readOnly />
-        )}
         <Input
           label="Dojang Name"
           placeholder="e.g. Kedoya Sport Club"
           value={dojangName}
           onChange={(e) => setDojangName(e.target.value)}
           error={errors.dojangName}
+        />
+        <Input
+          label="Image"
+          placeholder="e.g. /images/location-kedoya.jpg"
+          value={image}
+          onChange={(e) => setImage(e.target.value)}
         />
       </div>
       <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-ink/10">

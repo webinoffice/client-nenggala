@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function LoginForm() {
-  const [username, setUsername] = useState("");
+  const [noReg, setNoReg] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Phase 2: call auth API here
-    console.log("Login attempt:", { username, password });
+    console.log("Login attempt:", { noReg, password });
   };
 
   return (
@@ -25,19 +25,19 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         <div>
           <label
-            htmlFor="username"
+            htmlFor="noReg"
             className="block text-xs font-bold uppercase tracking-widest text-ink"
           >
-            Username
+            No. Reg
           </label>
           <input
-            id="username"
+            id="noReg"
             type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={noReg}
+            onChange={(e) => setNoReg(e.target.value)}
             required
             autoComplete="username"
-            placeholder="Masukkan username"
+            placeholder="Masukkan no. registrasi"
             className="mt-2 block w-full rounded-sm border border-ink/20 bg-paper px-4 py-3 text-sm outline-none transition-colors placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>

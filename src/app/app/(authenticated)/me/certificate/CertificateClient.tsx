@@ -2,12 +2,13 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Maximize2, X } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import {
-  CERTIFICATIONS,
+  getCertifications,
+  subscribeCertifications,
   formatCertDate,
   type Certification,
 } from "@/lib/certifications";
@@ -15,10 +16,20 @@ import {
 export default function CertificateClient() {
   const { role } = useRole();
   const username = getCurrentUsername(role);
+  const recipientType = role === "coach" ? "coach" : "student";
 
-  const myCertifications = CERTIFICATIONS.filter(
-    (c) => c.studentUsername === username,
-  ).sort((a, b) => b.date.localeCompare(a.date));
+  const certifications = useSyncExternalStore(
+    subscribeCertifications,
+    getCertifications,
+    getCertifications,
+  );
+
+  const myCertifications = certifications
+    .filter(
+      (c) =>
+        c.recipientType === recipientType && c.recipientUsername === username,
+    )
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   const [lightbox, setLightbox] = useState<Certification | null>(null);
 

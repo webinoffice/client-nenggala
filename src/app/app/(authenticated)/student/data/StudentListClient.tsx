@@ -157,7 +157,7 @@ export default function StudentListClient() {
             ))}
           </Select>
           <Input
-            label="No"
+            label="No. Reg"
             value={noInput}
             onChange={(e) => setNoInput(e.target.value)}
             placeholder="e.g. U0006"
@@ -185,7 +185,7 @@ export default function StudentListClient() {
                   Action
                 </th>
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                  Username
+                  No. Reg
                 </th>
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
                   Nama Lengkap

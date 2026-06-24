@@ -13,11 +13,11 @@ function fmtDate(iso: string) {
 }
 
 export default function EbookClient() {
-  // Active e-books only, sorted by sabuk then volume
+  // Active e-books only, sorted by sabuk then title
   const [ebooks] = useState(() =>
     INITIAL_EBOOKS.filter((e) => e.status === "Active").sort((a, b) => {
       if (a.sabuk !== b.sabuk) return a.sabuk.localeCompare(b.sabuk);
-      return a.volume.localeCompare(b.volume);
+      return a.title.localeCompare(b.title);
     }),
   );
 
@@ -41,7 +41,6 @@ export default function EbookClient() {
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                 <th className="text-left px-4 py-3.5 w-16">No</th>
                 <th className="text-left px-4 py-3.5">Sabuk</th>
-                <th className="text-left px-4 py-3.5 w-20">Vol</th>
                 <th className="text-left px-4 py-3.5">Title</th>
                 <th className="text-left px-4 py-3.5">Update Date</th>
                 <th className="text-right px-4 py-3.5">Download</th>
@@ -51,7 +50,7 @@ export default function EbookClient() {
               {ebooks.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No e-books available
@@ -65,7 +64,6 @@ export default function EbookClient() {
                   >
                     <td className="px-4 py-3 text-ink font-medium">{i + 1}</td>
                     <td className="px-4 py-3 text-ink">{e.sabuk}</td>
-                    <td className="px-4 py-3 text-ink/70">{e.volume}</td>
                     <td className="px-4 py-3 text-ink">{e.title}</td>
                     <td className="px-4 py-3 text-ink/70 text-xs">
                       {fmtDate(e.updateDate)}

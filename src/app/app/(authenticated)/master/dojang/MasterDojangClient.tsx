@@ -2,11 +2,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
@@ -17,6 +19,7 @@ export type DojangStatus = "Active" | "Inactive";
 export type Dojang = {
   id: number;
   dojangName: string;
+  image?: string;
   status: DojangStatus;
   updatedBy: string;
   updateDate: string;
@@ -26,6 +29,7 @@ const INITIAL_DOJANGS: Dojang[] = [
   {
     id: 1,
     dojangName: "Kedoya Sport Club",
+    image: "/images/location-kedoya.jpg",
     status: "Active",
     updatedBy: "Carolina",
     updateDate: "2025-12-28T19:41:32",
@@ -33,6 +37,7 @@ const INITIAL_DOJANGS: Dojang[] = [
   {
     id: 2,
     dojangName: "Bintaro Dojang",
+    image: "/images/location-meruya.jpg",
     status: "Active",
     updatedBy: "Carolina",
     updateDate: "2025-12-20T10:00:00",
@@ -40,6 +45,7 @@ const INITIAL_DOJANGS: Dojang[] = [
   {
     id: 3,
     dojangName: "Pondok Indah Center",
+    image: "/images/location-tajur.jpg",
     status: "Active",
     updatedBy: "Andre",
     updateDate: "2025-12-15T14:22:00",
@@ -96,19 +102,18 @@ export default function MasterDojangClient() {
 
   const [dojangs, setDojangs] = useState<Dojang[]>(INITIAL_DOJANGS);
 
-  const [idInput, setIdInput] = useState("");
   const [dojangInput, setDojangInput] = useState("");
   const [statusInput, setStatusInput] = useState<StatusFilter>("All");
 
   const [applied, setApplied] = useState<{
-    id: string;
     dojang: string;
     status: StatusFilter;
-  }>({ id: "", dojang: "", status: "All" });
+  }>({ dojang: "", status: "All" });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Dojang | null>(null);
   const [confirming, setConfirming] = useState<Dojang | null>(null);
+  const [viewing, setViewing] = useState<Dojang | null>(null);
 
   // pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,13 +121,12 @@ export default function MasterDojangClient() {
 
   const filtered = useMemo(() => {
     return dojangs.filter((d) => {
-      const matchId = applied.id === "" || String(d.id) === applied.id.trim();
       const matchName =
         applied.dojang === "" ||
         d.dojangName.toLowerCase().includes(applied.dojang.toLowerCase());
       const matchStatus =
         applied.status === "All" || d.status === applied.status;
-      return matchId && matchName && matchStatus;
+      return matchName && matchStatus;
     });
   }, [dojangs, applied]);
 
@@ -136,19 +140,17 @@ export default function MasterDojangClient() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, safePage, pageSize]);
 
-  const hasFilter =
-    applied.id !== "" || applied.dojang !== "" || applied.status !== "All";
+  const hasFilter = applied.dojang !== "" || applied.status !== "All";
 
   const handleSearch = () => {
-    setApplied({ id: idInput, dojang: dojangInput, status: statusInput });
+    setApplied({ dojang: dojangInput, status: statusInput });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
-    setIdInput("");
     setDojangInput("");
     setStatusInput("All");
-    setApplied({ id: "", dojang: "", status: "All" });
+    setApplied({ dojang: "", status: "All" });
     setCurrentPage(1);
   };
 
@@ -171,6 +173,7 @@ export default function MasterDojangClient() {
             ? {
                 ...d,
                 dojangName: values.dojangName,
+                image: values.image || undefined,
                 updatedBy: currentUserName,
                 updateDate: now,
               }
@@ -184,6 +187,7 @@ export default function MasterDojangClient() {
         {
           id: nextId,
           dojangName: values.dojangName,
+          image: values.image || undefined,
           status: "Active",
           updatedBy: currentUserName,
           updateDate: now,
@@ -227,11 +231,10 @@ export default function MasterDojangClient() {
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <Input
-            label="ID"
-            value={idInput}
-            onChange={(e) => setIdInput(e.target.value)}
-            placeholder="e.g. 1"
-            inputMode="numeric"
+            label="Dojang"
+            value={dojangInput}
+            onChange={(e) => setDojangInput(e.target.value)}
+            placeholder="e.g. Kedoya Sport Club"
           />
           <Select
             label="Status"
@@ -242,12 +245,6 @@ export default function MasterDojangClient() {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </Select>
-          <Input
-            label="Dojang"
-            value={dojangInput}
-            onChange={(e) => setDojangInput(e.target.value)}
-            placeholder="e.g. Kedoya Sport Club"
-          />
         </div>
         <div className="flex items-center justify-end gap-2 mt-6">
           {hasFilter && (
@@ -268,7 +265,6 @@ export default function MasterDojangClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">ID</th>
                 <th className="text-left px-4 py-3.5">Dojang</th>
                 <th className="text-left px-4 py-3.5">Status</th>
                 <th className="text-left px-4 py-3.5">Updated By</th>
@@ -280,7 +276,7 @@ export default function MasterDojangClient() {
               {paginatedDojangs.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={5}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No dojangs found
@@ -294,8 +290,14 @@ export default function MasterDojangClient() {
                       key={d.id}
                       className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-ink font-medium">{d.id}</td>
-                      <td className="px-4 py-3 text-ink">{d.dojangName}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => setViewing(d)}
+                          className="text-ink font-medium hover:text-brand underline underline-offset-4 decoration-ink/20 hover:decoration-brand transition-colors text-left"
+                        >
+                          {d.dojangName}
+                        </button>
+                      </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
                           <span
@@ -368,6 +370,52 @@ export default function MasterDojangClient() {
         initial={editing}
         onSubmit={handleSubmit}
       />
+
+      {/* Detail popup */}
+      <Modal
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        title={viewing?.dojangName ?? ""}
+        size="md"
+      >
+        {viewing && (
+          <div className="space-y-4">
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-sm bg-paper-soft border border-ink/10">
+              {viewing.image ? (
+                <Image
+                  src={viewing.image}
+                  alt={viewing.dojangName}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, 480px"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-muted uppercase tracking-widest text-xs font-bold">
+                  No image
+                </div>
+              )}
+            </div>
+            <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
+              <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
+                Dojang
+              </dt>
+              <dd className="text-ink">{viewing.dojangName}</dd>
+              <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
+                Status
+              </dt>
+              <dd className="text-ink">{viewing.status}</dd>
+              <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
+                Updated By
+              </dt>
+              <dd className="text-ink">{viewing.updatedBy}</dd>
+              <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
+                Update Date
+              </dt>
+              <dd className="text-ink/70">{formatDate(viewing.updateDate)}</dd>
+            </dl>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={confirming !== null}

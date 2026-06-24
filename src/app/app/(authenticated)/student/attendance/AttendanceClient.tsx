@@ -80,7 +80,7 @@ export default function AttendanceClient() {
               <thead>
                 <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                   <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                    No
+                    No. Reg
                   </th>
                   <th className="text-left px-4 py-3.5 whitespace-nowrap">
                     Nama Lengkap

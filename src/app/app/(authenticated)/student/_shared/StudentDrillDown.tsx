@@ -28,9 +28,15 @@ export const EMPTY_SELECTION: DrillDownSelection = {
 interface Props {
   selection: DrillDownSelection;
   onChange: (next: DrillDownSelection) => void;
+  /** Hide the Program & Sub Program selectors (e.g. Score page filters by dojang only). */
+  hideProgram?: boolean;
 }
 
-export default function StudentDrillDown({ selection, onChange }: Props) {
+export default function StudentDrillDown({
+  selection,
+  onChange,
+  hideProgram = false,
+}: Props) {
   const { periodId, dojang, programId, subProgramId } = selection;
 
   const dojangOptions = useMemo(
@@ -93,44 +99,48 @@ export default function StudentDrillDown({ selection, onChange }: Props) {
             </option>
           ))}
         </Select>
-        <Select
-          label="Program"
-          value={programId}
-          onChange={(e) =>
-            onChange({
-              ...selection,
-              programId: e.target.value,
-              subProgramId: "",
-            })
-          }
-          disabled={!dojang}
-        >
-          <option value="">
-            {dojang ? "Pilih Program" : "Pilih Dojang dulu"}
-          </option>
-          {programOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.id} · {p.name}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label="Sub Program"
-          value={subProgramId}
-          onChange={(e) =>
-            onChange({ ...selection, subProgramId: e.target.value })
-          }
-          disabled={!programId}
-        >
-          <option value="">
-            {programId ? "Pilih Sub Program" : "Pilih Program dulu"}
-          </option>
-          {subProgramOptions.map((sp) => (
-            <option key={sp.id} value={sp.id}>
-              {sp.id} · {sp.name}
-            </option>
-          ))}
-        </Select>
+        {!hideProgram && (
+          <>
+            <Select
+              label="Program"
+              value={programId}
+              onChange={(e) =>
+                onChange({
+                  ...selection,
+                  programId: e.target.value,
+                  subProgramId: "",
+                })
+              }
+              disabled={!dojang}
+            >
+              <option value="">
+                {dojang ? "Pilih Program" : "Pilih Dojang dulu"}
+              </option>
+              {programOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.id} · {p.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Sub Program"
+              value={subProgramId}
+              onChange={(e) =>
+                onChange({ ...selection, subProgramId: e.target.value })
+              }
+              disabled={!programId}
+            >
+              <option value="">
+                {programId ? "Pilih Sub Program" : "Pilih Program dulu"}
+              </option>
+              {subProgramOptions.map((sp) => (
+                <option key={sp.id} value={sp.id}>
+                  {sp.id} · {sp.name}
+                </option>
+              ))}
+            </Select>
+          </>
+        )}
       </div>
     </div>
   );

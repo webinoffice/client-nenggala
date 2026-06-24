@@ -4,10 +4,13 @@
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRole } from "@/lib/role-context";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
+import { DOJANG_OPTIONS } from "../../student/_shared/students";
 import SchedulePeriodFormModal, {
   type SchedulePeriodFormValues,
 } from "./SchedulePeriodFormModal";
@@ -17,12 +20,16 @@ export type SchedulePeriodStatus = "Active" | "Inactive";
 export type SchedulePeriod = {
   id: number;
   periodName: string;
+  dojang: string;
   periodStart: string; // YYYY-MM
   periodEnd: string; // YYYY-MM
   status: SchedulePeriodStatus;
   updatedBy: string;
   updateDate: string;
 };
+
+// The logged-in admin's own dojang (real value comes from the session later).
+const ADMIN_DOJANG = "Kedoya Sport Club";
 
 const MONTH_NAMES_ID = [
   "Januari",
@@ -51,6 +58,7 @@ const INITIAL_PERIODS: SchedulePeriod[] = [
   {
     id: 1,
     periodName: "Period 32",
+    dojang: "Kedoya Sport Club",
     periodStart: "2026-01",
     periodEnd: "2026-06",
     status: "Active",
@@ -60,6 +68,7 @@ const INITIAL_PERIODS: SchedulePeriod[] = [
   {
     id: 2,
     periodName: "Period 33",
+    dojang: "Kedoya Sport Club",
     periodStart: "2026-07",
     periodEnd: "2026-12",
     status: "Active",
@@ -69,6 +78,7 @@ const INITIAL_PERIODS: SchedulePeriod[] = [
   {
     id: 3,
     periodName: "Period 31",
+    dojang: "Senayan Dojang",
     periodStart: "2025-07",
     periodEnd: "2025-12",
     status: "Active",
@@ -78,6 +88,7 @@ const INITIAL_PERIODS: SchedulePeriod[] = [
   {
     id: 4,
     periodName: "Period 30",
+    dojang: "Bintaro Dojang",
     periodStart: "2025-01",
     periodEnd: "2025-06",
     status: "Inactive",
@@ -95,26 +106,37 @@ function formatDate(iso: string) {
 }
 
 export default function MasterSchedulePeriodClient() {
+  const { role } = useRole();
+  const isSuper = role === "super-admin";
   const currentUserName = "Carolina";
 
   const [periods, setPeriods] = useState<SchedulePeriod[]>(INITIAL_PERIODS);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SchedulePeriod | null>(null);
   const [confirming, setConfirming] = useState<SchedulePeriod | null>(null);
+  const [dojangFilter, setDojangFilter] = useState("All");
 
   // pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  // derived pagination values
-  const totalItems = periods.length;
+  // Super-admin sees all (with an optional dojang filter); admin only sees own dojang.
+  const visible = useMemo(() => {
+    if (!isSuper) return periods.filter((p) => p.dojang === ADMIN_DOJANG);
+    if (dojangFilter === "All") return periods;
+    return periods.filter((p) => p.dojang === dojangFilter);
+  }, [periods, isSuper, dojangFilter]);
+
+  const totalItems = visible.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(currentPage, totalPages);
 
   const paginatedPeriods = useMemo(() => {
     const start = (safePage - 1) * pageSize;
-    return periods.slice(start, start + pageSize);
-  }, [periods, safePage, pageSize]);
+    return visible.slice(start, start + pageSize);
+  }, [visible, safePage, pageSize]);
+
+  const colCount = isSuper ? 8 : 7;
 
   const handleAdd = () => {
     setEditing(null);
@@ -129,13 +151,13 @@ export default function MasterSchedulePeriodClient() {
   const handleSubmit = (values: SchedulePeriodFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
+      // Only the name and period end may change.
       setPeriods((prev) =>
         prev.map((p) =>
           p.id === editing.id
             ? {
                 ...p,
                 periodName: values.periodName,
-                periodStart: values.periodStart,
                 periodEnd: values.periodEnd,
                 updatedBy: currentUserName,
                 updateDate: now,
@@ -144,20 +166,20 @@ export default function MasterSchedulePeriodClient() {
         ),
       );
     } else {
-      const nextId =
-        periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 1;
-      setPeriods((prev) => [
-        {
-          id: nextId,
-          periodName: values.periodName,
-          periodStart: values.periodStart,
-          periodEnd: values.periodEnd,
-          status: "Active",
-          updatedBy: currentUserName,
-          updateDate: now,
-        },
-        ...prev,
-      ]);
+      // One record per selected dojang (admin: always own dojang).
+      const baseId =
+        periods.length > 0 ? Math.max(...periods.map((p) => p.id)) : 0;
+      const created: SchedulePeriod[] = values.dojangs.map((dojang, i) => ({
+        id: baseId + 1 + i,
+        periodName: values.periodName,
+        dojang,
+        periodStart: values.periodStart,
+        periodEnd: values.periodEnd,
+        status: "Active",
+        updatedBy: currentUserName,
+        updateDate: now,
+      }));
+      setPeriods((prev) => [...created, ...prev]);
     }
     setFormOpen(false);
     setEditing(null);
@@ -191,12 +213,38 @@ export default function MasterSchedulePeriodClient() {
         }
       />
 
+      {/* Dojang filter — super-admin only */}
+      {isSuper && (
+        <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 max-w-md">
+            <Select
+              label="Dojang"
+              value={dojangFilter}
+              onChange={(e) => {
+                setDojangFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="All">All Dojang</option>
+              {DOJANG_OPTIONS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+      )}
+
       <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                 <th className="text-left px-4 py-3.5">Period Name</th>
+                {isSuper && (
+                  <th className="text-left px-4 py-3.5">Dojang</th>
+                )}
                 <th className="text-left px-4 py-3.5">Period Start</th>
                 <th className="text-left px-4 py-3.5">Period End</th>
                 <th className="text-left px-4 py-3.5">Status</th>
@@ -209,7 +257,7 @@ export default function MasterSchedulePeriodClient() {
               {paginatedPeriods.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={colCount}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No periods yet
@@ -226,6 +274,9 @@ export default function MasterSchedulePeriodClient() {
                       <td className="px-4 py-3 text-ink font-medium">
                         {p.periodName}
                       </td>
+                      {isSuper && (
+                        <td className="px-4 py-3 text-ink/80">{p.dojang}</td>
+                      )}
                       <td className="px-4 py-3 text-ink/80">
                         {formatMonth(p.periodStart)}
                       </td>
@@ -302,6 +353,9 @@ export default function MasterSchedulePeriodClient() {
           setEditing(null);
         }}
         initial={editing}
+        isSuper={isSuper}
+        adminDojang={ADMIN_DOJANG}
+        dojangOptions={DOJANG_OPTIONS}
         onSubmit={handleSubmit}
       />
 

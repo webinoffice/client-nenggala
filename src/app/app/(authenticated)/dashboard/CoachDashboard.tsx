@@ -4,19 +4,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
-import { Users, CalendarDays, ClipboardCheck, ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
+import { EVENTS, formatEventDate } from "@/lib/events";
 import {
   getSchedules,
   subscribeSchedules,
   DAYS_OF_WEEK,
 } from "../coach/_shared/schedules";
 import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
-import {
-  getSessionAttendance,
-  subscribeSessionAttendance,
-} from "../coach/_shared/session-attendance";
 import { getProgramById, getSubProgramById } from "../student/_shared/academic";
 
 const CURRENT_PERIOD = "32";
@@ -44,13 +41,14 @@ export default function CoachDashboard() {
     getCoaches,
     getCoaches,
   );
-  const sessionAttendance = useSyncExternalStore(
-    subscribeSessionAttendance,
-    getSessionAttendance,
-    getSessionAttendance,
-  );
 
   const coach = coaches.find((c) => c.username === username);
+
+  // All events, most recent first
+  const allEvents = useMemo(
+    () => [...EVENTS].sort((a, b) => b.date.localeCompare(a.date)),
+    [],
+  );
 
   // Schedules where this coach is primary or secondary (current period)
   const mySchedules = useMemo(
@@ -69,19 +67,6 @@ export default function CoachDashboard() {
             DAYS_OF_WEEK.indexOf(b.dayOfWeek),
         ),
     [schedules, username],
-  );
-
-  // Unique students under this coach
-  const totalStudents = useMemo(() => {
-    const set = new Set<string>();
-    mySchedules.forEach((s) => s.studentUsernames.forEach((u) => set.add(u)));
-    return set.size;
-  }, [mySchedules]);
-
-  // Submissions by this coach
-  const mySubmissions = useMemo(
-    () => sessionAttendance.filter((r) => r.coachUsername === username),
-    [sessionAttendance, username],
   );
 
   if (!coach) {
@@ -132,25 +117,6 @@ export default function CoachDashboard() {
           </div>
         </div>
       </section>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        <StatCard
-          icon={<CalendarDays size={18} />}
-          label="Classes This Week"
-          value={String(mySchedules.length)}
-        />
-        <StatCard
-          icon={<Users size={18} />}
-          label="Total Students"
-          value={String(totalStudents)}
-        />
-        <StatCard
-          icon={<ClipboardCheck size={18} />}
-          label="Attendance Submitted"
-          value={String(mySubmissions.length)}
-        />
-      </div>
 
       {/* Today's schedule preview */}
       <section>
@@ -215,6 +181,63 @@ export default function CoachDashboard() {
           </div>
         )}
       </section>
+
+      {/* Events */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Bell size={18} className="text-ink" />
+          <h2 className="font-display text-xl font-bold uppercase tracking-widest text-ink">
+            Event
+          </h2>
+        </div>
+
+        <div className="space-y-3">
+          {allEvents.map((event) => (
+            <article
+              key={event.id}
+              className="bg-paper rounded-sm border border-ink/10 p-4 grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4 hover:border-ink/30 transition-colors"
+            >
+              <div className="relative aspect-[4/3] sm:aspect-auto overflow-hidden rounded-sm bg-ink">
+                <Image
+                  src={event.image}
+                  alt={event.title}
+                  fill
+                  className="object-cover"
+                  sizes="160px"
+                />
+              </div>
+              <div className="min-w-0">
+                <Link
+                  href={`https://${event.registerUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-display text-base font-bold uppercase tracking-wide text-ink underline underline-offset-4 hover:text-brand transition-colors inline-flex items-center gap-1.5"
+                >
+                  {event.title}
+                  <ArrowUpRight size={14} />
+                </Link>
+                <p className="text-xs text-ink/70 mt-1">
+                  {formatEventDate(event.date)}
+                </p>
+                <p className="text-sm text-ink/80 mt-2 line-clamp-2">
+                  {event.description}
+                </p>
+                <p className="text-xs mt-2">
+                  <span className="text-muted">Daftar disini: </span>
+                  <a
+                    href={`https://${event.registerUrl}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand underline underline-offset-4 hover:text-brand-hover"
+                  >
+                    {event.registerUrl}
+                  </a>
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -227,28 +250,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       </span>
       <span className="text-muted">:</span>
       <span className="text-ink">{value}</span>
-    </div>
-  );
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="bg-paper rounded-sm border border-ink/10 p-4">
-      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted">
-        {icon}
-        {label}
-      </div>
-      <div className="mt-2 font-display text-2xl md:text-3xl font-bold text-ink leading-none">
-        {value}
-      </div>
     </div>
   );
 }

@@ -223,6 +223,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={dojang}
               onChange={(e) => setDojang(e.target.value)}
               error={errors.dojang}
+              disabled={isEditing}
             >
               <option value="">Pilih Dojang</option>
               {DOJANG_OPTIONS.map((d) => (
@@ -239,6 +240,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
                 setSubProgramId(""); // ← reset sub-program when program changes
               }}
               error={errors.programId}
+              disabled={isEditing}
             >
               <option value="">Pilih Program</option>
               {PROGRAMS.map((p) => (
@@ -252,7 +254,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={subProgramId}
               onChange={(e) => setSubProgramId(e.target.value)}
               error={errors.subProgramId}
-              disabled={!programId}
+              disabled={!programId || isEditing}
             >
               <option value="">
                 {programId ? "Pilih Sub Program" : "Pilih Program dulu"}
@@ -268,6 +270,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={dayOfWeek}
               onChange={(e) => setDayOfWeek(e.target.value as DayOfWeek)}
               error={errors.dayOfWeek}
+              disabled={isEditing}
             >
               <option value="">Pilih Hari</option>
               {DAYS_OF_WEEK.map((d) => (
@@ -282,6 +285,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               error={errors.startTime}
+              disabled={isEditing}
             />
             <Input
               label="End Time (24H)"
@@ -289,6 +293,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
               error={errors.endTime}
+              disabled={isEditing}
             />
           </div>
         </FormSection>
@@ -300,6 +305,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={periodId}
               onChange={(e) => setPeriodId(e.target.value)}
               error={errors.periodId}
+              disabled={isEditing}
             >
               <option value="">Pilih Period</option>
               {PERIODS.map((p) => (
@@ -314,6 +320,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={startSchedule}
               onChange={(e) => setStartSchedule(e.target.value)}
               error={errors.startSchedule}
+              disabled={isEditing}
             />
             <Input
               label="End Schedule"
@@ -338,7 +345,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
                 );
               }}
               error={errors.primaryCoach}
-              disabled={!programId}
+              disabled={!programId || isEditing}
             >
               <option value="">
                 {programId ? "Pilih Coach" : "Pilih Program dulu"}
@@ -405,14 +412,14 @@ export default function ScheduleFormClient({ mode, id }: Props) {
           </div>
         </FormSection>
 
-        <FormSection title="Students">
+        <FormSection title="Members">
           <div className="space-y-4">
             <div className="relative">
               <Input
-                label="Search Students"
+                label="Search Members"
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
-                placeholder="Type name or ID..."
+                placeholder="Type name or No. Reg..."
               />
               {studentResults.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full bg-paper border border-ink/15 rounded-sm shadow-lg max-h-64 overflow-y-auto">
@@ -444,13 +451,13 @@ export default function ScheduleFormClient({ mode, id }: Props) {
             <div className="border border-ink/10 rounded-sm overflow-hidden">
               {enrolledStudents.length === 0 ? (
                 <div className="text-center py-8 text-muted uppercase tracking-widest text-xs font-bold">
-                  No students enrolled yet
+                  No members enrolled yet
                 </div>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                     <tr>
-                      <th className="text-left px-3 py-2">No</th>
+                      <th className="text-left px-3 py-2">No. Reg</th>
                       <th className="text-left px-3 py-2">Nama</th>
                       <th className="text-left px-3 py-2">Dojang</th>
                       <th className="text-left px-3 py-2">Sabuk</th>

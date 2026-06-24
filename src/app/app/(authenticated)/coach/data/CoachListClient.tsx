@@ -130,7 +130,7 @@ export default function CoachListClient() {
             ))}
           </Select>
           <Input
-            label="No"
+            label="No. Reg"
             value={noInput}
             onChange={(e) => setNoInput(e.target.value)}
             placeholder="e.g. C0001"
@@ -178,7 +178,7 @@ export default function CoachListClient() {
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                 {[
                   "Action",
-                  "Username",
+                  "No. Reg",
                   "Nama Lengkap",
                   "Panggilan",
                   "Dojang",

@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search, Eye, EyeOff } from "lucide-react";
+import { Search, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
 import Button from "@/components/ui/Button";
@@ -192,11 +192,6 @@ export default function MasterRolesClient() {
     setCurrentPage(1);
   };
 
-  const handleAdd = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
-
   const handleEdit = (user: AppUser) => {
     setEditing(user);
     setFormOpen(true);
@@ -212,40 +207,23 @@ export default function MasterRolesClient() {
   };
 
   const handleSubmit = (values: UserFormValues) => {
+    if (!editing) return;
     const now = new Date().toISOString();
-    if (editing) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === editing.id
-            ? {
-                ...u,
-                name: values.name,
-                role: values.role,
-                password:
-                  values.password.trim() === "" ? u.password : values.password,
-                updatedBy: currentUserName,
-                updateDate: now,
-              }
-            : u,
-        ),
-      );
-    } else {
-      const nextId =
-        users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1;
-      setUsers((prev) => [
-        {
-          id: nextId,
-          name: values.name,
-          username: values.username,
-          password: values.password,
-          role: values.role,
-          status: "Active",
-          updatedBy: currentUserName,
-          updateDate: now,
-        },
-        ...prev,
-      ]);
-    }
+    // Only password and role can change.
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === editing.id
+          ? {
+              ...u,
+              role: values.role,
+              password:
+                values.password.trim() === "" ? u.password : values.password,
+              updatedBy: currentUserName,
+              updateDate: now,
+            }
+          : u,
+      ),
+    );
     setFormOpen(false);
     setEditing(null);
   };
@@ -268,15 +246,7 @@ export default function MasterRolesClient() {
 
   return (
     <>
-      <PageHeader
-        title="Master Roles"
-        actions={
-          <Button onClick={handleAdd}>
-            <Plus size={16} />
-            Add User
-          </Button>
-        }
-      />
+      <PageHeader title="Master Roles" />
 
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
@@ -326,7 +296,6 @@ export default function MasterRolesClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">ID</th>
                 <th className="text-left px-4 py-3.5">Name</th>
                 <th className="text-left px-4 py-3.5">Username</th>
                 <th className="text-left px-4 py-3.5">Password</th>
@@ -341,7 +310,7 @@ export default function MasterRolesClient() {
               {paginatedUsers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No users found
@@ -356,7 +325,6 @@ export default function MasterRolesClient() {
                       key={u.id}
                       className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-ink font-medium">{u.id}</td>
                       <td className="px-4 py-3 text-ink">{u.name}</td>
                       <td className="px-4 py-3 text-ink/70 font-mono text-xs">
                         {u.username}
@@ -454,7 +422,6 @@ export default function MasterRolesClient() {
           setEditing(null);
         }}
         initial={editing}
-        existingUsernames={users.map((u) => u.username)}
         onSubmit={handleSubmit}
       />
 

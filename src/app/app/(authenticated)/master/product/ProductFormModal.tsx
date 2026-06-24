@@ -4,20 +4,20 @@
 import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import type { Product } from "./MasterProductClient";
+import { PRODUCT_TYPES, type ProductType } from "../_shared/product-types";
 
 export type ProductFormValues = {
-  id: string;
-  typeId: string;
+  type: ProductType;
   productName: string;
   link: string;
   image: string;
 };
 
 const EMPTY: ProductFormValues = {
-  id: "",
-  typeId: "",
+  type: PRODUCT_TYPES[0],
   productName: "",
   link: "",
   image: "",
@@ -47,7 +47,7 @@ export default function ProductFormModal({
     >
       {/* `key` forces a fresh mount (fresh state) when the editing target changes. */}
       <ProductFormBody
-        key={initial?.typeId ?? "new"}
+        key={initial?.id ?? "new"}
         initial={initial}
         onCancel={onClose}
         onSubmit={onSubmit}
@@ -68,8 +68,7 @@ function ProductFormBody({
   const [values, setValues] = useState<ProductFormValues>(() =>
     initial
       ? {
-          id: initial.id,
-          typeId: initial.typeId,
+          type: initial.type,
           productName: initial.productName,
           link: initial.link,
           image: initial.image,
@@ -84,8 +83,6 @@ function ProductFormBody({
 
   const handleSubmit = () => {
     const next: typeof errors = {};
-    if (!values.id.trim()) next.id = "Required";
-    if (!values.typeId.trim()) next.typeId = "Required";
     if (!values.productName.trim()) next.productName = "Required";
     if (!values.link.trim()) next.link = "Required";
     if (Object.keys(next).length > 0) {
@@ -98,27 +95,19 @@ function ProductFormBody({
   return (
     <>
       <div className="space-y-4">
-        <Input
-          label="ID"
-          placeholder="e.g. TS"
-          value={values.id}
+        <Select
+          label="Type"
+          value={values.type}
           onChange={(e) =>
-            setValues((v) => ({ ...v, id: e.target.value.toUpperCase() }))
+            setValues((v) => ({ ...v, type: e.target.value as ProductType }))
           }
-          error={errors.id}
-        />
-        <Input
-          label="Type ID"
-          placeholder="e.g. TS-01"
-          value={values.typeId}
-          onChange={(e) =>
-            setValues((v) => ({
-              ...v,
-              typeId: e.target.value.toUpperCase(),
-            }))
-          }
-          error={errors.typeId}
-        />
+        >
+          {PRODUCT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </Select>
         <Input
           label="Product Name"
           placeholder="e.g. Uniform"
@@ -137,7 +126,7 @@ function ProductFormBody({
         />
         <Input
           label="Image"
-          placeholder="filename.jpg"
+          placeholder="e.g. /images/product-placeholder.jpg"
           value={values.image}
           onChange={(e) => setValues((v) => ({ ...v, image: e.target.value }))}
           error={errors.image}

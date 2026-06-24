@@ -2,86 +2,85 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { Plus, Search, ExternalLink } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import ProductFormModal, { type ProductFormValues } from "./ProductFormModal";
+import {
+  PRODUCT_TYPES,
+  type ProductType,
+} from "../_shared/product-types";
 
 export type Product = {
-  id: string;
-  typeId: string;
+  id: string; // internal, not displayed
+  type: ProductType;
   productName: string;
   link: string;
   image: string;
   updatedBy: string;
   updateDate: string;
-  disabled: boolean;
 };
 
 const INITIAL_PRODUCTS: Product[] = [
   {
-    id: "TS",
-    typeId: "TS-01",
+    id: "TS-01",
+    type: "Taekwondo",
     productName: "Uniform",
     link: "www.tokopedia.com/13...",
-    image: "U_1313828837.JPG",
+    image: "/images/product-placeholder.jpg",
     updatedBy: "Carolina",
     updateDate: "2025-12-28T19:41:32",
-    disabled: false,
   },
   {
-    id: "BL",
-    typeId: "BL-01",
+    id: "BL-01",
+    type: "Accessories",
     productName: "White Belt",
     link: "www.tokopedia.com/belts/white",
-    image: "B_2024110501.JPG",
+    image: "/images/product-placeholder.jpg",
     updatedBy: "Carolina",
     updateDate: "2025-12-15T09:12:00",
-    disabled: false,
   },
   {
-    id: "BL",
-    typeId: "BL-02",
+    id: "BL-02",
+    type: "Accessories",
     productName: "Yellow Belt",
     link: "www.tokopedia.com/belts/yellow",
-    image: "B_2024110502.JPG",
+    image: "/images/product-placeholder.jpg",
     updatedBy: "Andre",
     updateDate: "2025-11-30T14:22:11",
-    disabled: false,
   },
   {
-    id: "BL",
-    typeId: "BL-03",
+    id: "BL-03",
+    type: "Accessories",
     productName: "Green Belt",
     link: "www.tokopedia.com/belts/green",
-    image: "B_2024110503.JPG",
+    image: "/images/product-placeholder.jpg",
     updatedBy: "Andre",
     updateDate: "2025-11-30T14:23:00",
-    disabled: false,
   },
   {
-    id: "GR",
-    typeId: "GR-01",
+    id: "GR-01",
+    type: "Gymnastic",
     productName: "Hand Pads",
     link: "www.tokopedia.com/grip/pads",
-    image: "G_2024100101.JPG",
+    image: "/images/product-placeholder.jpg",
     updatedBy: "Carolina",
     updateDate: "2025-10-01T11:00:00",
-    disabled: false,
   },
   {
-    id: "GR",
-    typeId: "GR-02",
+    id: "GR-02",
+    type: "Accessories",
     productName: "Shin Guards",
     link: "www.tokopedia.com/grip/shin",
-    image: "G_2024100102.JPG",
+    image: "/images/product-placeholder.jpg",
     updatedBy: "Carolina",
     updateDate: "2025-10-01T11:05:00",
-    disabled: true,
   },
 ];
 
@@ -93,17 +92,22 @@ function formatDate(iso: string) {
   )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+function toHref(link: string) {
+  return /^https?:\/\//i.test(link) ? link : `https://${link}`;
+}
+
 export default function MasterProductClient() {
   const currentUserName = "Carolina";
 
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [typeIdInput, setTypeIdInput] = useState("");
+  const [typeInput, setTypeInput] = useState("All");
   const [productInput, setProductInput] = useState("");
-  const [applied, setApplied] = useState({ typeId: "", product: "" });
+  const [applied, setApplied] = useState({ type: "All", product: "" });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [confirming, setConfirming] = useState<Product | null>(null);
+  const [viewingImage, setViewingImage] = useState<Product | null>(null);
 
   // pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,9 +115,7 @@ export default function MasterProductClient() {
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
-      const matchType =
-        applied.typeId === "" ||
-        p.typeId.toLowerCase().includes(applied.typeId.toLowerCase());
+      const matchType = applied.type === "All" || p.type === applied.type;
       const matchName =
         applied.product === "" ||
         p.productName.toLowerCase().includes(applied.product.toLowerCase());
@@ -121,7 +123,6 @@ export default function MasterProductClient() {
     });
   }, [products, applied]);
 
-  // derived pagination values
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -131,17 +132,17 @@ export default function MasterProductClient() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, safePage, pageSize]);
 
-  const hasFilter = applied.typeId !== "" || applied.product !== "";
+  const hasFilter = applied.type !== "All" || applied.product !== "";
 
   const handleSearch = () => {
-    setApplied({ typeId: typeIdInput, product: productInput });
+    setApplied({ type: typeInput, product: productInput });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
-    setTypeIdInput("");
+    setTypeInput("All");
     setProductInput("");
-    setApplied({ typeId: "", product: "" });
+    setApplied({ type: "All", product: "" });
     setCurrentPage(1);
   };
 
@@ -160,7 +161,7 @@ export default function MasterProductClient() {
     if (editing) {
       setProducts((prev) =>
         prev.map((p) =>
-          p.typeId === editing.typeId
+          p.id === editing.id
             ? {
                 ...p,
                 ...values,
@@ -173,10 +174,10 @@ export default function MasterProductClient() {
     } else {
       setProducts((prev) => [
         {
+          id: `PRD-${Date.now()}`, // auto-generated; real id comes from backend
           ...values,
           updatedBy: currentUserName,
           updateDate: now,
-          disabled: false,
         },
         ...prev,
       ]);
@@ -185,13 +186,9 @@ export default function MasterProductClient() {
     setEditing(null);
   };
 
-  const handleConfirmDisable = () => {
+  const handleConfirmDelete = () => {
     if (!confirming) return;
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.typeId === confirming.typeId ? { ...p, disabled: !p.disabled } : p,
-      ),
-    );
+    setProducts((prev) => prev.filter((p) => p.id !== confirming.id));
   };
 
   return (
@@ -209,12 +206,18 @@ export default function MasterProductClient() {
       {/* Filter card */}
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 max-w-3xl">
-          <Input
-            label="Type ID"
-            value={typeIdInput}
-            onChange={(e) => setTypeIdInput(e.target.value)}
-            placeholder="e.g. TS-01"
-          />
+          <Select
+            label="Type"
+            value={typeInput}
+            onChange={(e) => setTypeInput(e.target.value)}
+          >
+            <option value="All">All</option>
+            {PRODUCT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
           <Input
             label="Product"
             value={productInput}
@@ -241,8 +244,7 @@ export default function MasterProductClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">ID</th>
-                <th className="text-left px-4 py-3.5">Type ID</th>
+                <th className="text-left px-4 py-3.5">Type</th>
                 <th className="text-left px-4 py-3.5">Product</th>
                 <th className="text-left px-4 py-3.5">Link</th>
                 <th className="text-left px-4 py-3.5">Image</th>
@@ -255,7 +257,7 @@ export default function MasterProductClient() {
               {paginatedProducts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No products found
@@ -264,21 +266,30 @@ export default function MasterProductClient() {
               ) : (
                 paginatedProducts.map((p) => (
                   <tr
-                    key={p.typeId}
-                    className={cn(
-                      "border-b border-ink/5 hover:bg-paper-soft/50 transition-colors",
-                      p.disabled && "opacity-50",
-                    )}
+                    key={p.id}
+                    className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                   >
-                    <td className="px-4 py-3 text-ink font-medium">{p.id}</td>
-                    <td className="px-4 py-3 text-ink font-medium">
-                      {p.typeId}
-                    </td>
+                    <td className="px-4 py-3 text-ink font-medium">{p.type}</td>
                     <td className="px-4 py-3 text-ink">{p.productName}</td>
-                    <td className="px-4 py-3 text-ink/70 truncate max-w-[180px]">
-                      {p.link}
+                    <td className="px-4 py-3 truncate max-w-[180px]">
+                      <a
+                        href={toHref(p.link)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-brand hover:text-brand-hover underline underline-offset-4"
+                      >
+                        <span className="truncate">{p.link}</span>
+                        <ExternalLink size={12} className="shrink-0" />
+                      </a>
                     </td>
-                    <td className="px-4 py-3 text-ink/70">{p.image}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setViewingImage(p)}
+                        className="text-brand hover:text-brand-hover underline underline-offset-4 font-mono text-xs"
+                      >
+                        View
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-ink/70">{p.updatedBy}</td>
                     <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
                       {formatDate(p.updateDate)}
@@ -293,14 +304,9 @@ export default function MasterProductClient() {
                         </button>
                         <button
                           onClick={() => setConfirming(p)}
-                          className={cn(
-                            "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
-                            !p.disabled
-                              ? "bg-brand text-brand-foreground hover:bg-brand-hover"
-                              : "bg-ink text-paper hover:bg-ink-soft",
-                          )}
+                          className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
                         >
-                          {p.disabled ? "Enable" : "Disable"}
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -334,20 +340,38 @@ export default function MasterProductClient() {
         onSubmit={handleSubmit}
       />
 
+      {/* Image popup */}
+      <Modal
+        open={viewingImage !== null}
+        onClose={() => setViewingImage(null)}
+        title={viewingImage?.productName ?? ""}
+        size="md"
+      >
+        {viewingImage && (
+          <div className="relative aspect-square w-full overflow-hidden rounded-sm bg-paper-soft border border-ink/10">
+            <Image
+              src={viewingImage.image}
+              alt={viewingImage.productName}
+              fill
+              className="object-contain"
+              sizes="(max-width: 640px) 100vw, 480px"
+            />
+          </div>
+        )}
+      </Modal>
+
       <ConfirmDialog
         open={confirming !== null}
         onClose={() => setConfirming(null)}
-        onConfirm={handleConfirmDisable}
-        title={confirming?.disabled ? "Enable Product" : "Disable Product"}
+        onConfirm={handleConfirmDelete}
+        title="Delete Product"
         description={
           confirming
-            ? confirming.disabled
-              ? `Enable "${confirming.productName}" (${confirming.typeId})? It will return to active listings.`
-              : `Disable "${confirming.productName}" (${confirming.typeId})? It will be hidden from active listings but kept in the system.`
+            ? `Delete "${confirming.productName}"? This action cannot be undone.`
             : ""
         }
-        confirmLabel={confirming?.disabled ? "Enable" : "Disable"}
-        variant={confirming?.disabled ? "primary" : "destructive"}
+        confirmLabel="Delete"
+        variant="destructive"
       />
     </>
   );

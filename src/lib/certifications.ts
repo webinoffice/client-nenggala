@@ -1,8 +1,11 @@
 // src/lib/certifications.ts
 
+export type CertRecipientType = "student" | "coach";
+
 export interface Certification {
   id: string;
-  studentUsername: string;
+  recipientType: CertRecipientType;
+  recipientUsername: string; // student or coach No. Reg
   title: string;
   date: string; // ISO 8601
   description: string;
@@ -10,11 +13,12 @@ export interface Certification {
   fullImage: string; // full-size image for the lightbox
 }
 
-// Mock — in production these would come from the API filtered by current user.
-export const CERTIFICATIONS: Certification[] = [
+// Mock — in production these come from the API filtered by recipient.
+const INITIAL_CERTIFICATIONS: Certification[] = [
   {
     id: "cert-1",
-    studentUsername: "U0006",
+    recipientType: "student",
+    recipientUsername: "U0006",
     title: "1st Asia Nunchaku Showdown Asia Freestyle Division",
     date: "2021-03-20",
     description:
@@ -24,7 +28,8 @@ export const CERTIFICATIONS: Certification[] = [
   },
   {
     id: "cert-2",
-    studentUsername: "U0006",
+    recipientType: "student",
+    recipientUsername: "U0006",
     title: "Kejuaraan Nasional Taekwondo 2020",
     date: "2020-08-15",
     description:
@@ -34,7 +39,8 @@ export const CERTIFICATIONS: Certification[] = [
   },
   {
     id: "cert-3",
-    studentUsername: "U0006",
+    recipientType: "student",
+    recipientUsername: "U0006",
     title: "Ujian Kenaikan Tingkat Sabuk Merah Strip Hitam",
     date: "2019-11-24",
     description:
@@ -42,7 +48,51 @@ export const CERTIFICATIONS: Certification[] = [
     thumbnail: "/images/event-ukt-promo.jpg",
     fullImage: "/images/event-ukt-promo.jpg",
   },
+  {
+    id: "cert-4",
+    recipientType: "coach",
+    recipientUsername: "C0001",
+    title: "Sertifikasi Pelatih Nasional Taekwondo Level 2",
+    date: "2022-05-10",
+    description:
+      "Lulus sertifikasi pelatih nasional dengan spesialisasi Kyorugi dan pembinaan atlet usia muda.",
+    thumbnail: "/images/event-ukt-promo.jpg",
+    fullImage: "/images/event-ukt-promo.jpg",
+  },
 ];
+
+let _certifications: Certification[] = [...INITIAL_CERTIFICATIONS];
+const listeners = new Set<() => void>();
+function notify() {
+  listeners.forEach((l) => l());
+}
+
+export function getCertifications(): Certification[] {
+  return _certifications;
+}
+export function subscribeCertifications(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+export function getCertificationsFor(
+  recipientType: CertRecipientType,
+  recipientUsername: string,
+): Certification[] {
+  return _certifications.filter(
+    (c) =>
+      c.recipientType === recipientType &&
+      c.recipientUsername === recipientUsername,
+  );
+}
+export function getNextCertId(): string {
+  return `cert-${Date.now()}`;
+}
+export function addCertification(cert: Certification) {
+  _certifications = [cert, ..._certifications];
+  notify();
+}
 
 export function formatCertDate(iso: string) {
   return new Intl.DateTimeFormat("id-ID", {

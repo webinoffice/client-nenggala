@@ -191,7 +191,7 @@ export default function StudentFormClient({ mode, username }: Props) {
       <div className="space-y-6 max-w-5xl">
         <FormSection title="Identitas">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <Input label="Username" value={form.username} disabled />
+            <Input label="No. Reg" value={form.username} disabled />
             <Input
               label="Nama Lengkap"
               value={form.namaLengkap}

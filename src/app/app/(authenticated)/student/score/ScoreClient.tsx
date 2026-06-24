@@ -19,9 +19,8 @@ import StudentDrillDown, {
 } from "../_shared/StudentDrillDown";
 import {
   formatPeriod,
-  getEnrolledUsernames,
+  getEnrolledUsernamesByDojang,
   getPeriodById,
-  getSubProgramById,
 } from "../_shared/academic";
 import {
   getStudents,
@@ -62,26 +61,15 @@ export default function ScoreClient() {
   useSyncExternalStore(subscribeScores, getScores, getScores);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const ready =
-    selection.periodId &&
-    selection.dojang &&
-    selection.programId &&
-    selection.subProgramId;
+  const ready = selection.periodId && selection.dojang;
 
   const enrolled: Student[] = ready
-    ? getEnrolledUsernames(
-        selection.periodId,
-        selection.dojang,
-        selection.subProgramId,
-      )
+    ? getEnrolledUsernamesByDojang(selection.periodId, selection.dojang)
         .map((u) => students.find((s) => s.username === u))
         .filter((s): s is Student => s !== undefined)
     : [];
 
   const period = selection.periodId ? getPeriodById(selection.periodId) : null;
-  const subProgram = selection.subProgramId
-    ? getSubProgramById(selection.subProgramId)
-    : null;
 
   const headers = [
     "No",
@@ -110,7 +98,7 @@ export default function ScoreClient() {
       ]);
     });
     downloadXLSX(
-      `score-template_${selection.subProgramId}_P${selection.periodId}.xlsx`,
+      `score-template_${selection.dojang.replace(/\s+/g, "-")}_P${selection.periodId}.xlsx`,
       rows,
       "Template",
     );
@@ -136,7 +124,7 @@ export default function ScoreClient() {
       ]);
     });
     downloadXLSX(
-      `scores_${selection.subProgramId}_P${selection.periodId}.xlsx`,
+      `scores_${selection.dojang.replace(/\s+/g, "-")}_P${selection.periodId}.xlsx`,
       rows,
       "Scores",
     );
@@ -173,12 +161,16 @@ export default function ScoreClient() {
   return (
     <>
       <PageHeader title="Score Management" />
-      <StudentDrillDown selection={selection} onChange={setSelection} />
+      <StudentDrillDown
+        selection={selection}
+        onChange={setSelection}
+        hideProgram
+      />
 
       {!ready ? (
         <div className="bg-paper rounded-sm border border-ink/10 p-12 text-center">
           <p className="text-muted uppercase tracking-widest text-xs font-bold">
-            Pilih Period, Dojang, Program, dan Sub Program untuk melihat score
+            Pilih Period dan Dojang untuk melihat score
           </p>
         </div>
       ) : (
@@ -221,8 +213,7 @@ export default function ScoreClient() {
               </div>
               <div className="text-ink font-display font-bold mt-1">
                 {selection.dojang} ·{" "}
-                {period ? formatPeriod(period) : selection.periodId} ·{" "}
-                {subProgram?.name ?? selection.subProgramId}
+                {period ? formatPeriod(period) : selection.periodId}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -230,7 +221,7 @@ export default function ScoreClient() {
                 <thead>
                   <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
                     <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                      No
+                      No. Reg
                     </th>
                     <th className="text-left px-4 py-3.5 whitespace-nowrap">
                       Nama Lengkap

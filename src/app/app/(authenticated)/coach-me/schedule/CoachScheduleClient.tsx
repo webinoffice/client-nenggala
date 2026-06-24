@@ -111,7 +111,7 @@ export default function CoachScheduleClient() {
                 <th className="text-left px-4 py-3.5">Day / Week</th>
                 <th className="text-left px-4 py-3.5">Class</th>
                 <th className="text-left px-4 py-3.5">Type</th>
-                <th className="text-left px-4 py-3.5">Class List</th>
+                <th className="text-left px-4 py-3.5">Member List</th>
                 <th className="text-left px-4 py-3.5">Attendance</th>
                 <th className="text-left px-4 py-3.5">Start Time</th>
                 <th className="text-left px-4 py-3.5">End Time</th>

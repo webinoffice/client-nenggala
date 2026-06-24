@@ -41,14 +41,21 @@ export default function RecommendationClient() {
 
   const [searchInput, setSearchInput] = useState("");
   const [dojangInput, setDojangInput] = useState("All");
-  const [startDateInput, setStartDateInput] = useState("");
-  const [endDateInput, setEndDateInput] = useState("");
+  const [yearInput, setYearInput] = useState("All");
   const [applied, setApplied] = useState({
     search: "",
     dojang: "All",
-    startDate: "",
-    endDate: "",
+    year: "All",
   });
+
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    recommendations.forEach((r) =>
+      years.add(r.recommendationDate.slice(0, 4)),
+    );
+    years.add(String(new Date().getFullYear()));
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [recommendations]);
 
   const filtered = useMemo(
     () =>
@@ -56,9 +63,10 @@ export default function RecommendationClient() {
         .filter((r) => {
           if (applied.dojang !== "All" && r.dojang !== applied.dojang)
             return false;
-          if (applied.startDate && r.recommendationDate < applied.startDate)
-            return false;
-          if (applied.endDate && r.recommendationDate > applied.endDate)
+          if (
+            applied.year !== "All" &&
+            !r.recommendationDate.startsWith(applied.year)
+          )
             return false;
           if (applied.search) {
             const q = applied.search.toLowerCase().trim();
@@ -108,20 +116,18 @@ export default function RecommendationClient() {
               </option>
             ))}
           </Select>
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDateInput}
-              onChange={(e) => setStartDateInput(e.target.value)}
-            />
-            <Input
-              label="End Date"
-              type="date"
-              value={endDateInput}
-              onChange={(e) => setEndDateInput(e.target.value)}
-            />
-          </div>
+          <Select
+            label="Tahun"
+            value={yearInput}
+            onChange={(e) => setYearInput(e.target.value)}
+          >
+            <option value="All">All</option>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="flex items-center justify-end gap-2 mt-6">
           <Button
@@ -130,13 +136,11 @@ export default function RecommendationClient() {
             onClick={() => {
               setSearchInput("");
               setDojangInput("All");
-              setStartDateInput("");
-              setEndDateInput("");
+              setYearInput("All");
               setApplied({
                 search: "",
                 dojang: "All",
-                startDate: "",
-                endDate: "",
+                year: "All",
               });
             }}
           >
@@ -148,8 +152,7 @@ export default function RecommendationClient() {
               setApplied({
                 search: searchInput,
                 dojang: dojangInput,
-                startDate: startDateInput,
-                endDate: endDateInput,
+                year: yearInput,
               })
             }
           >
@@ -163,7 +166,9 @@ export default function RecommendationClient() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-              <th className="text-left px-4 py-3.5 whitespace-nowrap">No</th>
+              <th className="text-left px-4 py-3.5 whitespace-nowrap">
+                No. Reg
+              </th>
               <th className="text-left px-4 py-3.5 whitespace-nowrap">
                 Nama Lengkap
               </th>

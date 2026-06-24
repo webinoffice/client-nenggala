@@ -5,7 +5,7 @@ export type EbookStatus = "Active" | "Inactive";
 export type Ebook = {
   id: number;
   sabuk: string;
-  volume: string; // "1.1", "2.3", etc
+  volume?: string; // legacy field — no longer shown/edited
   title: string;
   pdfFile: string; // filename, e.g. "putih-cara-menendang.pdf"
   status: EbookStatus;

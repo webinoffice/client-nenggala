@@ -8,11 +8,7 @@ import { Bell, ArrowUpRight } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import { EVENTS, formatEventDate } from "@/lib/events";
-import {
-  getStudents,
-  subscribeStudents,
-  SABUK_RANK,
-} from "../student/_shared/students";
+import { getStudents, subscribeStudents } from "../student/_shared/students";
 import {
   getScores,
   subscribeScores,
@@ -29,20 +25,6 @@ function formatJoinedDate(iso: string) {
     year: "numeric",
   }).format(new Date(iso));
 }
-
-// Map belt name → a representative color for the progress visual.
-const BELT_COLORS: Record<string, string> = {
-  Putih: "bg-neutral-200",
-  Kuning: "bg-yellow-300",
-  Hijau: "bg-emerald-500",
-  "Hijau Strip Biru": "bg-emerald-500",
-  Biru: "bg-blue-500",
-  "Biru Strip Merah": "bg-blue-500",
-  Merah: "bg-brand",
-  "Merah Strip Hitam": "bg-brand",
-  "Hitam DAN-1": "bg-ink",
-  "Hitam DAN-2": "bg-ink",
-};
 
 export default function StudentDashboard() {
   const { role } = useRole();
@@ -76,12 +58,6 @@ export default function StudentDashboard() {
   const passThreshold = lastScore
     ? getPassingThreshold(lastScore.sabukAtSubmit)
     : 75;
-
-  const beltColor = BELT_COLORS[student.sabuk] ?? "bg-neutral-300";
-  const beltProgressPct = Math.min(
-    100,
-    ((SABUK_RANK[student.sabuk] ?? 0) / 10) * 100,
-  );
 
   // Show the 4 most recent events
   const recentEvents = [...EVENTS]
@@ -148,17 +124,9 @@ export default function StudentDashboard() {
                       ? formatPeriod(lastPeriod)
                       : `Period ${lastScore.periodId}`}
                   </p>
-                  <div className="mt-3">
-                    <div className="h-2 w-full rounded-sm bg-paper-soft overflow-hidden border border-ink/10">
-                      <div
-                        className={cn("h-full", beltColor)}
-                        style={{ width: `${beltProgressPct}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] uppercase tracking-widest text-ink/70 mt-1.5 font-bold">
-                      {student.sabuk}
-                    </p>
-                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-ink/70 mt-3 font-bold">
+                    {student.sabuk}
+                  </p>
                   <p
                     className={cn(
                       "mt-3 inline-block text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-sm",

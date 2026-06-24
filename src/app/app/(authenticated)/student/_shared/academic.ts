@@ -152,6 +152,30 @@ export function formatPeriod(p: Period): string {
 export function getPeriodById(id: string): Period | null {
   return PERIODS.find((p) => p.id === id) ?? null;
 }
+
+/** Inclusive list of "YYYY-MM" months from startMonth to endMonth. */
+export function monthRange(startMonth: string, endMonth: string): string[] {
+  const [sy, sm] = startMonth.split("-").map(Number);
+  const [ey, em] = endMonth.split("-").map(Number);
+  const out: string[] = [];
+  let y = sy;
+  let m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return out;
+}
+
+/** "2026-01" → "Januari 2026" */
+export function formatMonth(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${MONTHS_ID[m - 1]} ${y}`;
+}
 export function getSubProgramById(id: string): SubProgram | null {
   return SUB_PROGRAMS.find((sp) => sp.id === id) ?? null;
 }
@@ -210,4 +234,16 @@ export function getEnrolledUsernames(
       e.dojang === dojang &&
       e.subProgramId === subProgramId,
   ).map((e) => e.studentUsername);
+}
+
+/** All students enrolled in a period + dojang, regardless of sub-program (deduped). */
+export function getEnrolledUsernamesByDojang(
+  periodId: string,
+  dojang: string,
+): string[] {
+  const set = new Set<string>();
+  ENROLLMENTS.filter(
+    (e) => e.periodId === periodId && e.dojang === dojang,
+  ).forEach((e) => set.add(e.studentUsername));
+  return Array.from(set);
 }

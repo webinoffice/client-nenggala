@@ -6,9 +6,10 @@ import {
   UserCog,
   ShieldCheck,
   Database,
-  User,        
-  Calendar,    
-  Trophy,      
+  User,
+  Calendar,
+  Trophy,
+  Award,
   MessageCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -93,7 +94,14 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     children: [
       { label: "Schedule", href: "/app/coach-me/schedule", roles: COACH_ONLY },
       { label: "Report", href: "/app/coach-me/report", roles: COACH_ONLY },
+      { label: "E-Book", href: "/app/coach-me/ebook", roles: COACH_ONLY },
     ],
+  },
+  {
+    label: "Certificate",
+    icon: Trophy,
+    href: "/app/coach-me/certificate",
+    roles: COACH_ONLY,
   },
   {
     label: "Content Management",
@@ -125,6 +133,11 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
         href: "/app/student/score",
         roles: ADMIN_PLUS,
       },
+      {
+        label: "Change Password",
+        href: "/app/student/change-password",
+        roles: ADMIN_PLUS,
+      },
     ],
   },
   {
@@ -141,6 +154,12 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
         roles: ADMIN_PLUS,
       },
     ],
+  },
+  {
+    label: "Certificate",
+    icon: Award,
+    href: "/app/certificate",
+    roles: ADMIN_PLUS,
   },
   {
     label: "Admin Management",

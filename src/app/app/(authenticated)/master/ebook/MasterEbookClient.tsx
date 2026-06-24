@@ -208,9 +208,7 @@ export default function MasterEbookClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">ID</th>
                 <th className="text-left px-4 py-3.5">Sabuk</th>
-                <th className="text-left px-4 py-3.5">Volume</th>
                 <th className="text-left px-4 py-3.5">Title</th>
                 <th className="text-left px-4 py-3.5">PDF File</th>
                 <th className="text-left px-4 py-3.5">Status</th>
@@ -223,7 +221,7 @@ export default function MasterEbookClient() {
               {paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={7}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No e-books found
@@ -237,12 +235,17 @@ export default function MasterEbookClient() {
                       key={e.id}
                       className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                     >
-                      <td className="px-4 py-3 text-ink font-medium">{e.id}</td>
                       <td className="px-4 py-3 text-ink">{e.sabuk}</td>
-                      <td className="px-4 py-3 text-ink/70">{e.volume}</td>
                       <td className="px-4 py-3 text-ink">{e.title}</td>
-                      <td className="px-4 py-3 text-ink/70 font-mono text-xs">
-                        {e.pdfFile}
+                      <td className="px-4 py-3">
+                        <a
+                          href={`/ebooks/${e.pdfFile}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand hover:text-brand-hover underline underline-offset-4 font-mono text-xs"
+                        >
+                          {e.pdfFile}
+                        </a>
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
@@ -326,8 +329,8 @@ export default function MasterEbookClient() {
         description={
           confirming
             ? confirming.status === "Inactive"
-              ? `Enable "${confirming.title}" (Vol ${confirming.volume})? It will become visible to students.`
-              : `Disable "${confirming.title}" (Vol ${confirming.volume})? It will be hidden from students.`
+              ? `Enable "${confirming.title}"? It will become visible to students.`
+              : `Disable "${confirming.title}"? It will be hidden from students.`
             : ""
         }
         confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}

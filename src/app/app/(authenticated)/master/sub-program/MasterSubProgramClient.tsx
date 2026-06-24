@@ -21,7 +21,7 @@ export type SubProgram = {
   programId: string;
   subProgramId: string;
   subProgramName: string;
-  image: string;
+  image?: string;
   status: SubProgramStatus;
   updatedBy: string;
   updateDate: string;
@@ -118,17 +118,20 @@ export default function MasterSubProgramClient() {
   const [subPrograms, setSubPrograms] =
     useState<SubProgram[]>(INITIAL_SUB_PROGRAMS);
 
+  const programNameById = useMemo(
+    () => new Map(INITIAL_PROGRAMS.map((p) => [p.id, p.programName])),
+    [],
+  );
+
   const [programFilter, setProgramFilter] = useState<string>("All");
-  const [subIdInput, setSubIdInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [statusInput, setStatusInput] = useState<StatusFilter>("All");
 
   const [applied, setApplied] = useState<{
     programId: string;
-    subId: string;
     name: string;
     status: StatusFilter;
-  }>({ programId: "All", subId: "", name: "", status: "All" });
+  }>({ programId: "All", name: "", status: "All" });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SubProgram | null>(null);
@@ -142,17 +145,12 @@ export default function MasterSubProgramClient() {
     return subPrograms.filter((sp) => {
       const matchProgram =
         applied.programId === "All" || sp.programId === applied.programId;
-      const matchSubId =
-        applied.subId === "" ||
-        sp.subProgramId
-          .toLowerCase()
-          .includes(applied.subId.toLowerCase().trim());
       const matchName =
         applied.name === "" ||
         sp.subProgramName.toLowerCase().includes(applied.name.toLowerCase());
       const matchStatus =
         applied.status === "All" || sp.status === applied.status;
-      return matchProgram && matchSubId && matchName && matchStatus;
+      return matchProgram && matchName && matchStatus;
     });
   }, [subPrograms, applied]);
 
@@ -168,14 +166,12 @@ export default function MasterSubProgramClient() {
 
   const hasFilter =
     applied.programId !== "All" ||
-    applied.subId !== "" ||
     applied.name !== "" ||
     applied.status !== "All";
 
   const handleSearch = () => {
     setApplied({
       programId: programFilter,
-      subId: subIdInput,
       name: nameInput,
       status: statusInput,
     });
@@ -184,10 +180,9 @@ export default function MasterSubProgramClient() {
 
   const handleReset = () => {
     setProgramFilter("All");
-    setSubIdInput("");
     setNameInput("");
     setStatusInput("All");
-    setApplied({ programId: "All", subId: "", name: "", status: "All" });
+    setApplied({ programId: "All", name: "", status: "All" });
     setCurrentPage(1);
   };
 
@@ -211,7 +206,6 @@ export default function MasterSubProgramClient() {
                 ...sp,
                 programId: values.programId,
                 subProgramName: values.subProgramName,
-                image: values.image,
                 updatedBy: currentUserName,
                 updateDate: now,
               }
@@ -222,9 +216,9 @@ export default function MasterSubProgramClient() {
       setSubPrograms((prev) => [
         {
           programId: values.programId,
-          subProgramId: values.subProgramId,
+          // auto-generated; real id comes from backend
+          subProgramId: `${values.programId}-${Date.now()}`,
           subProgramName: values.subProgramName,
-          image: values.image,
           status: "Active",
           updatedBy: currentUserName,
           updateDate: now,
@@ -288,12 +282,6 @@ export default function MasterSubProgramClient() {
             <option value="Inactive">Inactive</option>
           </Select>
           <Input
-            label="Sub-ID"
-            value={subIdInput}
-            onChange={(e) => setSubIdInput(e.target.value)}
-            placeholder="e.g. TKD-01"
-          />
-          <Input
             label="Name"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
@@ -318,10 +306,8 @@ export default function MasterSubProgramClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">Program ID</th>
-                <th className="text-left px-4 py-3.5">Sub-Program ID</th>
+                <th className="text-left px-4 py-3.5">Program</th>
                 <th className="text-left px-4 py-3.5">Sub-Program Name</th>
-                <th className="text-left px-4 py-3.5">Image</th>
                 <th className="text-left px-4 py-3.5">Status</th>
                 <th className="text-left px-4 py-3.5">Updated By</th>
                 <th className="text-left px-4 py-3.5">Update Date</th>
@@ -332,7 +318,7 @@ export default function MasterSubProgramClient() {
               {paginatedSubPrograms.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={6}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No sub-programs found
@@ -347,15 +333,11 @@ export default function MasterSubProgramClient() {
                       className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                     >
                       <td className="px-4 py-3 text-ink font-medium">
-                        {sp.programId}
-                      </td>
-                      <td className="px-4 py-3 text-ink font-medium">
-                        {sp.subProgramId}
+                        {programNameById.get(sp.programId) ?? sp.programId}
                       </td>
                       <td className="px-4 py-3 text-ink">
                         {sp.subProgramName}
                       </td>
-                      <td className="px-4 py-3 text-ink/70">{sp.image}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
                           <span
@@ -426,7 +408,6 @@ export default function MasterSubProgramClient() {
           setEditing(null);
         }}
         initial={editing}
-        existingSubIds={subPrograms.map((sp) => sp.subProgramId)}
         onSubmit={handleSubmit}
       />
 

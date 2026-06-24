@@ -151,7 +151,7 @@ export default function AdminListClient() {
                   Action
                 </th>
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                  Username
+                  No. Reg
                 </th>
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
                   Nama Lengkap

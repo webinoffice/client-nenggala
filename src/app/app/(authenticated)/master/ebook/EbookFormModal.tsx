@@ -11,7 +11,6 @@ import { SABUK_OPTIONS } from "../../student/_shared/students";
 
 export type EbookFormValues = {
   sabuk: string;
-  volume: string;
   title: string;
   pdfFile: string;
 };
@@ -57,7 +56,6 @@ function EbookFormBody({
   onSubmit: (values: EbookFormValues) => void;
 }) {
   const [sabuk, setSabuk] = useState(initial?.sabuk ?? "");
-  const [volume, setVolume] = useState(initial?.volume ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [pdfFile, setPdfFile] = useState(initial?.pdfFile ?? "");
   const [errors, setErrors] = useState<Partial<EbookFormValues>>({});
@@ -67,7 +65,6 @@ function EbookFormBody({
   const handleSubmit = () => {
     const next: Partial<EbookFormValues> = {};
     if (!sabuk) next.sabuk = "Required";
-    if (!volume.trim()) next.volume = "Required";
     if (!title.trim()) next.title = "Required";
     if (!pdfFile.trim()) next.pdfFile = "Required";
     if (Object.keys(next).length > 0) {
@@ -76,7 +73,6 @@ function EbookFormBody({
     }
     onSubmit({
       sabuk,
-      volume: volume.trim(),
       title: title.trim(),
       pdfFile: pdfFile.trim(),
     });
@@ -101,13 +97,6 @@ function EbookFormBody({
             </option>
           ))}
         </Select>
-        <Input
-          label="Volume"
-          placeholder="e.g. 1.1"
-          value={volume}
-          onChange={(e) => setVolume(e.target.value)}
-          error={errors.volume}
-        />
         <Input
           label="Title"
           placeholder="e.g. Cara Menendang"

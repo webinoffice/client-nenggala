@@ -5,6 +5,7 @@ export type SessionAttendance = {
   scheduleId: string;
   date: string; // YYYY-MM-DD
   coachUsername: string;
+  coachAttended?: boolean; // whether the coach marked their own attendance
   attendingStudentUsernames: string[];
   submittedBy: string;
   submitDate: string; // ISO
