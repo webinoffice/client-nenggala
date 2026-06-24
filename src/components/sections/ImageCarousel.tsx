@@ -3,15 +3,8 @@
 import Image from "next/image";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-// Single source of truth — same endpoint will serve both /gallery and /program/taekwondo
-const GALLERY_IMAGES = [
-  { id: "g1", src: "/images/story-1.jpg", alt: "Atlet Nenggala bertanding" },
-  { id: "g2", src: "/images/story-2.jpg", alt: "Tim Nenggala juara" },
-  { id: "g3", src: "/images/story-3.jpg", alt: "Latihan kelompok" },
-  { id: "g4", src: "/images/story-4.jpg", alt: "Demonstrasi tim" },
-  { id: "g5", src: "/images/story-5.jpg", alt: "Acara Hanmadang" },
-];
+import { useGallery } from "@/lib/cms/gallery";
+import { isBlobSrc } from "@/lib/cms/image-src";
 
 const GAP = 24; // px — matches Tailwind gap-6 (1.5rem)
 const DRAG_THRESHOLD = 60; // px the user must drag before the slide commits
@@ -27,6 +20,7 @@ interface ImageCarouselProps {
 }
 
 export default function ImageCarousel({ title }: ImageCarouselProps) {
+  const GALLERY_IMAGES = useGallery();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [perView, setPerView] = useState(3);
@@ -60,7 +54,7 @@ export default function ImageCarousel({ title }: ImageCarouselProps) {
   // Keep the active index valid when perView changes.
   useEffect(() => {
     setIndex((i) => Math.min(i, Math.max(0, GALLERY_IMAGES.length - perView)));
-  }, [perView]);
+  }, [perView, GALLERY_IMAGES.length]);
 
   const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
@@ -143,6 +137,7 @@ export default function ImageCarousel({ title }: ImageCarouselProps) {
                       alt={img.alt}
                       fill
                       draggable={false}
+                      unoptimized={isBlobSrc(img.src)}
                       className="select-none object-cover"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     />

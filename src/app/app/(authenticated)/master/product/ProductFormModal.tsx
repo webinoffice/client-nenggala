@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
-import type { Product } from "./MasterProductClient";
+import type { Product } from "../_shared/products";
 import { PRODUCT_TYPES, type ProductType } from "../_shared/product-types";
 
 export type ProductFormValues = {

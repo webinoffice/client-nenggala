@@ -1,7 +1,7 @@
-// src/app/app/(authenticated)/master/dojang/MasterDojangClient.tsx
+// src/app/app/(authenticated)/content/events/EventsClient.tsx
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,82 +12,82 @@ import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
-import DojangFormModal, { type DojangFormValues } from "./DojangFormModal";
+import { useRole } from "@/lib/role-context";
+import { getCurrentDisplayName } from "@/lib/current-user";
+import { isBlobSrc } from "@/lib/cms/image-src";
 import {
-  getDojangs,
-  subscribeDojangs,
-  getNextDojangId,
-  addDojang,
-  updateDojang,
-  toggleDojangStatus,
-  type Dojang,
-  type DojangStatus,
-} from "../_shared/dojangs";
+  useEvents,
+  addEvent,
+  updateEvent,
+  toggleEventStatus,
+  getNextEventId,
+  formatEventDate,
+  type EventItem,
+  type EventStatus,
+} from "@/lib/events";
+import EventFormModal, { type EventFormValues } from "./EventFormModal";
 
-type StatusFilter = "All" | DojangStatus;
+type StatusFilter = "All" | EventStatus;
 
-function formatDate(iso: string) {
+function formatDateTime(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
     d.getHours(),
-  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  )}:${pad(d.getMinutes())}`;
 }
 
-export default function MasterDojangClient() {
-  const currentUserName = "Carolina";
+export default function EventsClient() {
+  const { role } = useRole();
+  const currentUserName = getCurrentDisplayName(role);
 
-  const dojangs = useSyncExternalStore(subscribeDojangs, getDojangs, getDojangs);
+  const events = useEvents();
 
-  const [dojangInput, setDojangInput] = useState("");
+  const [titleInput, setTitleInput] = useState("");
   const [statusInput, setStatusInput] = useState<StatusFilter>("All");
-
-  const [applied, setApplied] = useState<{
-    dojang: string;
-    status: StatusFilter;
-  }>({ dojang: "", status: "All" });
+  const [applied, setApplied] = useState<{ title: string; status: StatusFilter }>(
+    { title: "", status: "All" },
+  );
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Dojang | null>(null);
-  const [confirming, setConfirming] = useState<Dojang | null>(null);
-  const [viewing, setViewing] = useState<Dojang | null>(null);
+  const [editing, setEditing] = useState<EventItem | null>(null);
+  const [confirming, setConfirming] = useState<EventItem | null>(null);
+  const [viewing, setViewing] = useState<EventItem | null>(null);
 
-  // pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
   const filtered = useMemo(() => {
-    return dojangs.filter((d) => {
-      const matchName =
-        applied.dojang === "" ||
-        d.dojangName.toLowerCase().includes(applied.dojang.toLowerCase());
+    return events.filter((e) => {
+      const matchTitle =
+        applied.title === "" ||
+        e.title.toLowerCase().includes(applied.title.toLowerCase());
       const matchStatus =
-        applied.status === "All" || d.status === applied.status;
-      return matchName && matchStatus;
+        applied.status === "All" || e.status === applied.status;
+      return matchTitle && matchStatus;
     });
-  }, [dojangs, applied]);
+  }, [events, applied]);
 
-  // derived pagination values
   const totalItems = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(currentPage, totalPages);
 
-  const paginatedDojangs = useMemo(() => {
+  const paginated = useMemo(() => {
     const start = (safePage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, safePage, pageSize]);
 
-  const hasFilter = applied.dojang !== "" || applied.status !== "All";
+  const hasFilter = applied.title !== "" || applied.status !== "All";
 
   const handleSearch = () => {
-    setApplied({ dojang: dojangInput, status: statusInput });
+    setApplied({ title: titleInput, status: statusInput });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
-    setDojangInput("");
+    setTitleInput("");
     setStatusInput("All");
-    setApplied({ dojang: "", status: "All" });
+    setApplied({ title: "", status: "All" });
     setCurrentPage(1);
   };
 
@@ -96,25 +96,23 @@ export default function MasterDojangClient() {
     setFormOpen(true);
   };
 
-  const handleEdit = (dojang: Dojang) => {
-    setEditing(dojang);
+  const handleEdit = (event: EventItem) => {
+    setEditing(event);
     setFormOpen(true);
   };
 
-  const handleSubmit = (values: DojangFormValues) => {
+  const handleSubmit = (values: EventFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
-      updateDojang(editing.id, {
-        dojangName: values.dojangName,
-        image: values.image || undefined,
+      updateEvent(editing.id, {
+        ...values,
         updatedBy: currentUserName,
         updateDate: now,
       });
     } else {
-      addDojang({
-        id: getNextDojangId(),
-        dojangName: values.dojangName,
-        image: values.image || undefined,
+      addEvent({
+        id: getNextEventId(),
+        ...values,
         status: "Active",
         updatedBy: currentUserName,
         updateDate: now,
@@ -126,17 +124,18 @@ export default function MasterDojangClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleDojangStatus(confirming.id, currentUserName);
+    toggleEventStatus(confirming.id, currentUserName);
   };
 
   return (
     <>
       <PageHeader
-        title="Master Dojang"
+        title="Events"
+        description="Events shown on the marketing site and available as the homepage highlight."
         actions={
           <Button onClick={handleAdd}>
             <Plus size={16} />
-            Add Dojang
+            Add Event
           </Button>
         }
       />
@@ -145,10 +144,10 @@ export default function MasterDojangClient() {
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <Input
-            label="Dojang"
-            value={dojangInput}
-            onChange={(e) => setDojangInput(e.target.value)}
-            placeholder="e.g. Kedoya Sport Club"
+            label="Title"
+            value={titleInput}
+            onChange={(e) => setTitleInput(e.target.value)}
+            placeholder="e.g. Ujian Kenaikan Tingkat"
           />
           <Select
             label="Status"
@@ -179,70 +178,66 @@ export default function MasterDojangClient() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b-2 border-ink/15 bg-paper-soft font-display text-[11px] font-bold uppercase tracking-widest text-ink/70">
-                <th className="text-left px-4 py-3.5">Dojang</th>
+                <th className="text-left px-4 py-3.5">Title</th>
+                <th className="text-left px-4 py-3.5">Date</th>
                 <th className="text-left px-4 py-3.5">Status</th>
                 <th className="text-left px-4 py-3.5">Updated By</th>
-                <th className="text-left px-4 py-3.5">Update Date</th>
                 <th className="text-right px-4 py-3.5">Action</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedDojangs.length === 0 ? (
+              {paginated.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
-                    No dojangs found
+                    No events found
                   </td>
                 </tr>
               ) : (
-                paginatedDojangs.map((d) => {
-                  const isActive = d.status === "Active";
+                paginated.map((e) => {
+                  const isActive = e.status === "Active";
                   return (
                     <tr
-                      key={d.id}
+                      key={e.id}
                       className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => setViewing(d)}
+                          onClick={() => setViewing(e)}
                           className="text-ink font-medium hover:text-brand underline underline-offset-4 decoration-ink/20 hover:decoration-brand transition-colors text-left"
                         >
-                          {d.dojangName}
+                          {e.title}
                         </button>
+                      </td>
+                      <td className="px-4 py-3 text-ink/70 whitespace-nowrap">
+                        {formatEventDate(e.date)}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
                           <span
                             className={cn(
                               "h-1.5 w-1.5 rounded-full",
-                              isActive
-                                ? "bg-emerald-500"
-                                : "bg-muted-foreground",
+                              isActive ? "bg-emerald-500" : "bg-muted-foreground",
                             )}
                           />
-                          <span
-                            className={isActive ? "text-ink" : "text-muted"}
-                          >
-                            {d.status}
+                          <span className={isActive ? "text-ink" : "text-muted"}>
+                            {e.status}
                           </span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-ink/70">{d.updatedBy}</td>
-                      <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
-                        {formatDate(d.updateDate)}
-                      </td>
+                      <td className="px-4 py-3 text-ink/70">{e.updatedBy}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleEdit(d)}
+                            onClick={() => handleEdit(e)}
                             className="bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:brightness-95 transition"
                           >
                             Update
                           </button>
                           <button
-                            onClick={() => setConfirming(d)}
+                            onClick={() => setConfirming(e)}
                             className={cn(
                               "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
                               isActive
@@ -261,7 +256,6 @@ export default function MasterDojangClient() {
             </tbody>
           </table>
         </div>
-        {/* pagination footer */}
         {totalItems > 0 && (
           <div className="px-4 py-4 border-t border-ink/10 bg-paper">
             <Pagination
@@ -275,7 +269,7 @@ export default function MasterDojangClient() {
         )}
       </div>
 
-      <DojangFormModal
+      <EventFormModal
         open={formOpen}
         onClose={() => {
           setFormOpen(false);
@@ -289,17 +283,18 @@ export default function MasterDojangClient() {
       <Modal
         open={viewing !== null}
         onClose={() => setViewing(null)}
-        title={viewing?.dojangName ?? ""}
+        title={viewing?.title ?? ""}
         size="md"
       >
         {viewing && (
           <div className="space-y-4">
-            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-sm bg-paper-soft border border-ink/10">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-sm bg-paper-soft border border-ink/10">
               {viewing.image ? (
                 <Image
                   src={viewing.image}
-                  alt={viewing.dojangName}
+                  alt={viewing.title}
                   fill
+                  unoptimized={isBlobSrc(viewing.image)}
                   className="object-cover"
                   sizes="(max-width: 640px) 100vw, 480px"
                 />
@@ -311,13 +306,17 @@ export default function MasterDojangClient() {
             </div>
             <dl className="grid grid-cols-[120px_1fr] gap-y-2 text-sm">
               <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
-                Dojang
+                Date
               </dt>
-              <dd className="text-ink">{viewing.dojangName}</dd>
+              <dd className="text-ink">{formatEventDate(viewing.date)}</dd>
               <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
-                Status
+                Register URL
               </dt>
-              <dd className="text-ink">{viewing.status}</dd>
+              <dd className="text-ink break-all">{viewing.registerUrl}</dd>
+              <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
+                Description
+              </dt>
+              <dd className="text-ink/70">{viewing.description}</dd>
               <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
                 Updated By
               </dt>
@@ -325,7 +324,7 @@ export default function MasterDojangClient() {
               <dt className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
                 Update Date
               </dt>
-              <dd className="text-ink/70">{formatDate(viewing.updateDate)}</dd>
+              <dd className="text-ink/70">{formatDateTime(viewing.updateDate)}</dd>
             </dl>
           </div>
         )}
@@ -336,13 +335,13 @@ export default function MasterDojangClient() {
         onClose={() => setConfirming(null)}
         onConfirm={handleToggleStatus}
         title={
-          confirming?.status === "Inactive" ? "Enable Dojang" : "Disable Dojang"
+          confirming?.status === "Inactive" ? "Enable Event" : "Disable Event"
         }
         description={
           confirming
             ? confirming.status === "Inactive"
-              ? `Enable "${confirming.dojangName}" (ID ${confirming.id})? It will return to active status.`
-              : `Disable "${confirming.dojangName}" (ID ${confirming.id})? It will be marked inactive.`
+              ? `Enable "${confirming.title}"? It will reappear on the marketing site.`
+              : `Disable "${confirming.title}"? It will be hidden from the marketing site.`
             : ""
         }
         confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}

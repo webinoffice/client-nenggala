@@ -1,40 +1,16 @@
 // src/app/app/(authenticated)/master/grading-belt/MasterBeltClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
-
-export type BeltStatus = "Active" | "Inactive";
-
-export type Belt = {
-  id: number;
-  beltName: string;
-  beltLevel: number;
-  status: BeltStatus;
-  updatedBy: string;
-  updateDate: string;
-};
-
-const INITIAL_BELTS: Belt[] = [
-  { id: 1, beltName: "Putih", beltLevel: 0, status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
-  { id: 2, beltName: "Kuning", beltLevel: 1, status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:42:00" },
-  { id: 3, beltName: "Kuning Strip", beltLevel: 2, status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:43:00" },
-  { id: 4, beltName: "Hijau", beltLevel: 3, status: "Active", updatedBy: "Andre", updateDate: "2025-12-20T10:00:00" },
-  { id: 5, beltName: "Hijau Strip", beltLevel: 4, status: "Active", updatedBy: "Andre", updateDate: "2025-12-20T10:05:00" },
-  { id: 6, beltName: "Biru", beltLevel: 5, status: "Active", updatedBy: "Carolina", updateDate: "2025-11-15T14:30:00" },
-  { id: 7, beltName: "Biru Strip", beltLevel: 6, status: "Active", updatedBy: "Carolina", updateDate: "2025-11-15T14:32:00" },
-  { id: 8, beltName: "Merah", beltLevel: 7, status: "Active", updatedBy: "Carolina", updateDate: "2025-10-10T09:15:00" },
-  { id: 9, beltName: "Merah Strip", beltLevel: 8, status: "Active", updatedBy: "Andre", updateDate: "2025-10-10T09:18:00" },
-  { id: 10, beltName: "Hitam Dan 1", beltLevel: 9, status: "Active", updatedBy: "Carolina", updateDate: "2025-09-05T11:00:00" },
-  { id: 11, beltName: "Hitam Dan 2", beltLevel: 10, status: "Inactive", updatedBy: "Carolina", updateDate: "2025-09-05T11:02:00" },
-];
+import { getBelts, subscribeBelts } from "../_shared/belts";
 
 export default function MasterBeltClient() {
-  const belts = INITIAL_BELTS;
+  const belts = useSyncExternalStore(subscribeBelts, getBelts, getBelts);
 
   const [beltInput, setBeltInput] = useState("");
   const [applied, setApplied] = useState("");

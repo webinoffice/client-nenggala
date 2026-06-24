@@ -7,7 +7,7 @@ import { useSyncExternalStore } from "react";
 import { Bell, ArrowUpRight } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
-import { EVENTS, formatEventDate } from "@/lib/events";
+import { useEvents, formatEventDate } from "@/lib/events";
 import { getStudents, subscribeStudents } from "../student/_shared/students";
 import {
   getScores,
@@ -36,6 +36,7 @@ export default function StudentDashboard() {
     getStudents,
   );
   const scores = useSyncExternalStore(subscribeScores, getScores, getScores);
+  const events = useEvents();
 
   const student = students.find((s) => s.username === username);
 
@@ -59,8 +60,9 @@ export default function StudentDashboard() {
     ? getPassingThreshold(lastScore.sabukAtSubmit)
     : 75;
 
-  // Show the 4 most recent events
-  const recentEvents = [...EVENTS]
+  // Show the 4 most recent active events
+  const recentEvents = events
+    .filter((e) => e.status === "Active")
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 4);
 

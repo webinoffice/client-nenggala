@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/schedule-period/MasterSchedulePeriodClient.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
@@ -14,19 +14,15 @@ import { DOJANG_OPTIONS } from "../../student/_shared/students";
 import SchedulePeriodFormModal, {
   type SchedulePeriodFormValues,
 } from "./SchedulePeriodFormModal";
-
-export type SchedulePeriodStatus = "Active" | "Inactive";
-
-export type SchedulePeriod = {
-  id: number;
-  periodName: string;
-  dojang: string;
-  periodStart: string; // YYYY-MM
-  periodEnd: string; // YYYY-MM
-  status: SchedulePeriodStatus;
-  updatedBy: string;
-  updateDate: string;
-};
+import {
+  getSchedulePeriods,
+  subscribeSchedulePeriods,
+  getMaxSchedulePeriodId,
+  addSchedulePeriods,
+  updateSchedulePeriod,
+  toggleSchedulePeriodStatus,
+  type SchedulePeriod,
+} from "../_shared/schedule-periods";
 
 // The logged-in admin's own dojang (real value comes from the session later).
 const ADMIN_DOJANG = "Kedoya Sport Club";
@@ -54,49 +50,6 @@ export function formatMonth(yearMonth: string): string {
   return `${MONTH_NAMES_ID[idx]} ${year}`;
 }
 
-const INITIAL_PERIODS: SchedulePeriod[] = [
-  {
-    id: 1,
-    periodName: "Period 32",
-    dojang: "Kedoya Sport Club",
-    periodStart: "2026-01",
-    periodEnd: "2026-06",
-    status: "Active",
-    updatedBy: "Jordan Kusuma",
-    updateDate: "2026-01-01T14:30:00",
-  },
-  {
-    id: 2,
-    periodName: "Period 33",
-    dojang: "Kedoya Sport Club",
-    periodStart: "2026-07",
-    periodEnd: "2026-12",
-    status: "Active",
-    updatedBy: "Jordan Kusuma",
-    updateDate: "2026-01-01T14:30:00",
-  },
-  {
-    id: 3,
-    periodName: "Period 31",
-    dojang: "Senayan Dojang",
-    periodStart: "2025-07",
-    periodEnd: "2025-12",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-06-15T10:00:00",
-  },
-  {
-    id: 4,
-    periodName: "Period 30",
-    dojang: "Bintaro Dojang",
-    periodStart: "2025-01",
-    periodEnd: "2025-06",
-    status: "Inactive",
-    updatedBy: "Carolina",
-    updateDate: "2024-12-20T11:00:00",
-  },
-];
-
 function formatDate(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -110,7 +63,11 @@ export default function MasterSchedulePeriodClient() {
   const isSuper = role === "super-admin";
   const currentUserName = "Carolina";
 
-  const [periods, setPeriods] = useState<SchedulePeriod[]>(INITIAL_PERIODS);
+  const periods = useSyncExternalStore(
+    subscribeSchedulePeriods,
+    getSchedulePeriods,
+    getSchedulePeriods,
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SchedulePeriod | null>(null);
   const [confirming, setConfirming] = useState<SchedulePeriod | null>(null);
@@ -152,23 +109,15 @@ export default function MasterSchedulePeriodClient() {
     const now = new Date().toISOString();
     if (editing) {
       // Only the name and period end may change.
-      setPeriods((prev) =>
-        prev.map((p) =>
-          p.id === editing.id
-            ? {
-                ...p,
-                periodName: values.periodName,
-                periodEnd: values.periodEnd,
-                updatedBy: currentUserName,
-                updateDate: now,
-              }
-            : p,
-        ),
-      );
+      updateSchedulePeriod(editing.id, {
+        periodName: values.periodName,
+        periodEnd: values.periodEnd,
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     } else {
       // One record per selected dojang (admin: always own dojang).
-      const baseId =
-        periods.length > 0 ? Math.max(...periods.map((p) => p.id)) : 0;
+      const baseId = getMaxSchedulePeriodId();
       const created: SchedulePeriod[] = values.dojangs.map((dojang, i) => ({
         id: baseId + 1 + i,
         periodName: values.periodName,
@@ -179,7 +128,7 @@ export default function MasterSchedulePeriodClient() {
         updatedBy: currentUserName,
         updateDate: now,
       }));
-      setPeriods((prev) => [...created, ...prev]);
+      addSchedulePeriods(created);
     }
     setFormOpen(false);
     setEditing(null);
@@ -187,18 +136,7 @@ export default function MasterSchedulePeriodClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    setPeriods((prev) =>
-      prev.map((p) =>
-        p.id === confirming.id
-          ? {
-              ...p,
-              status: p.status === "Active" ? "Inactive" : "Active",
-              updatedBy: currentUserName,
-              updateDate: new Date().toISOString(),
-            }
-          : p,
-      ),
-    );
+    toggleSchedulePeriodStatus(confirming.id, currentUserName);
   };
 
   return (

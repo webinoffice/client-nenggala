@@ -5,7 +5,7 @@ import { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import type { Dojang } from "./MasterDojangClient";
+import type { Dojang } from "../_shared/dojangs";
 
 export type DojangFormValues = {
   dojangName: string;

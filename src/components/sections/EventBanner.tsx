@@ -1,11 +1,30 @@
+"use client";
+
 import Image from "next/image";
+import { useMemo } from "react";
 import { ArrowUpRight } from "lucide-react";
+import { useEvents, formatEventDate } from "@/lib/events";
+import { useHomepageContent } from "@/lib/cms/homepage";
+import { isBlobSrc } from "@/lib/cms/image-src";
 
 interface EventBannerProps {
   sectionTitle?: string;
 }
 
 export default function EventBanner({ sectionTitle }: EventBannerProps = {}) {
+  const events = useEvents();
+  const { highlightEventId } = useHomepageContent();
+
+  // Use the selected highlight when it's still active, otherwise fall back to
+  // the most recent active event so the banner is never empty.
+  const highlight = useMemo(() => {
+    const active = events.filter((e) => e.status === "Active");
+    const selected = active.find((e) => e.id === highlightEventId);
+    return selected ?? active[0] ?? null;
+  }, [events, highlightEventId]);
+
+  if (!highlight) return null;
+
   return (
     <section className="bg-paper py-16 md:py-20">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
@@ -21,16 +40,18 @@ export default function EventBanner({ sectionTitle }: EventBannerProps = {}) {
               Event Terbaru
             </p>
             <h3 className="mt-3 font-display text-3xl font-bold uppercase leading-tight md:text-4xl">
-              Ujian Kenaikan Tingkat 2019
+              {highlight.title}
             </h3>
-            <p className="mt-2 text-sm font-semibold">24 November 2019</p>
+            <p className="mt-2 text-sm font-semibold">
+              {formatEventDate(highlight.date)}
+            </p>
             <p className="mt-4 max-w-md text-sm leading-relaxed">
-              Saatnya menunjukkan latihan, teknik, dan semangat juangmu di Ujian
-              Kenaikan Tingkat 2019. Jadilah bagian dari generasi Taekwondo yang
-              lebih kuat dan lebih percaya diri.
+              {highlight.description}
             </p>
             <a
-              href="#"
+              href={`https://${highlight.registerUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="mt-6 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest underline-offset-4 hover:underline"
             >
               Lihat Detail Event
@@ -40,9 +61,10 @@ export default function EventBanner({ sectionTitle }: EventBannerProps = {}) {
 
           <article className="md:col-span-2 relative aspect-[4/3] md:aspect-auto overflow-hidden rounded-sm bg-ink">
             <Image
-              src="/images/event-ukt-promo.jpg"
-              alt="UKT 21 Promo"
+              src={highlight.image}
+              alt={highlight.title}
               fill
+              unoptimized={isBlobSrc(highlight.image)}
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 40vw"
             />

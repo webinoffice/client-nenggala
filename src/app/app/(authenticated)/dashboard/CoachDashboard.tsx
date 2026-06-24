@@ -7,7 +7,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { ArrowRight, ArrowUpRight, Bell } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
-import { EVENTS, formatEventDate } from "@/lib/events";
+import { useEvents, formatEventDate } from "@/lib/events";
 import {
   getSchedules,
   subscribeSchedules,
@@ -44,10 +44,15 @@ export default function CoachDashboard() {
 
   const coach = coaches.find((c) => c.username === username);
 
-  // All events, most recent first
+  const events = useEvents();
+
+  // All active events, most recent first
   const allEvents = useMemo(
-    () => [...EVENTS].sort((a, b) => b.date.localeCompare(a.date)),
-    [],
+    () =>
+      events
+        .filter((e) => e.status === "Active")
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [events],
   );
 
   // Schedules where this coach is primary or secondary (current period)

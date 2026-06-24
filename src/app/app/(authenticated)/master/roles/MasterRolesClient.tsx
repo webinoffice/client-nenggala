@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/roles/MasterRolesClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Search, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
@@ -12,112 +12,14 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import UserFormModal, { type UserFormValues } from "./UserFormModal";
-
-export type UserStatus = "Active" | "Inactive";
-
-export type AppUser = {
-  id: number;
-  name: string;
-  username: string;
-  password: string;
-  role: Role;
-  status: UserStatus;
-  updatedBy: string;
-  updateDate: string;
-};
-
-const INITIAL_USERS: AppUser[] = [
-  {
-    id: 1,
-    name: "Fathir",
-    username: "NA0001",
-    password: "TKel0012",
-    role: "admin",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-28T19:41:32",
-  },
-  {
-    id: 2,
-    name: "Devaloka Gangga",
-    username: "NA0002",
-    password: "DvG2024",
-    role: "super-admin",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-20T10:00:00",
-  },
-  {
-    id: 3,
-    name: "Andre Wijaya",
-    username: "NA0003",
-    password: "AnW1990",
-    role: "coach",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-15T14:30:00",
-  },
-  {
-    id: 4,
-    name: "Carolina Suteja",
-    username: "NA0004",
-    password: "CrS1985",
-    role: "super-admin",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-10T11:00:00",
-  },
-  {
-    id: 5,
-    name: "Bayu Pratama",
-    username: "NA0005",
-    password: "ByP2023",
-    role: "coach",
-    status: "Active",
-    updatedBy: "Andre",
-    updateDate: "2025-11-25T09:00:00",
-  },
-  {
-    id: 6,
-    name: "Sari Indah",
-    username: "NA0006",
-    password: "Sr2024xy",
-    role: "student",
-    status: "Active",
-    updatedBy: "Andre",
-    updateDate: "2025-11-20T13:45:00",
-  },
-  {
-    id: 7,
-    name: "Reza Maulana",
-    username: "NA0007",
-    password: "Rz1995qq",
-    role: "student",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-11-15T08:30:00",
-  },
-  {
-    id: 8,
-    name: "Indah Permata",
-    username: "NA0008",
-    password: "IP2024ab",
-    role: "admin",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-11-10T16:20:00",
-  },
-  {
-    id: 9,
-    name: "Dimas Kurniawan",
-    username: "NA0009",
-    password: "Dm9988",
-    role: "student",
-    status: "Inactive",
-    updatedBy: "Carolina",
-    updateDate: "2025-10-05T12:00:00",
-  },
-];
+import {
+  getAppUsers,
+  subscribeAppUsers,
+  updateAppUser,
+  toggleAppUserStatus,
+  type AppUser,
+  type UserStatus,
+} from "../_shared/app-users";
 
 type StatusFilter = "All" | UserStatus;
 type RoleFilter = "All" | Role;
@@ -133,7 +35,11 @@ function formatDate(iso: string) {
 export default function MasterRolesClient() {
   const currentUserName = "Carolina";
 
-  const [users, setUsers] = useState<AppUser[]>(INITIAL_USERS);
+  const users = useSyncExternalStore(
+    subscribeAppUsers,
+    getAppUsers,
+    getAppUsers,
+  );
 
   const [nameInput, setNameInput] = useState("");
   const [roleInput, setRoleInput] = useState<RoleFilter>("All");
@@ -210,38 +116,20 @@ export default function MasterRolesClient() {
     if (!editing) return;
     const now = new Date().toISOString();
     // Only password and role can change.
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editing.id
-          ? {
-              ...u,
-              role: values.role,
-              password:
-                values.password.trim() === "" ? u.password : values.password,
-              updatedBy: currentUserName,
-              updateDate: now,
-            }
-          : u,
-      ),
-    );
+    updateAppUser(editing.id, {
+      role: values.role,
+      password:
+        values.password.trim() === "" ? editing.password : values.password,
+      updatedBy: currentUserName,
+      updateDate: now,
+    });
     setFormOpen(false);
     setEditing(null);
   };
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === confirming.id
-          ? {
-              ...u,
-              status: u.status === "Active" ? "Inactive" : "Active",
-              updatedBy: currentUserName,
-              updateDate: new Date().toISOString(),
-            }
-          : u,
-      ),
-    );
+    toggleAppUserStatus(confirming.id, currentUserName);
   };
 
   return (

@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/ebook/MasterEbookClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -12,7 +12,12 @@ import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import EbookFormModal, { type EbookFormValues } from "./EbookFormModal";
 import {
-  INITIAL_EBOOKS,
+  getEbooks,
+  subscribeEbooks,
+  getNextEbookId,
+  addEbook,
+  updateEbook,
+  toggleEbookStatus,
   type Ebook,
   type EbookStatus,
 } from "../_shared/ebooks";
@@ -30,7 +35,7 @@ function fmtDate(iso: string) {
 
 export default function MasterEbookClient() {
   const currentUserName = "Carolina";
-  const [ebooks, setEbooks] = useState<Ebook[]>(INITIAL_EBOOKS);
+  const ebooks = useSyncExternalStore(subscribeEbooks, getEbooks, getEbooks);
 
   const [sabukInput, setSabukInput] = useState("All");
   const [titleInput, setTitleInput] = useState("");
@@ -102,31 +107,19 @@ export default function MasterEbookClient() {
   const handleSubmit = (values: EbookFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
-      setEbooks((prev) =>
-        prev.map((e) =>
-          e.id === editing.id
-            ? {
-                ...e,
-                ...values,
-                updatedBy: currentUserName,
-                updateDate: now,
-              }
-            : e,
-        ),
-      );
+      updateEbook(editing.id, {
+        ...values,
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     } else {
-      const nextId =
-        ebooks.length > 0 ? Math.max(...ebooks.map((e) => e.id)) + 1 : 1;
-      setEbooks((prev) => [
-        {
-          id: nextId,
-          ...values,
-          status: "Active",
-          updatedBy: currentUserName,
-          updateDate: now,
-        },
-        ...prev,
-      ]);
+      addEbook({
+        id: getNextEbookId(),
+        ...values,
+        status: "Active",
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     }
     setFormOpen(false);
     setEditing(null);
@@ -134,18 +127,7 @@ export default function MasterEbookClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    setEbooks((prev) =>
-      prev.map((e) =>
-        e.id === confirming.id
-          ? {
-              ...e,
-              status: e.status === "Active" ? "Inactive" : "Active",
-              updatedBy: currentUserName,
-              updateDate: new Date().toISOString(),
-            }
-          : e,
-      ),
-    );
+    toggleEbookStatus(confirming.id, currentUserName);
   };
 
   return (

@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/program/MasterProgramClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -12,7 +12,12 @@ import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import ProgramFormModal, { type ProgramFormValues } from "./ProgramFormModal";
 import {
-  INITIAL_PROGRAMS,
+  getPrograms,
+  subscribePrograms,
+  getNextProgramId,
+  addProgram,
+  updateProgram,
+  toggleProgramStatus,
   type Program,
   type ProgramStatus,
 } from "../_shared/programs";
@@ -30,7 +35,11 @@ function formatDate(iso: string) {
 export default function MasterProgramClient() {
   const currentUserName = "Carolina";
 
-  const [programs, setPrograms] = useState<Program[]>(INITIAL_PROGRAMS);
+  const programs = useSyncExternalStore(
+    subscribePrograms,
+    getPrograms,
+    getPrograms,
+  );
 
   const [nameInput, setNameInput] = useState("");
   const [statusInput, setStatusInput] = useState<StatusFilter>("All");
@@ -96,29 +105,19 @@ export default function MasterProgramClient() {
   const handleSubmit = (values: ProgramFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
-      setPrograms((prev) =>
-        prev.map((p) =>
-          p.id === editing.id
-            ? {
-                ...p,
-                programName: values.programName,
-                updatedBy: currentUserName,
-                updateDate: now,
-              }
-            : p,
-        ),
-      );
+      updateProgram(editing.id, {
+        programName: values.programName,
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     } else {
-      setPrograms((prev) => [
-        {
-          id: `PRG-${Date.now()}`, // auto-generated; real id comes from backend
-          programName: values.programName,
-          status: "Active",
-          updatedBy: currentUserName,
-          updateDate: now,
-        },
-        ...prev,
-      ]);
+      addProgram({
+        id: getNextProgramId(),
+        programName: values.programName,
+        status: "Active",
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     }
     setFormOpen(false);
     setEditing(null);
@@ -126,18 +125,7 @@ export default function MasterProgramClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    setPrograms((prev) =>
-      prev.map((p) =>
-        p.id === confirming.id
-          ? {
-              ...p,
-              status: p.status === "Active" ? "Inactive" : "Active",
-              updatedBy: currentUserName,
-              updateDate: new Date().toISOString(),
-            }
-          : p,
-      ),
-    );
+    toggleProgramStatus(confirming.id, currentUserName);
   };
 
   return (

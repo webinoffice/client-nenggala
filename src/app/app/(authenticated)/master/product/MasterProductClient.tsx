@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/product/MasterProductClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { Plus, Search, ExternalLink } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -12,77 +12,16 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import ProductFormModal, { type ProductFormValues } from "./ProductFormModal";
+import { PRODUCT_TYPES } from "../_shared/product-types";
 import {
-  PRODUCT_TYPES,
-  type ProductType,
-} from "../_shared/product-types";
-
-export type Product = {
-  id: string; // internal, not displayed
-  type: ProductType;
-  productName: string;
-  link: string;
-  image: string;
-  updatedBy: string;
-  updateDate: string;
-};
-
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: "TS-01",
-    type: "Taekwondo",
-    productName: "Uniform",
-    link: "www.tokopedia.com/13...",
-    image: "/images/product-placeholder.jpg",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-28T19:41:32",
-  },
-  {
-    id: "BL-01",
-    type: "Accessories",
-    productName: "White Belt",
-    link: "www.tokopedia.com/belts/white",
-    image: "/images/product-placeholder.jpg",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-15T09:12:00",
-  },
-  {
-    id: "BL-02",
-    type: "Accessories",
-    productName: "Yellow Belt",
-    link: "www.tokopedia.com/belts/yellow",
-    image: "/images/product-placeholder.jpg",
-    updatedBy: "Andre",
-    updateDate: "2025-11-30T14:22:11",
-  },
-  {
-    id: "BL-03",
-    type: "Accessories",
-    productName: "Green Belt",
-    link: "www.tokopedia.com/belts/green",
-    image: "/images/product-placeholder.jpg",
-    updatedBy: "Andre",
-    updateDate: "2025-11-30T14:23:00",
-  },
-  {
-    id: "GR-01",
-    type: "Gymnastic",
-    productName: "Hand Pads",
-    link: "www.tokopedia.com/grip/pads",
-    image: "/images/product-placeholder.jpg",
-    updatedBy: "Carolina",
-    updateDate: "2025-10-01T11:00:00",
-  },
-  {
-    id: "GR-02",
-    type: "Accessories",
-    productName: "Shin Guards",
-    link: "www.tokopedia.com/grip/shin",
-    image: "/images/product-placeholder.jpg",
-    updatedBy: "Carolina",
-    updateDate: "2025-10-01T11:05:00",
-  },
-];
+  getProducts,
+  subscribeProducts,
+  getNextProductId,
+  addProduct,
+  updateProduct,
+  removeProduct,
+  type Product,
+} from "../_shared/products";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -99,7 +38,11 @@ function toHref(link: string) {
 export default function MasterProductClient() {
   const currentUserName = "Carolina";
 
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const products = useSyncExternalStore(
+    subscribeProducts,
+    getProducts,
+    getProducts,
+  );
   const [typeInput, setTypeInput] = useState("All");
   const [productInput, setProductInput] = useState("");
   const [applied, setApplied] = useState({ type: "All", product: "" });
@@ -159,28 +102,18 @@ export default function MasterProductClient() {
   const handleSubmit = (values: ProductFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === editing.id
-            ? {
-                ...p,
-                ...values,
-                updatedBy: currentUserName,
-                updateDate: now,
-              }
-            : p,
-        ),
-      );
+      updateProduct(editing.id, {
+        ...values,
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     } else {
-      setProducts((prev) => [
-        {
-          id: `PRD-${Date.now()}`, // auto-generated; real id comes from backend
-          ...values,
-          updatedBy: currentUserName,
-          updateDate: now,
-        },
-        ...prev,
-      ]);
+      addProduct({
+        id: getNextProductId(),
+        ...values,
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     }
     setFormOpen(false);
     setEditing(null);
@@ -188,7 +121,7 @@ export default function MasterProductClient() {
 
   const handleConfirmDelete = () => {
     if (!confirming) return;
-    setProducts((prev) => prev.filter((p) => p.id !== confirming.id));
+    removeProduct(confirming.id);
   };
 
   return (

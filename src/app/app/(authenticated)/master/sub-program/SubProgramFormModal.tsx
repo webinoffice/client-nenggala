@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { INITIAL_PROGRAMS } from "../_shared/programs";
-import type { SubProgram } from "./MasterSubProgramClient";
+import type { SubProgram } from "../_shared/sub-programs";
 
 export type SubProgramFormValues = {
   programId: string;

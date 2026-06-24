@@ -3,71 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-interface Facility {
-  id: string;
-  name: string;
-  detail: string;
-  image: string;
-}
-
-// --- Placeholder data — rename to your real facilities ---
-const FACILITIES: Facility[] = [
-  {
-    id: "f01",
-    name: "Main Dojang",
-    detail: "Indoor sparring hall · 320 m²",
-    image: "/images/facilities/facility-01.jpg",
-  },
-  {
-    id: "f02",
-    name: "Strength Lab",
-    detail: "Conditioning & weights",
-    image: "/images/facilities/facility-02.jpg",
-  },
-  {
-    id: "f03",
-    name: "Junior Studio",
-    detail: "Ages 5–10 training area",
-    image: "/images/facilities/facility-03.jpg",
-  },
-  {
-    id: "f04",
-    name: "Outdoor Mat",
-    detail: "Open-air training ground",
-    image: "/images/facilities/facility-04.jpg",
-  },
-  {
-    id: "f05",
-    name: "Mirror Room",
-    detail: "Forms & technique studio",
-    image: "/images/facilities/facility-05.jpg",
-  },
-  {
-    id: "f06",
-    name: "Recovery Lounge",
-    detail: "Stretching & mobility",
-    image: "/images/facilities/facility-06.jpg",
-  },
-  {
-    id: "f07",
-    name: "Equipment Storage",
-    detail: "Mats, paddles, hogu",
-    image: "/images/facilities/facility-07.jpg",
-  },
-  {
-    id: "f08",
-    name: "Spectator Gallery",
-    detail: "Tournament seating",
-    image: "/images/facilities/facility-08.jpg",
-  },
-  {
-    id: "f09",
-    name: "Reception & Café",
-    detail: "Lobby and refreshments",
-    image: "/images/facilities/facility-09.jpg",
-  },
-];
+import { useAboutContent } from "@/lib/cms/about";
+import { isBlobSrc } from "@/lib/cms/image-src";
 
 const GAP = 24; // px — matches Tailwind gap-6
 const DRAG_THRESHOLD = 60;
@@ -86,6 +23,7 @@ export default function Facility({
   title = "Our Facilities",
   subtitle,
 }: FacilityProps) {
+  const { facilities: FACILITIES } = useAboutContent();
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [perView, setPerView] = useState(2);
@@ -116,7 +54,7 @@ export default function Facility({
 
   useEffect(() => {
     setIndex((i) => Math.min(i, Math.max(0, FACILITIES.length - perView)));
-  }, [perView]);
+  }, [perView, FACILITIES.length]);
 
   const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
@@ -203,6 +141,7 @@ export default function Facility({
                       alt={f.name}
                       fill
                       draggable={false}
+                      unoptimized={isBlobSrc(f.image)}
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 50vw"
                     />

@@ -95,3 +95,44 @@ export const INITIAL_EBOOKS: Ebook[] = [
     updateDate: "2025-08-15T13:00:00",
   },
 ];
+
+// ---- mutable store ----
+let _ebooks: Ebook[] = [...INITIAL_EBOOKS];
+const listeners = new Set<() => void>();
+function notify() {
+  listeners.forEach((l) => l());
+}
+
+export function getEbooks(): Ebook[] {
+  return _ebooks;
+}
+export function subscribeEbooks(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+export function getNextEbookId(): number {
+  return _ebooks.length > 0 ? Math.max(..._ebooks.map((e) => e.id)) + 1 : 1;
+}
+export function addEbook(ebook: Ebook) {
+  _ebooks = [ebook, ..._ebooks];
+  notify();
+}
+export function updateEbook(id: number, patch: Partial<Ebook>) {
+  _ebooks = _ebooks.map((e) => (e.id === id ? { ...e, ...patch } : e));
+  notify();
+}
+export function toggleEbookStatus(id: number, by: string) {
+  _ebooks = _ebooks.map((e) =>
+    e.id === id
+      ? {
+          ...e,
+          status: e.status === "Active" ? "Inactive" : "Active",
+          updatedBy: by,
+          updateDate: new Date().toISOString(),
+        }
+      : e,
+  );
+  notify();
+}

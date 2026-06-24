@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
-import type { AppUser } from "./MasterRolesClient";
+import type { AppUser } from "../_shared/app-users";
 
 export type UserFormValues = {
   password: string;

@@ -1,242 +1,26 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface EventItem {
-  id: string;
-  title: string;
-  date: string; // ISO 8601
-  description: string;
-  image: string;
-  registerUrl: string;
-}
-
-const LOREM =
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
-
-const IMG = "/images/event-ukt-promo.jpg";
-
-const EVENTS: EventItem[] = [
-  {
-    id: "e1",
-    title: "Ujian Kenaikan Tingkat 2019",
-    date: "2019-11-24",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-ukt-nov-2019",
-  },
-  {
-    id: "e2",
-    title: "Hanmadang Cup 2019",
-    date: "2019-10-15",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-hanmadang-2019",
-  },
-  {
-    id: "e3",
-    title: "Open Tournament Jakarta 2019",
-    date: "2019-09-20",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-open-jkt-2019",
-  },
-  {
-    id: "e4",
-    title: "Pelatihan Master Internasional",
-    date: "2019-08-12",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-master-2019",
-  },
-  {
-    id: "e5",
-    title: "Kejuaraan Nasional U-15",
-    date: "2019-07-30",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-u15-2019",
-  },
-  {
-    id: "e6",
-    title: "Latihan Bersama Nasional 2019",
-    date: "2019-07-05",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-latihan-nas-2019",
-  },
-  {
-    id: "e7",
-    title: "Seminar Taekwondo Kukkiwon",
-    date: "2019-06-22",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-seminar-kukkiwon",
-  },
-  {
-    id: "e8",
-    title: "Open House Nenggala 2019",
-    date: "2019-06-10",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-openhouse-2019",
-  },
-  {
-    id: "e9",
-    title: "Demo Taekwondo HUT RI",
-    date: "2019-08-17",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-demo-hut-ri",
-  },
-  {
-    id: "e10",
-    title: "Ujian Kenaikan Tingkat Maret",
-    date: "2019-03-24",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-ukt-mar-2019",
-  },
-  {
-    id: "e11",
-    title: "Ujian Kenaikan Tingkat Juli",
-    date: "2019-07-21",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-ukt-jul-2019",
-  },
-  {
-    id: "e12",
-    title: "Webinar Karakter & Taekwondo",
-    date: "2019-05-18",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-webinar-karakter",
-  },
-  {
-    id: "e13",
-    title: "Latihan Pagi Cabang Bogor",
-    date: "2019-05-05",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-latihan-bogor",
-  },
-  {
-    id: "e14",
-    title: "Pertandingan Persahabatan",
-    date: "2019-04-28",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-persahabatan-2019",
-  },
-  {
-    id: "e15",
-    title: "Pelatihan Wasit Internasional",
-    date: "2019-04-14",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-wasit-2019",
-  },
-  {
-    id: "e16",
-    title: "Hanmadang Festival Jakarta",
-    date: "2019-03-30",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-hanmadang-jkt",
-  },
-  {
-    id: "e17",
-    title: "Workshop Pelatih Taekwondo",
-    date: "2019-02-25",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-workshop-pelatih",
-  },
-  {
-    id: "e18",
-    title: "Ujian Kenaikan Tingkat Mei",
-    date: "2019-05-26",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-ukt-mei-2019",
-  },
-  {
-    id: "e19",
-    title: "Kompetisi Antar Sekolah 2019",
-    date: "2019-02-09",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-antar-sekolah",
-  },
-  {
-    id: "e20",
-    title: "Latihan Gabungan Kedoya-Meruya",
-    date: "2019-01-20",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-gabungan-kdy-mry",
-  },
-  {
-    id: "e21",
-    title: "Latihan Gabungan Bogor-Tangerang",
-    date: "2019-01-13",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-gabungan-bgr-tgr",
-  },
-  {
-    id: "e22",
-    title: "Selebrasi 21 Tahun Nenggala",
-    date: "2019-02-08",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-21-tahun",
-  },
-  {
-    id: "e23",
-    title: "Pelatihan Pelatih Cabang",
-    date: "2018-12-22",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-pelatih-cabang",
-  },
-  {
-    id: "e24",
-    title: "Ujian Pemegang Sabuk Hitam",
-    date: "2018-12-08",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-sabuk-hitam",
-  },
-  {
-    id: "e25",
-    title: "Latihan Khusus Atlet Pra-Pelatnas",
-    date: "2018-11-17",
-    description: LOREM,
-    image: IMG,
-    registerUrl: "bit.ly/nenggala-atlet-pra-pelatnas",
-  },
-];
+import { useEvents, formatEventDate } from "@/lib/events";
+import { isBlobSrc } from "@/lib/cms/image-src";
 
 const PER_PAGE = 10;
 
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(iso));
-}
-
 export default function EventList() {
+  const allEvents = useEvents();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const filtered = EVENTS.filter((e) => {
+  // Only Active events are public.
+  const events = useMemo(
+    () => allEvents.filter((e) => e.status === "Active"),
+    [allEvents],
+  );
+
+  const filtered = events.filter((e) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -301,6 +85,7 @@ export default function EventList() {
                     src={event.image}
                     alt={event.title}
                     fill
+                    unoptimized={isBlobSrc(event.image)}
                     className="object-cover transition-transform duration-500 hover:scale-105"
                     sizes="(max-width: 768px) 100vw, 220px"
                   />
@@ -318,7 +103,7 @@ export default function EventList() {
                     </a>
                   </h3>
                   <p className="mt-1 text-sm font-semibold text-ink/70">
-                    {formatDate(event.date)}
+                    {formatEventDate(event.date)}
                   </p>
                   <p className="mt-3 text-sm leading-relaxed text-ink md:text-base">
                     {event.description}

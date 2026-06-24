@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/sub-program/MasterSubProgramClient.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -14,93 +14,16 @@ import SubProgramFormModal, {
   type SubProgramFormValues,
 } from "./SubProgramFormModal";
 import { INITIAL_PROGRAMS } from "../_shared/programs";
-
-export type SubProgramStatus = "Active" | "Inactive";
-
-export type SubProgram = {
-  programId: string;
-  subProgramId: string;
-  subProgramName: string;
-  image?: string;
-  status: SubProgramStatus;
-  updatedBy: string;
-  updateDate: string;
-};
-
-const INITIAL_SUB_PROGRAMS: SubProgram[] = [
-  {
-    programId: "TKD",
-    subProgramId: "TKD-01",
-    subProgramName: "Kyorugi",
-    image: "127828916.JPG",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-26T19:41:32",
-  },
-  {
-    programId: "TKD",
-    subProgramId: "TKD-02",
-    subProgramName: "Poomsae",
-    image: "TKD02_pose.JPG",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-25T10:00:00",
-  },
-  {
-    programId: "TKD",
-    subProgramId: "TKD-03",
-    subProgramName: "Hosinsool",
-    image: "TKD03_defense.JPG",
-    status: "Active",
-    updatedBy: "Andre",
-    updateDate: "2025-12-20T14:00:00",
-  },
-  {
-    programId: "TKD",
-    subProgramId: "TKD-04",
-    subProgramName: "Breaking",
-    image: "TKD04_break.JPG",
-    status: "Active",
-    updatedBy: "Andre",
-    updateDate: "2025-12-18T11:00:00",
-  },
-  {
-    programId: "TGD",
-    subProgramId: "TGD-01",
-    subProgramName: "Forms",
-    image: "TGD01_form.JPG",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-11-10T09:00:00",
-  },
-  {
-    programId: "HKD",
-    subProgramId: "HKD-01",
-    subProgramName: "Throws",
-    image: "HKD01_throw.JPG",
-    status: "Active",
-    updatedBy: "Andre",
-    updateDate: "2025-10-20T13:00:00",
-  },
-  {
-    programId: "KRT",
-    subProgramId: "KRT-01",
-    subProgramName: "Kata",
-    image: "KRT01_kata.JPG",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-09-15T08:00:00",
-  },
-  {
-    programId: "KRT",
-    subProgramId: "KRT-02",
-    subProgramName: "Kumite",
-    image: "KRT02_kumite.JPG",
-    status: "Inactive",
-    updatedBy: "Carolina",
-    updateDate: "2025-09-15T08:05:00",
-  },
-];
+import {
+  getSubPrograms,
+  subscribeSubPrograms,
+  getNextSubProgramId,
+  addSubProgram,
+  updateSubProgram,
+  toggleSubProgramStatus,
+  type SubProgram,
+  type SubProgramStatus,
+} from "../_shared/sub-programs";
 
 type StatusFilter = "All" | SubProgramStatus;
 
@@ -115,8 +38,11 @@ function formatDate(iso: string) {
 export default function MasterSubProgramClient() {
   const currentUserName = "Carolina";
 
-  const [subPrograms, setSubPrograms] =
-    useState<SubProgram[]>(INITIAL_SUB_PROGRAMS);
+  const subPrograms = useSyncExternalStore(
+    subscribeSubPrograms,
+    getSubPrograms,
+    getSubPrograms,
+  );
 
   const programNameById = useMemo(
     () => new Map(INITIAL_PROGRAMS.map((p) => [p.id, p.programName])),
@@ -199,32 +125,21 @@ export default function MasterSubProgramClient() {
   const handleSubmit = (values: SubProgramFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
-      setSubPrograms((prev) =>
-        prev.map((sp) =>
-          sp.subProgramId === editing.subProgramId
-            ? {
-                ...sp,
-                programId: values.programId,
-                subProgramName: values.subProgramName,
-                updatedBy: currentUserName,
-                updateDate: now,
-              }
-            : sp,
-        ),
-      );
+      updateSubProgram(editing.subProgramId, {
+        programId: values.programId,
+        subProgramName: values.subProgramName,
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     } else {
-      setSubPrograms((prev) => [
-        {
-          programId: values.programId,
-          // auto-generated; real id comes from backend
-          subProgramId: `${values.programId}-${Date.now()}`,
-          subProgramName: values.subProgramName,
-          status: "Active",
-          updatedBy: currentUserName,
-          updateDate: now,
-        },
-        ...prev,
-      ]);
+      addSubProgram({
+        programId: values.programId,
+        subProgramId: getNextSubProgramId(values.programId),
+        subProgramName: values.subProgramName,
+        status: "Active",
+        updatedBy: currentUserName,
+        updateDate: now,
+      });
     }
     setFormOpen(false);
     setEditing(null);
@@ -232,18 +147,7 @@ export default function MasterSubProgramClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    setSubPrograms((prev) =>
-      prev.map((sp) =>
-        sp.subProgramId === confirming.subProgramId
-          ? {
-              ...sp,
-              status: sp.status === "Active" ? "Inactive" : "Active",
-              updatedBy: currentUserName,
-              updateDate: new Date().toISOString(),
-            }
-          : sp,
-      ),
-    );
+    toggleSubProgramStatus(confirming.subProgramId, currentUserName);
   };
 
   return (
