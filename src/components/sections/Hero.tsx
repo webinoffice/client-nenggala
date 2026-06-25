@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useHomepageContent } from "@/lib/cms/homepage";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 interface HeroProps {
   src?: string;
@@ -38,7 +37,6 @@ export default function Hero({
           alt={resolvedAlt}
           fill
           preload={preload}
-          unoptimized={isBlobSrc(resolvedSrc)}
           className="object-cover"
           sizes="100vw"
         />

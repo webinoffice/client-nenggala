@@ -1,5 +1,8 @@
 // src/app/app/(authenticated)/master/_shared/app-users.ts
 import type { Role } from "@/lib/roles";
+import { roleFromUserTypeCode } from "@/lib/roles";
+import { fetchUserDataMany } from "@/lib/api/users";
+import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type UserStatus = "Active" | "Inactive";
 
@@ -38,9 +41,55 @@ export function getAppUsers(): AppUser[] {
 }
 export function subscribeAppUsers(listener: () => void) {
   listeners.add(listener);
+  ensureAppUsersLoaded();
   return () => {
     listeners.delete(listener);
   };
+}
+
+// ---- hydration (read API) ----
+// The roles master spans every user type, so it fans out get-user-data across
+// X/A/I/S and merges. `id` is the User-table PK (for the status-toggle write);
+// the backend never returns passwords, so `password` stays blank here.
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadAppUsers(): Promise<void> {
+  const rows = await fetchUserDataMany(["X", "A", "I", "S"]);
+  _users = rows.map((r) => ({
+    id: r.UserId,
+    name: r.UserName ?? "",
+    username: r.UserNoId,
+    password: "",
+    role: roleFromUserTypeCode(r.UserTypeCode),
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the app-user (roles) list from the backend. */
+export function ensureAppUsersLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadAppUsers()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load app users", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the app-user list (used after a write). */
+export async function reloadAppUsers(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureAppUsersLoaded();
 }
 export function updateAppUser(id: number, patch: Partial<AppUser>) {
   _users = _users.map((u) => (u.id === id ? { ...u, ...patch } : u));

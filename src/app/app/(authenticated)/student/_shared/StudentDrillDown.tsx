@@ -8,7 +8,7 @@ import {
   getDojangsForPeriod,
   getProgramsForSelection,
   getSubProgramsForSelection,
-  PERIODS,
+  useAcademic,
 } from "./academic";
 
 export type DrillDownSelection = {
@@ -38,6 +38,9 @@ export default function StudentDrillDown({
   hideProgram = false,
 }: Props) {
   const { periodId, dojang, programId, subProgramId } = selection;
+  // Subscribe so the selectors re-render when programs/sub-programs change
+  // (master CRUD now, fetch hydration in 3c).
+  const { periods } = useAcademic();
 
   const dojangOptions = useMemo(
     () => (periodId ? getDojangsForPeriod(periodId) : []),
@@ -71,7 +74,7 @@ export default function StudentDrillDown({
           }
         >
           <option value="">Pilih Period</option>
-          {PERIODS.map((p) => (
+          {periods.map((p) => (
             <option key={p.id} value={p.id}>
               {formatPeriod(p)}
             </option>

@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/ebook/MasterEbookClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
@@ -21,7 +22,7 @@ import {
   type Ebook,
   type EbookStatus,
 } from "../_shared/ebooks";
-import { SABUK_OPTIONS } from "../../student/_shared/students";
+import { useSabukOptions } from "../_shared/belts";
 
 type StatusFilter = "All" | EbookStatus;
 
@@ -34,8 +35,9 @@ function fmtDate(iso: string) {
 }
 
 export default function MasterEbookClient() {
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
   const ebooks = useSyncExternalStore(subscribeEbooks, getEbooks, getEbooks);
+  const sabukOptions = useSabukOptions();
 
   const [sabukInput, setSabukInput] = useState("All");
   const [titleInput, setTitleInput] = useState("");
@@ -150,7 +152,7 @@ export default function MasterEbookClient() {
             onChange={(e) => setSabukInput(e.target.value)}
           >
             <option value="All">All</option>
-            {SABUK_OPTIONS.filter((s) => s !== "-").map((s) => (
+            {sabukOptions.filter((s) => s !== "-").map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

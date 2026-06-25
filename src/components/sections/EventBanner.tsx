@@ -5,7 +5,6 @@ import { useMemo } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { useEvents, formatEventDate } from "@/lib/events";
 import { useHomepageContent } from "@/lib/cms/homepage";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 interface EventBannerProps {
   sectionTitle?: string;
@@ -64,7 +63,6 @@ export default function EventBanner({ sectionTitle }: EventBannerProps = {}) {
               src={highlight.image}
               alt={highlight.title}
               fill
-              unoptimized={isBlobSrc(highlight.image)}
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 40vw"
             />

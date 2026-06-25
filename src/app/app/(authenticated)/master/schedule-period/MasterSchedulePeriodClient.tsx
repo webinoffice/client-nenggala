@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/schedule-period/MasterSchedulePeriodClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useState, useMemo, useSyncExternalStore } from "react";
 import { Plus } from "lucide-react";
@@ -10,7 +11,7 @@ import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
-import { DOJANG_OPTIONS } from "../../student/_shared/students";
+import { useDojangOptions } from "../_shared/dojangs";
 import SchedulePeriodFormModal, {
   type SchedulePeriodFormValues,
 } from "./SchedulePeriodFormModal";
@@ -61,7 +62,8 @@ function formatDate(iso: string) {
 export default function MasterSchedulePeriodClient() {
   const { role } = useRole();
   const isSuper = role === "super-admin";
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
+  const dojangOptions = useDojangOptions();
 
   const periods = useSyncExternalStore(
     subscribeSchedulePeriods,
@@ -164,7 +166,7 @@ export default function MasterSchedulePeriodClient() {
               }}
             >
               <option value="All">All Dojang</option>
-              {DOJANG_OPTIONS.map((d) => (
+              {dojangOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -293,7 +295,7 @@ export default function MasterSchedulePeriodClient() {
         initial={editing}
         isSuper={isSuper}
         adminDojang={ADMIN_DOJANG}
-        dojangOptions={DOJANG_OPTIONS}
+        dojangOptions={dojangOptions}
         onSubmit={handleSubmit}
       />
 

@@ -15,7 +15,7 @@ import {
 
 export default function CertificateClient() {
   const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
   const recipientType = role === "coach" ? "coach" : "student";
 
   const certifications = useSyncExternalStore(

@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import Input from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
-import { isBlobSrc } from "@/lib/cms/image-src";
 import {
   useGallery,
   addGalleryImage,
@@ -28,11 +27,15 @@ export default function GalleryManager() {
   const atMin = gallery.length <= GALLERY_MIN;
   const atMax = gallery.length >= GALLERY_MAX;
 
-  const handleAddFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    addGalleryImage({ src: URL.createObjectURL(file), alt: "" });
     e.target.value = "";
+    try {
+      await addGalleryImage(file);
+    } catch (err) {
+      console.error("Failed to add gallery image", err);
+    }
   };
 
   return (
@@ -74,7 +77,7 @@ export default function GalleryManager() {
                 src={img.src}
                 alt={img.alt || "Gallery image"}
                 fill
-                unoptimized={isBlobSrc(img.src)}
+                unoptimized
                 className="object-cover"
                 sizes="(max-width: 640px) 100vw, 33vw"
               />

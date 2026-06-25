@@ -14,6 +14,8 @@ export type EventFormValues = {
   description: string;
   image: string;
   registerUrl: string;
+  /** Picked image file — uploaded inline on save (required by the backend). */
+  file: File | null;
 };
 
 interface EventFormModalProps {
@@ -21,6 +23,8 @@ interface EventFormModalProps {
   onClose: () => void;
   initial: EventItem | null;
   onSubmit: (values: EventFormValues) => void;
+  submitting?: boolean;
+  error?: string | null;
 }
 
 export default function EventFormModal({
@@ -28,6 +32,8 @@ export default function EventFormModal({
   onClose,
   initial,
   onSubmit,
+  submitting,
+  error,
 }: EventFormModalProps) {
   const isEditing = initial !== null;
 
@@ -43,6 +49,8 @@ export default function EventFormModal({
         initial={initial}
         onCancel={onClose}
         onSubmit={onSubmit}
+        submitting={submitting}
+        submitError={error}
       />
     </Modal>
   );
@@ -52,20 +60,26 @@ function EventFormBody({
   initial,
   onCancel,
   onSubmit,
+  submitting,
+  submitError,
 }: {
   initial: EventItem | null;
   onCancel: () => void;
   onSubmit: (values: EventFormValues) => void;
+  submitting?: boolean;
+  submitError?: string | null;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.date ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [image, setImage] = useState(initial?.image ?? "");
   const [registerUrl, setRegisterUrl] = useState(initial?.registerUrl ?? "");
+  const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<{
     title?: string;
     date?: string;
     registerUrl?: string;
+    image?: string;
   }>({});
 
   const isEditing = initial !== null;
@@ -75,6 +89,9 @@ function EventFormBody({
     if (!title.trim()) next.title = "Required";
     if (!date.trim()) next.date = "Required";
     if (!registerUrl.trim()) next.registerUrl = "Required";
+    // The backend re-uploads the image on every save (it deletes the old file),
+    // so a file is required even when editing.
+    if (!file) next.image = "Select an image (required on every save)";
     if (Object.keys(next).length > 0) {
       setErrors(next);
       return;
@@ -85,6 +102,7 @@ function EventFormBody({
       description: description.trim(),
       image,
       registerUrl: registerUrl.trim(),
+      file,
     });
   };
 
@@ -130,15 +148,27 @@ function EventFormBody({
           label="Image"
           value={image}
           onChange={setImage}
+          onFileChange={setFile}
+          error={errors.image}
           aspectClassName="aspect-[4/3]"
         />
       </div>
+      {submitError && (
+        <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-brand">
+          {submitError}
+        </p>
+      )}
       <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-ink/10">
-        <Button variant="outline" size="sm" onClick={onCancel}>
+        <Button variant="outline" size="sm" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button variant="primary" size="sm" onClick={handleSubmit}>
-          {isEditing ? "Save Changes" : "Add Event"}
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? "Saving…" : isEditing ? "Save Changes" : "Add Event"}
         </Button>
       </div>
     </>

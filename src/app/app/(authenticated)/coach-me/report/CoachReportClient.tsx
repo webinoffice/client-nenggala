@@ -6,14 +6,13 @@ import { Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
-import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import {
   aggregateAttendance,
   type AggregatedAttendance,
 } from "../../coach/_shared/coach-attendance";
 import {
-  PERIODS,
+  useAcademic,
   formatPeriod,
   formatMonth,
   monthRange,
@@ -21,8 +20,9 @@ import {
 } from "../../student/_shared/academic";
 
 export default function CoachReportClient() {
-  const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
+  // Subscribe so program names re-render when the master store changes/hydrates.
+  const { periods: allPeriods } = useAcademic();
 
   const [periodInput, setPeriodInput] = useState("32");
   const [monthInput, setMonthInput] = useState("");
@@ -32,14 +32,14 @@ export default function CoachReportClient() {
   const monthOptions = useMemo(() => {
     const periods =
       periodInput === "All"
-        ? PERIODS
-        : PERIODS.filter((p) => p.id === periodInput);
+        ? allPeriods
+        : allPeriods.filter((p) => p.id === periodInput);
     const set = new Set<string>();
     periods.forEach((p) =>
       monthRange(p.startMonth, p.endMonth).forEach((m) => set.add(m)),
     );
     return Array.from(set).sort();
-  }, [periodInput]);
+  }, [periodInput, allPeriods]);
 
   const rows = useMemo(
     () =>
@@ -72,7 +72,7 @@ export default function CoachReportClient() {
             }}
           >
             <option value="All">All</option>
-            {PERIODS.map((p) => (
+            {allPeriods.map((p) => (
               <option key={p.id} value={p.id}>
                 {formatPeriod(p)}
               </option>

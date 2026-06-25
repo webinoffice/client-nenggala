@@ -1,10 +1,18 @@
 // src/app/app/(authenticated)/admin/_shared/admins.ts
+//
+// Reference dropdowns previously duplicated here were removed (audit issue #2):
+// belts/dojang derive from the master stores, the rest from @/lib/reference.
+import type { BloodType } from "@/lib/reference";
+import { fetchUserData, mapUserRow } from "@/lib/api/users";
+// Re-exported so Admin.golDarah consumers can keep importing it from here.
+export type { BloodType };
 
 export type AdminStatus = "Active" | "Inactive";
-export type BloodType = "A" | "B" | "AB" | "O" | "-";
 
 export type Admin = {
-  username: string;          // NA + 4-digit, auto-generated
+  username: string;          // No.Reg (UserNoId) — login name / display key
+  userId?: number;           // User-table PK (populated on hydration; for the status-toggle write)
+  userDataId?: number;       // UserData PK (populated on hydration; for operational joins)
   namaLengkap: string;
   panggilan: string;
   dojang: string;
@@ -27,37 +35,6 @@ export type Admin = {
   updatedBy: string;
   updateDate: string;        // ISO
 };
-
-// Mock reference data — these would come from master/dojang and
-// master/grading-belt via API. Inlined here for the static demo.
-export const DOJANG_OPTIONS = [
-  "Kedoya Sport Club",
-  "Senayan Dojang",
-  "Bintaro Dojang",
-  "Pakualam Center",
-  "Pondok Indah Dojang",
-];
-
-export const SABUK_OPTIONS = [
-  "-",
-  "Putih",
-  "Kuning",
-  "Hijau",
-  "Biru",
-  "Merah",
-  "Hitam DAN-1",
-  "Hitam DAN-2",
-  "Hitam DAN-3",
-];
-
-export const WARGA_NEGARA_OPTIONS = [
-  "Indonesia",
-  "Malaysia",
-  "Singapore",
-  "Other",
-];
-
-export const GOL_DARAH_OPTIONS: BloodType[] = ["-", "A", "B", "AB", "O"];
 
 const INITIAL_ADMINS: Admin[] = [
   {
@@ -368,9 +345,48 @@ export function getAdmins(): Admin[] {
 
 export function subscribeAdmins(listener: () => void) {
   listeners.add(listener);
+  ensureAdminsLoaded();
   return () => {
     listeners.delete(listener);
   };
+}
+
+// ---- hydration (read API) ----
+// get-user-data, UserTypeCode "A" (admin), full list (active + inactive). Only a
+// super-admin (X) may request this type — the backend enforces it.
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadAdmins(): Promise<void> {
+  const rows = (await fetchUserData("A")) ?? [];
+  _admins = rows.map((r) => ({
+    ...mapUserRow(r),
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+  }));
+  notify();
+}
+
+/** One-time hydration of the admin list from the backend. */
+export function ensureAdminsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadAdmins()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load admins", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the admin list (used after a write). */
+export async function reloadAdmins(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureAdminsLoaded();
 }
 
 export function getAdminByUsername(username: string): Admin | null {

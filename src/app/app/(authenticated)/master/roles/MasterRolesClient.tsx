@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/roles/MasterRolesClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Search, Eye, EyeOff } from "lucide-react";
@@ -33,7 +34,7 @@ function formatDate(iso: string) {
 }
 
 export default function MasterRolesClient() {
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
 
   const users = useSyncExternalStore(
     subscribeAppUsers,

@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/dojang/MasterDojangClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
@@ -35,7 +36,7 @@ function formatDate(iso: string) {
 }
 
 export default function MasterDojangClient() {
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
 
   const dojangs = useSyncExternalStore(subscribeDojangs, getDojangs, getDojangs);
 

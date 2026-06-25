@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/program/MasterProgramClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
@@ -33,7 +34,7 @@ function formatDate(iso: string) {
 }
 
 export default function MasterProgramClient() {
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
 
   const programs = useSyncExternalStore(
     subscribePrograms,

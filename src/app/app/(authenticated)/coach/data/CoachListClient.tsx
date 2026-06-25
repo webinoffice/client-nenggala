@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/coach/data/CoachListClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Pencil, Ban, Power } from "lucide-react";
@@ -16,10 +17,10 @@ import {
   subscribeCoaches,
   toggleCoachStatus,
 } from "../_shared/coaches";
-import { DOJANG_OPTIONS, SABUK_OPTIONS } from "../../student/_shared/students";
+import { useDojangOptions } from "../../master/_shared/dojangs";
+import { useSabukOptions } from "../../master/_shared/belts";
 
 const PAGE_SIZE = 10;
-const CURRENT_USER = "Carolina";
 
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
@@ -40,6 +41,8 @@ export default function CoachListClient() {
     getCoaches,
     getCoaches,
   );
+  const dojangOptions = useDojangOptions();
+  const sabukOptions = useSabukOptions();
 
   const [namaInput, setNamaInput] = useState("");
   const [sabukInput, setSabukInput] = useState("All");
@@ -111,7 +114,7 @@ export default function CoachListClient() {
             onChange={(e) => setDojangInput(e.target.value)}
           >
             <option value="All">All</option>
-            {DOJANG_OPTIONS.map((d) => (
+            {dojangOptions.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>
@@ -123,7 +126,7 @@ export default function CoachListClient() {
             onChange={(e) => setSabukInput(e.target.value)}
           >
             <option value="All">All</option>
-            {SABUK_OPTIONS.map((s) => (
+            {sabukOptions.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -357,7 +360,7 @@ export default function CoachListClient() {
         open={confirming !== null}
         onClose={() => setConfirming(null)}
         onConfirm={() => {
-          if (confirming) toggleCoachStatus(confirming.username, CURRENT_USER);
+          if (confirming) toggleCoachStatus(confirming.username, getCurrentUsername());
         }}
         title={
           confirming?.status === "Inactive" ? "Enable Coach" : "Disable Coach"

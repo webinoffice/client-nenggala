@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useHomepageContent } from "@/lib/cms/homepage";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 export default function Mindset() {
   const { bottomBanner } = useHomepageContent();
@@ -14,7 +13,6 @@ export default function Mindset() {
           src={bottomBanner.src}
           alt={bottomBanner.alt}
           fill
-          unoptimized={isBlobSrc(bottomBanner.src)}
           className="object-cover"
           sizes="100vw"
         />

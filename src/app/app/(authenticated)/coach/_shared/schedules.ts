@@ -16,8 +16,8 @@ export type ScheduleStatus = "Active" | "Inactive";
 export type Schedule = {
   id: string;
   dojang: string;
-  programId: string;
-  subProgramId: string; // was: type
+  programId: number; // ProgramMsId
+  subProgramId: number; // ProgramDtId (was: type)
   primaryCoachUsername: string;
   secondaryCoachUsernames: string[];
   assistantUsernames: string[];
@@ -37,8 +37,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0001",
     dojang: "Kedoya Sport Club",
-    programId: "TKD",
-    subProgramId: "TKD-01",
+    programId: 1,
+    subProgramId: 1,
     primaryCoachUsername: "C0001",
     secondaryCoachUsernames: ["C0002"],
     assistantUsernames: ["U0006"],
@@ -56,8 +56,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0002",
     dojang: "Kedoya Sport Club",
-    programId: "TKD",
-    subProgramId: "TKD-02",
+    programId: 1,
+    subProgramId: 2,
     primaryCoachUsername: "C0002",
     secondaryCoachUsernames: [],
     assistantUsernames: [],
@@ -75,8 +75,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0003",
     dojang: "Kedoya Sport Club",
-    programId: "TKD",
-    subProgramId: "TKD-02",
+    programId: 1,
+    subProgramId: 2,
     primaryCoachUsername: "C0003",
     secondaryCoachUsernames: [],
     assistantUsernames: [],
@@ -94,8 +94,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0004",
     dojang: "Kedoya Sport Club",
-    programId: "TKD",
-    subProgramId: "TKD-03",
+    programId: 1,
+    subProgramId: 3,
     primaryCoachUsername: "C0004",
     secondaryCoachUsernames: ["C0001"],
     assistantUsernames: [],
@@ -113,8 +113,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0005",
     dojang: "Kedoya Sport Club",
-    programId: "TKD",
-    subProgramId: "TKD-01",
+    programId: 1,
+    subProgramId: 1,
     primaryCoachUsername: "C0001",
     secondaryCoachUsernames: [],
     assistantUsernames: [],
@@ -132,8 +132,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0006",
     dojang: "Kedoya Sport Club",
-    programId: "NCK",
-    subProgramId: "NCK-01",
+    programId: 2,
+    subProgramId: 4,
     primaryCoachUsername: "C0005",
     secondaryCoachUsernames: [],
     assistantUsernames: [],
@@ -151,8 +151,8 @@ const INITIAL_SCHEDULES: Schedule[] = [
   {
     id: "SCH-0007",
     dojang: "Kedoya Sport Club",
-    programId: "GYM",
-    subProgramId: "GYM-01",
+    programId: 3,
+    subProgramId: 5,
     primaryCoachUsername: "C0003",
     secondaryCoachUsernames: [],
     assistantUsernames: [],

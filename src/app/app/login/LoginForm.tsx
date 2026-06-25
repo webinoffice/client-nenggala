@@ -1,16 +1,32 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { login } from "@/lib/session";
+import { ApiError } from "@/lib/api/client";
 
 export default function LoginForm() {
+  const router = useRouter();
   const [noReg, setNoReg] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Phase 2: call auth API here
-    console.log("Login attempt:", { noReg, password });
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(noReg.trim(), password);
+      router.replace("/app/dashboard");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Tidak dapat terhubung ke server. Coba lagi.",
+      );
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -23,6 +39,14 @@ export default function LoginForm() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+        {error && (
+          <p
+            role="alert"
+            className="rounded-sm border border-brand/30 bg-brand/5 px-4 py-3 text-sm text-brand"
+          >
+            {error}
+          </p>
+        )}
         <div>
           <label
             htmlFor="noReg"
@@ -65,9 +89,10 @@ export default function LoginForm() {
 
         <button
           type="submit"
-          className="w-full rounded-sm bg-brand px-4 py-3 text-sm font-bold uppercase tracking-widest text-brand-foreground transition-colors hover:bg-brand-hover"
+          disabled={submitting}
+          className="w-full rounded-sm bg-brand px-4 py-3 text-sm font-bold uppercase tracking-widest text-brand-foreground transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Login
+          {submitting ? "Memproses..." : "Login"}
         </button>
       </form>
 

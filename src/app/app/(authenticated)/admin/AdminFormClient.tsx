@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/admin/AdminFormClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -12,16 +13,14 @@ import {
   type Admin,
   type BloodType,
   addAdmin,
-  DOJANG_OPTIONS,
-  GOL_DARAH_OPTIONS,
   getAdminByUsername,
   getNextUsername,
-  SABUK_OPTIONS,
   updateAdmin,
-  WARGA_NEGARA_OPTIONS,
 } from "./_shared/admins";
+import { GOL_DARAH_OPTIONS, WARGA_NEGARA_OPTIONS } from "@/lib/reference";
+import { useDojangOptions } from "../master/_shared/dojangs";
+import { useSabukOptions } from "../master/_shared/belts";
 
-const CURRENT_USER = "Carolina";
 
 type Mode = "new" | "edit";
 
@@ -60,6 +59,8 @@ export default function AdminFormClient({
 }: AdminFormClientProps) {
   const router = useRouter();
   const isEditing = mode === "edit";
+  const dojangOptions = useDojangOptions();
+  const sabukOptions = useSabukOptions();
 
   // Read once on mount — both the target admin and the next free username.
   const [editingAdmin] = useState<Admin | null>(() =>
@@ -170,7 +171,7 @@ export default function AdminFormClient({
       alergi: form.alergi.trim() || "-",
       mulaiLatihan: form.mulaiLatihan,
       status: editingAdmin?.status ?? "Active",
-      updatedBy: CURRENT_USER,
+      updatedBy: getCurrentUsername(),
       updateDate: new Date().toISOString(),
     };
 
@@ -256,7 +257,7 @@ export default function AdminFormClient({
               error={errors.dojang}
             >
               <option value="">Pilih Dojang</option>
-              {DOJANG_OPTIONS.map((d) => (
+              {dojangOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -267,7 +268,7 @@ export default function AdminFormClient({
               value={form.sabuk}
               onChange={(e) => update("sabuk", e.target.value)}
             >
-              {SABUK_OPTIONS.map((s) => (
+              {sabukOptions.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>

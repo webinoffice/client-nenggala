@@ -1,5 +1,5 @@
 // src/app/app/(authenticated)/layout.tsx
-import { RoleProvider } from "@/lib/role-context";
+import AuthGate from "@/components/app/AuthGate";
 import AppShell from "@/components/app/AppShell";
 
 export default function AuthenticatedLayout({
@@ -8,8 +8,8 @@ export default function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <RoleProvider>
+    <AuthGate>
       <AppShell>{children}</AppShell>
-    </RoleProvider>
+    </AuthGate>
   );
 }

@@ -1,8 +1,11 @@
 // src/app/app/(authenticated)/master/_shared/programs.ts
+import { fetchPrograms } from "@/lib/api/master";
+import { dmyhmsToIso } from "@/lib/api/dates";
+
 export type ProgramStatus = "Active" | "Inactive";
 
 export type Program = {
-  id: string;
+  id: number; // ProgramMsId
   programName: string;
   isMain?: boolean; // the main program (Taekwondo) — cannot be disabled
   status: ProgramStatus;
@@ -10,13 +13,15 @@ export type Program = {
   updateDate: string;
 };
 
+// Seed shown until hydration completes. IDs are the backend's ProgramMsId.
 export const INITIAL_PROGRAMS: Program[] = [
-  { id: "TKD", programName: "Taekwondo", isMain: true, status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
-  { id: "TGD", programName: "Tang Soo Do", status: "Active", updatedBy: "Andre", updateDate: "2025-12-15T10:00:00" },
-  { id: "HKD", programName: "Hapkido", status: "Active", updatedBy: "Carolina", updateDate: "2025-11-20T14:00:00" },
-  { id: "KRT", programName: "Karate", status: "Active", updatedBy: "Andre", updateDate: "2025-10-15T09:30:00" },
-  { id: "DMO", programName: "Demonstration", status: "Inactive", updatedBy: "Carolina", updateDate: "2025-09-01T11:00:00" },
+  { id: 1, programName: "Taekwondo", isMain: true, status: "Active", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
 ];
+
+/** The backend has no "main program" flag — Taekwondo is treated as the main. */
+function isMainProgram(name: string): boolean {
+  return name.trim().toLowerCase() === "taekwondo";
+}
 
 // ---- mutable store ----
 let _programs: Program[] = [...INITIAL_PROGRAMS];
@@ -30,25 +35,26 @@ export function getPrograms(): Program[] {
 }
 export function subscribePrograms(listener: () => void) {
   listeners.add(listener);
+  ensureProgramsLoaded();
   return () => {
     listeners.delete(listener);
   };
 }
-export function getProgramById(id: string): Program | null {
+export function getProgramById(id: number): Program | null {
   return _programs.find((p) => p.id === id) ?? null;
 }
-export function getNextProgramId(): string {
-  return `PRG-${Date.now()}`; // real id comes from backend
+export function getNextProgramId(): number {
+  return Date.now(); // temporary client id; the real ProgramMsId comes from the backend
 }
 export function addProgram(program: Program) {
   _programs = [program, ..._programs];
   notify();
 }
-export function updateProgram(id: string, patch: Partial<Program>) {
+export function updateProgram(id: number, patch: Partial<Program>) {
   _programs = _programs.map((p) => (p.id === id ? { ...p, ...patch } : p));
   notify();
 }
-export function toggleProgramStatus(id: string, by: string) {
+export function toggleProgramStatus(id: number, by: string) {
   _programs = _programs.map((p) =>
     p.id === id
       ? {
@@ -60,4 +66,44 @@ export function toggleProgramStatus(id: string, by: string) {
       : p,
   );
   notify();
+}
+
+// ---- hydration (read API) ----
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadPrograms(): Promise<void> {
+  const rows = (await fetchPrograms()) ?? [];
+  _programs = rows.map((r) => ({
+    id: r.ProgramMsId,
+    programName: r.ProgramName,
+    isMain: isMainProgram(r.ProgramName),
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the program master from the backend. */
+export function ensureProgramsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadPrograms()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load programs", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the program master (used after a write). */
+export async function reloadPrograms(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureProgramsLoaded();
 }

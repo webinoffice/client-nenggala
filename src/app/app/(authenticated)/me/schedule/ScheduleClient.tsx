@@ -4,7 +4,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import {
   getSchedules,
@@ -16,6 +15,7 @@ import { getCoaches, subscribeCoaches } from "../../coach/_shared/coaches";
 import {
   getProgramById,
   getSubProgramById,
+  useAcademic,
 } from "../../student/_shared/academic";
 import {
   getAttendance,
@@ -26,8 +26,8 @@ import ExamRegistrationModal from "./ExamRegistrationModal";
 const CURRENT_PERIOD = "32";
 
 export default function ScheduleClient() {
-  const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
+  useAcademic(); // subscribe so program names re-render on master change/hydrate
 
   const schedules = useSyncExternalStore(
     subscribeSchedules,
@@ -66,8 +66,8 @@ export default function ScheduleClient() {
   // Attendance summary grouped by program for this student
   const attendanceRows = useMemo(() => {
     const byProgram = new Map<
-      string,
-      { programId: string; subProgramId: string; count: number }
+      number,
+      { programId: number; subProgramId: number; count: number }
     >();
     mySchedules.forEach((s) => {
       const key = s.programId;

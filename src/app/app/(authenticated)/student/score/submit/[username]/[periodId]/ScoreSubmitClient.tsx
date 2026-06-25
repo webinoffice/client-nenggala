@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/student/score/submit/[username]/[periodId]/ScoreSubmitClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,11 @@ import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/app/PageHeader";
-import { formatPeriod, getPeriodById } from "../../../../_shared/academic";
+import {
+  formatPeriod,
+  getPeriodById,
+  useAcademic,
+} from "../../../../_shared/academic";
 import {
   getStudentByUsername,
   type Student,
@@ -26,7 +31,6 @@ import {
   type ScoreRecord,
 } from "../../../../_shared/scores";
 
-const CURRENT_USER = "Carolina";
 
 interface Props {
   username: string;
@@ -48,6 +52,7 @@ const EMPTY_STATE: ScoreState = {
 
 export default function ScoreSubmitClient({ username, periodId }: Props) {
   const router = useRouter();
+  useAcademic(); // subscribe so period labels re-render on master change/hydrate
   const [student] = useState<Student | null>(() =>
     getStudentByUsername(username),
   );
@@ -135,7 +140,7 @@ export default function ScoreSubmitClient({ username, periodId }: Props) {
       reasonBelowAttendance,
       total,
       result: determineResult(total, student.sabuk),
-      submittedBy: CURRENT_USER,
+      submittedBy: getCurrentUsername(),
       submitDate: new Date().toISOString(),
     };
     submitScoreRecord(record);

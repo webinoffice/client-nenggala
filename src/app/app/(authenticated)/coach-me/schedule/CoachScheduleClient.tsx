@@ -4,7 +4,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Users, ClipboardCheck, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import {
   getSchedules,
@@ -17,6 +16,7 @@ import { getStudents, subscribeStudents } from "../../student/_shared/students";
 import {
   getProgramById,
   getSubProgramById,
+  useAcademic,
 } from "../../student/_shared/academic";
 import {
   getSessionAttendance,
@@ -28,8 +28,8 @@ import SubmitAttendanceModal from "./SubmitAttendanceModal";
 const CURRENT_PERIOD = "32";
 
 export default function CoachScheduleClient() {
-  const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
+  useAcademic(); // subscribe so program names re-render on master change/hydrate
 
   const schedules = useSyncExternalStore(
     subscribeSchedules,

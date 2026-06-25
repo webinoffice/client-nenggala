@@ -12,9 +12,10 @@ import {
 } from "../_shared/recommendations";
 import { getCoaches, subscribeCoaches } from "../_shared/coaches";
 import { getStudents, subscribeStudents } from "../../student/_shared/students";
-import { DOJANG_OPTIONS } from "../../student/_shared/students";
+import { useDojangOptions } from "../../master/_shared/dojangs";
 
 export default function RecommendationClient() {
+  const dojangOptions = useDojangOptions();
   const recommendations = useSyncExternalStore(
     subscribeRecommendations,
     getRecommendations,
@@ -110,7 +111,7 @@ export default function RecommendationClient() {
             onChange={(e) => setDojangInput(e.target.value)}
           >
             <option value="All">All</option>
-            {DOJANG_OPTIONS.map((d) => (
+            {dojangOptions.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>

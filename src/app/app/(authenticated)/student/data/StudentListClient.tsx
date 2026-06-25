@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/student/data/StudentListClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
@@ -13,15 +14,14 @@ import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import {
   type Student,
-  DOJANG_OPTIONS,
-  SABUK_OPTIONS,
   getStudents,
   subscribeStudents,
   toggleStudentStatus,
 } from "../_shared/students";
+import { useDojangOptions } from "../../master/_shared/dojangs";
+import { useSabukOptions } from "../../master/_shared/belts";
 
 const PAGE_SIZE = 10;
-const CURRENT_USER = "Carolina";
 
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
@@ -44,6 +44,8 @@ export default function StudentListClient() {
     getStudents,
     getStudents,
   );
+  const dojangOptions = useDojangOptions();
+  const sabukOptions = useSabukOptions();
 
   const [namaInput, setNamaInput] = useState("");
   const [sabukInput, setSabukInput] = useState("All");
@@ -109,7 +111,7 @@ export default function StudentListClient() {
     router.push(`/app/student/data/${s.username}/edit`);
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleStudentStatus(confirming.username, CURRENT_USER);
+    toggleStudentStatus(confirming.username, getCurrentUsername());
   };
 
   return (
@@ -138,7 +140,7 @@ export default function StudentListClient() {
             onChange={(e) => setDojangInput(e.target.value)}
           >
             <option value="All">All</option>
-            {DOJANG_OPTIONS.map((d) => (
+            {dojangOptions.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>
@@ -150,7 +152,7 @@ export default function StudentListClient() {
             onChange={(e) => setSabukInput(e.target.value)}
           >
             <option value="All">All</option>
-            {SABUK_OPTIONS.map((s) => (
+            {sabukOptions.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

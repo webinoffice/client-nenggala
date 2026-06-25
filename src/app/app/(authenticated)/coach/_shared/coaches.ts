@@ -1,10 +1,16 @@
 // src/app/app/(authenticated)/coach/_shared/coaches.ts
 
+import type { BloodType } from "@/lib/reference";
+import { fetchUserData, mapUserRow } from "@/lib/api/users";
+// Re-exported so Coach.golDarah consumers can keep importing it from here.
+export type { BloodType };
+
 export type CoachStatus = "Active" | "Inactive";
-export type BloodType = "A" | "B" | "AB" | "O" | "-";
 
 export type Coach = {
-  username: string; // C + 4-digit
+  username: string; // No.Reg (UserNoId) — login name / display key
+  userId?: number;  // User-table PK (populated on hydration; for the status-toggle write)
+  userDataId?: number; // UserData PK — the CoachId used by schedule/attendance joins
   namaLengkap: string;
   panggilan: string;
   dojang: string;
@@ -186,9 +192,47 @@ export function getCoaches() {
 }
 export function subscribeCoaches(l: () => void) {
   listeners.add(l);
+  ensureCoachesLoaded();
   return () => {
     listeners.delete(l);
   };
+}
+
+// ---- hydration (read API) ----
+// get-user-data, UserTypeCode "I" (instructor), full list (active + inactive).
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadCoaches(): Promise<void> {
+  const rows = (await fetchUserData("I")) ?? [];
+  _coaches = rows.map((r) => ({
+    ...mapUserRow(r),
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+  }));
+  notify();
+}
+
+/** One-time hydration of the coach list from the backend. */
+export function ensureCoachesLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadCoaches()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load coaches", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the coach list (used after a write). */
+export async function reloadCoaches(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureCoachesLoaded();
 }
 export function getCoachByUsername(username: string) {
   return _coaches.find((c) => c.username === username) ?? null;

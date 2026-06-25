@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/admin/AdminListClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
@@ -13,14 +14,13 @@ import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import {
   type Admin,
-  DOJANG_OPTIONS,
   getAdmins,
   subscribeAdmins,
   toggleAdminStatus,
 } from "./_shared/admins";
+import { useDojangOptions } from "../master/_shared/dojangs";
 
 const PAGE_SIZE = 10;
-const CURRENT_USER = "Carolina";
 
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
@@ -42,6 +42,7 @@ export default function AdminListClient() {
 
   // Reactive read from the cross-page store.
   const admins = useSyncExternalStore(subscribeAdmins, getAdmins, getAdmins);
+  const dojangOptions = useDojangOptions();
 
   // Filter: input state vs applied state.
   const [namaInput, setNamaInput] = useState("");
@@ -91,7 +92,7 @@ export default function AdminListClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleAdminStatus(confirming.username, CURRENT_USER);
+    toggleAdminStatus(confirming.username, getCurrentUsername());
   };
 
   return (
@@ -121,7 +122,7 @@ export default function AdminListClient() {
             onChange={(e) => setDojangInput(e.target.value)}
           >
             <option value="All">All</option>
-            {DOJANG_OPTIONS.map((d) => (
+            {dojangOptions.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>

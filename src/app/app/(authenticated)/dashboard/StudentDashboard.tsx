@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { Bell, ArrowUpRight } from "lucide-react";
-import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import { useEvents, formatEventDate } from "@/lib/events";
 import { getStudents, subscribeStudents } from "../student/_shared/students";
@@ -14,7 +13,11 @@ import {
   subscribeScores,
   getPassingThreshold,
 } from "../student/_shared/scores";
-import { getPeriodById, formatPeriod } from "../student/_shared/academic";
+import {
+  getPeriodById,
+  formatPeriod,
+  useAcademic,
+} from "../student/_shared/academic";
 import { cn } from "@/lib/utils";
 
 function formatJoinedDate(iso: string) {
@@ -27,8 +30,8 @@ function formatJoinedDate(iso: string) {
 }
 
 export default function StudentDashboard() {
-  const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
+  useAcademic(); // subscribe so period labels re-render on master change/hydrate
 
   const students = useSyncExternalStore(
     subscribeStudents,

@@ -4,11 +4,20 @@
 // carousel (homepage "Our Activity", about "Our Activity", gallery page).
 // Editing it in /content updates all of them.
 //
-// Same in-memory pattern as the other stores. When the API arrives, replace
-// the bodies of these functions with fetch/mutation calls.
+// READ is backed by the backend (Section 3a): images come from the "Galery"
+// content type (ContentTypeCode "G"), returned as ObjGallery on the page
+// bundle. Hydration runs once on first subscribe. The mutators stay in-memory
+// until Section 2 (CMS writes).
 "use client";
 
 import { useSyncExternalStore } from "react";
+import {
+  fetchContentPage,
+  saveContent,
+  deleteContent,
+  CONTENT_TYPE,
+} from "@/lib/api/content";
+import { fileUrl } from "@/lib/api/file-url";
 
 export interface GalleryImage {
   id: string;
@@ -41,39 +50,103 @@ export function getGallery(): GalleryImage[] {
 
 export function subscribeGallery(listener: () => void) {
   listeners.add(listener);
+  ensureGalleryLoaded();
   return () => {
     listeners.delete(listener);
   };
 }
 
-let _idCounter = INITIAL_GALLERY.length;
-function nextId(): string {
-  _idCounter += 1;
-  return `g${_idCounter}-${Date.now()}`;
+// ---- hydration (read API) ----
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadGallery(): Promise<void> {
+  const data = await fetchContentPage("HomePage");
+  const rows = data.ObjGallery ?? [];
+  _gallery = rows.map((row, i) => ({
+    id: row.ContentId != null ? `g-${row.ContentId}` : `g-${i + 1}`,
+    src: fileUrl(row.ContentFile),
+    alt: row.ContentTitle ?? "",
+  }));
+  notify();
 }
 
-/** Add an image. Returns false (no-op) when already at GALLERY_MAX. */
-export function addGalleryImage(image: Omit<GalleryImage, "id">): boolean {
+/** One-time hydration of the gallery from the backend. */
+export function ensureGalleryLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadGallery()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load gallery", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the gallery (used after a write). */
+export async function reloadGallery(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureGalleryLoaded();
+}
+
+// ---- write API (CMS, super-admin) ----
+
+/** Recover the backend ContentId from a store id (`g-<ContentId>`). */
+function contentIdFromGalleryId(id: string): number {
+  const n = parseInt(id.replace(/^g-/, ""), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Add an image (uploaded inline). Returns false (no-op) at GALLERY_MAX. */
+export async function addGalleryImage(file: File, alt = ""): Promise<boolean> {
   if (_gallery.length >= GALLERY_MAX) return false;
-  _gallery = [..._gallery, { id: nextId(), ...image }];
-  notify();
+  await saveContent(
+    {
+      ContentId: 0,
+      ContentTitle: alt,
+      ContentDesc: "",
+      ContentLink: "",
+      ContentTypeId: CONTENT_TYPE.GALLERY,
+      ContentDate: null,
+      FgHighlight: "N",
+      FgMode: "I",
+    },
+    file,
+  );
+  await reloadGallery();
   return true;
 }
 
-export function updateGalleryImage(id: string, patch: Partial<Omit<GalleryImage, "id">>) {
+/** Remove an image. Returns false (no-op) when already at GALLERY_MIN. */
+export async function removeGalleryImage(id: string): Promise<boolean> {
+  if (_gallery.length <= GALLERY_MIN) return false;
+  await deleteContent(contentIdFromGalleryId(id));
+  await reloadGallery();
+  return true;
+}
+
+/**
+ * Local-only alt-text edit. The backend deletes the stored file on every edit
+ * and requires a fresh upload, so alt cannot be patched on its own — this stays
+ * client-only. TODO(#alt): allow updating alt without re-uploading server-side.
+ */
+export function updateGalleryImage(
+  id: string,
+  patch: Partial<Omit<GalleryImage, "id">>,
+) {
   _gallery = _gallery.map((g) => (g.id === id ? { ...g, ...patch } : g));
   notify();
 }
 
-/** Remove an image. Returns false (no-op) when already at GALLERY_MIN. */
-export function removeGalleryImage(id: string): boolean {
-  if (_gallery.length <= GALLERY_MIN) return false;
-  _gallery = _gallery.filter((g) => g.id !== id);
-  notify();
-  return true;
-}
-
-/** Move an image one slot left (-1) or right (+1). */
+/**
+ * Local-only reorder. The backend has no ordering column for gallery rows, so
+ * this does not persist. TODO(#order): add a sort/order column server-side.
+ */
 export function moveGalleryImage(id: string, direction: -1 | 1) {
   const idx = _gallery.findIndex((g) => g.id === id);
   if (idx === -1) return;

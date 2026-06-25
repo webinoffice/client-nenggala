@@ -1,10 +1,20 @@
 // src/app/app/(authenticated)/student/_shared/students.ts
+//
+// Reference dropdowns that used to live here (DOJANG_OPTIONS / SABUK_OPTIONS /
+// SABUK_RANK / WARGA_NEGARA_OPTIONS / GOL_DARAH_OPTIONS) were removed (audit
+// issue #2): belts/dojang derive from the master stores, the rest from
+// @/lib/reference.
+import type { BloodType } from "@/lib/reference";
+import { fetchUserData, mapUserRow } from "@/lib/api/users";
+// Re-exported so Student.golDarah consumers can keep importing it from here.
+export type { BloodType };
 
 export type StudentStatus = "Active" | "Inactive";
-export type BloodType = "A" | "B" | "AB" | "O" | "-";
 
 export type Student = {
-  username: string;          // U + 4-digit
+  username: string;          // No.Reg (UserNoId) — login name / display key
+  userId?: number;           // User-table PK (populated on hydration; for the status-toggle write)
+  userDataId?: number;       // UserData PK — the StudentId used by schedule/attendance/score joins
   namaLengkap: string;
   panggilan: string;
   dojang: string;
@@ -27,52 +37,6 @@ export type Student = {
   updatedBy: string;
   updateDate: string;
 };
-
-export const DOJANG_OPTIONS = [
-  "Kedoya Sport Club",
-  "Senayan Dojang",
-  "Bintaro Dojang",
-  "Pakualam Center",
-  "Pondok Indah Dojang",
-];
-
-export const SABUK_OPTIONS = [
-  "-",
-  "Putih",
-  "Kuning",
-  "Hijau",
-  "Hijau Strip Biru",
-  "Biru",
-  "Biru Strip Merah",
-  "Merah",
-  "Merah Strip Hitam",
-  "Hitam DAN-1",
-  "Hitam DAN-2",
-];
-
-// Rank used to gate conditional score categories (Kyorugi, 14 Basic Movements).
-export const SABUK_RANK: Record<string, number> = {
-  "-": 0,
-  Putih: 1,
-  Kuning: 2,
-  Hijau: 3,
-  "Hijau Strip Biru": 4,
-  Biru: 5,
-  "Biru Strip Merah": 6,
-  Merah: 7,
-  "Merah Strip Hitam": 8,
-  "Hitam DAN-1": 9,
-  "Hitam DAN-2": 10,
-};
-
-export const WARGA_NEGARA_OPTIONS = [
-  "Indonesia",
-  "Malaysia",
-  "Singapore",
-  "Other",
-];
-
-export const GOL_DARAH_OPTIONS: BloodType[] = ["-", "A", "B", "AB", "O"];
 
 const INITIAL_STUDENTS: Student[] = [
   {
@@ -281,9 +245,49 @@ export function getStudents(): Student[] {
 }
 export function subscribeStudents(listener: () => void) {
   listeners.add(listener);
+  ensureStudentsLoaded();
   return () => {
     listeners.delete(listener);
   };
+}
+
+// ---- hydration (read API) ----
+// get-user-data, UserTypeCode "S", full list (active + inactive). `username` is
+// the No.Reg (UserNoId); operational joins on the numeric UserDataId are wired
+// later (the list does not yet return it).
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadStudents(): Promise<void> {
+  const rows = (await fetchUserData("S")) ?? [];
+  _students = rows.map((r) => ({
+    ...mapUserRow(r),
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+  }));
+  notify();
+}
+
+/** One-time hydration of the student list from the backend. */
+export function ensureStudentsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadStudents()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load students", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the student list (used after a write). */
+export async function reloadStudents(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureStudentsLoaded();
 }
 export function getStudentByUsername(username: string): Student | null {
   return _students.find((s) => s.username === username) ?? null;

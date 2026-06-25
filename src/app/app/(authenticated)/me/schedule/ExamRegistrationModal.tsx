@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import {
   getProgramById,
   getSubProgramById,
+  useAcademic,
 } from "../../student/_shared/academic";
 import type { Schedule } from "../../coach/_shared/schedules";
 
@@ -20,6 +21,8 @@ export default function ExamRegistrationModal({ schedule, onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  // Subscribe so program/sub-program names re-render on master change/hydrate.
+  useAcademic();
 
   const program = schedule ? getProgramById(schedule.programId) : null;
   const subProgram = schedule ? getSubProgramById(schedule.subProgramId) : null;

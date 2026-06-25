@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/product/MasterProductClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
@@ -36,7 +37,7 @@ function toHref(link: string) {
 }
 
 export default function MasterProductClient() {
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
 
   const products = useSyncExternalStore(
     subscribeProducts,

@@ -12,15 +12,11 @@ import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
-import { useRole } from "@/lib/role-context";
 import { getCurrentDisplayName } from "@/lib/current-user";
-import { isBlobSrc } from "@/lib/cms/image-src";
 import {
   useEvents,
-  addEvent,
-  updateEvent,
+  saveEvent,
   toggleEventStatus,
-  getNextEventId,
   formatEventDate,
   type EventItem,
   type EventStatus,
@@ -38,8 +34,7 @@ function formatDateTime(iso: string) {
 }
 
 export default function EventsClient() {
-  const { role } = useRole();
-  const currentUserName = getCurrentDisplayName(role);
+  const currentUserName = getCurrentDisplayName();
 
   const events = useEvents();
 
@@ -101,25 +96,30 @@ export default function EventsClient() {
     setFormOpen(true);
   };
 
-  const handleSubmit = (values: EventFormValues) => {
-    const now = new Date().toISOString();
-    if (editing) {
-      updateEvent(editing.id, {
-        ...values,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
-    } else {
-      addEvent({
-        id: getNextEventId(),
-        ...values,
-        status: "Active",
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleSubmit = async (values: EventFormValues) => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await saveEvent(
+        editing?.id ?? null,
+        {
+          title: values.title,
+          date: values.date,
+          description: values.description,
+          registerUrl: values.registerUrl,
+        },
+        values.file,
+      );
+      setFormOpen(false);
+      setEditing(null);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to save event");
+    } finally {
+      setSubmitting(false);
     }
-    setFormOpen(false);
-    setEditing(null);
   };
 
   const handleToggleStatus = () => {
@@ -274,9 +274,12 @@ export default function EventsClient() {
         onClose={() => {
           setFormOpen(false);
           setEditing(null);
+          setSubmitError(null);
         }}
         initial={editing}
         onSubmit={handleSubmit}
+        submitting={submitting}
+        error={submitError}
       />
 
       {/* Detail popup */}
@@ -294,7 +297,7 @@ export default function EventsClient() {
                   src={viewing.image}
                   alt={viewing.title}
                   fill
-                  unoptimized={isBlobSrc(viewing.image)}
+                  unoptimized
                   className="object-cover"
                   sizes="(max-width: 640px) 100vw, 480px"
                 />

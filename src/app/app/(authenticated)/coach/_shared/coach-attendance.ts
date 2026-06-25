@@ -4,7 +4,7 @@ export type CoachAttendanceRecord = {
   coachUsername: string;
   date: string; // YYYY-MM-DD
   scheduleId: string;
-  programId: string;
+  programId: number; // ProgramMsId
   dojang: string;
   periodId: string;
 };
@@ -16,7 +16,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-01-05",
     scheduleId: "SCH-0001",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -24,7 +24,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-01-12",
     scheduleId: "SCH-0001",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -32,7 +32,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-01-19",
     scheduleId: "SCH-0001",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -40,7 +40,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-02-02",
     scheduleId: "SCH-0001",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -48,7 +48,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-01-09",
     scheduleId: "SCH-0005",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -56,7 +56,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-01-16",
     scheduleId: "SCH-0005",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -64,7 +64,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-01-23",
     scheduleId: "SCH-0005",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -72,7 +72,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0001",
     date: "2026-02-06",
     scheduleId: "SCH-0005",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -81,7 +81,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0002",
     date: "2026-01-06",
     scheduleId: "SCH-0002",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -89,7 +89,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0002",
     date: "2026-01-13",
     scheduleId: "SCH-0002",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -97,7 +97,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0002",
     date: "2026-01-20",
     scheduleId: "SCH-0002",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -105,7 +105,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0002",
     date: "2026-02-03",
     scheduleId: "SCH-0002",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -114,7 +114,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0003",
     date: "2026-01-07",
     scheduleId: "SCH-0003",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -122,7 +122,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0003",
     date: "2026-01-14",
     scheduleId: "SCH-0003",
-    programId: "TKD",
+    programId: 1,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -130,7 +130,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0003",
     date: "2026-01-04",
     scheduleId: "SCH-0007",
-    programId: "GYM",
+    programId: 3,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -138,7 +138,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0003",
     date: "2026-01-11",
     scheduleId: "SCH-0007",
-    programId: "GYM",
+    programId: 3,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -147,7 +147,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0005",
     date: "2026-01-10",
     scheduleId: "SCH-0006",
-    programId: "NCK",
+    programId: 2,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -155,7 +155,7 @@ export const COACH_ATTENDANCE: CoachAttendanceRecord[] = [
     coachUsername: "C0005",
     date: "2026-01-17",
     scheduleId: "SCH-0006",
-    programId: "NCK",
+    programId: 2,
     dojang: "Kedoya Sport Club",
     periodId: "32",
   },
@@ -170,7 +170,7 @@ export type AttendanceSession = {
 
 export type AggregatedAttendance = {
   coachUsername: string;
-  programId: string;
+  programId: number; // ProgramMsId
   periodId: string;
   count: number;
   sessions: AttendanceSession[];
@@ -213,6 +213,6 @@ export function aggregateAttendance(opts: {
   return Array.from(map.values()).sort(
     (a, b) =>
       a.coachUsername.localeCompare(b.coachUsername) ||
-      a.programId.localeCompare(b.programId),
+      a.programId - b.programId,
   );
 }

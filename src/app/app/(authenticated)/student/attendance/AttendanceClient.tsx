@@ -12,6 +12,7 @@ import {
   getEnrolledUsernames,
   getPeriodById,
   getSubProgramById,
+  useAcademic,
 } from "../_shared/academic";
 import {
   getStudents,
@@ -29,6 +30,7 @@ export default function AttendanceClient() {
     getStudents,
     getStudents,
   );
+  useAcademic(); // subscribe so period/sub-program labels re-render on hydrate
 
   const ready =
     selection.periodId &&
@@ -40,7 +42,7 @@ export default function AttendanceClient() {
     ? getEnrolledUsernames(
         selection.periodId,
         selection.dojang,
-        selection.subProgramId,
+        Number(selection.subProgramId),
       )
         .map((u) => students.find((s) => s.username === u))
         .filter((s): s is Student => s !== undefined)
@@ -48,7 +50,7 @@ export default function AttendanceClient() {
 
   const period = selection.periodId ? getPeriodById(selection.periodId) : null;
   const subProgram = selection.subProgramId
-    ? getSubProgramById(selection.subProgramId)
+    ? getSubProgramById(Number(selection.subProgramId))
     : null;
 
   return (

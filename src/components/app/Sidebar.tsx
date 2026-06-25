@@ -2,11 +2,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronRight, LogOut } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
+import { logout } from "@/lib/session";
 import {
   SIDEBAR_ITEMS,
   filterSidebarByRole,
@@ -15,8 +16,14 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { role } = useRole();
   const items = filterSidebarByRole(SIDEBAR_ITEMS, role);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/");
+  };
 
   const activeGroups = useMemo(
     () =>
@@ -118,13 +125,13 @@ export default function Sidebar() {
         </ul>
       </nav>
       <div className="border-t border-ink/10 p-2">
-        <Link
-          href="/"
-          className="flex items-center gap-3 px-4 py-2.5 rounded-sm text-sm font-medium text-ink hover:bg-paper-soft transition-colors"
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 px-4 py-2.5 rounded-sm text-sm font-medium text-ink hover:bg-paper-soft transition-colors"
         >
           <LogOut size={20} />
           Log Out
-        </Link>
+        </button>
       </div>
     </aside>
   );

@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useGallery } from "@/lib/cms/gallery";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 const GAP = 24; // px — matches Tailwind gap-6 (1.5rem)
 const DRAG_THRESHOLD = 60; // px the user must drag before the slide commits
@@ -137,7 +136,6 @@ export default function ImageCarousel({ title }: ImageCarouselProps) {
                       alt={img.alt}
                       fill
                       draggable={false}
-                      unoptimized={isBlobSrc(img.src)}
                       className="select-none object-cover"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     />

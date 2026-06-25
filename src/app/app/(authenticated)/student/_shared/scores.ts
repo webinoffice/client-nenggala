@@ -1,6 +1,10 @@
 // src/app/app/(authenticated)/student/_shared/scores.ts
 
-import { SABUK_RANK } from "./students";
+import { getSabukRank, getPassingThreshold } from "../../master/_shared/belts";
+
+// Re-exported so existing consumers can keep importing it from scores; the
+// implementation now lives with the belt master (audit issue #2).
+export { getPassingThreshold } from "../../master/_shared/belts";
 
 export type ScoreKey =
   | "agilityFisik"
@@ -42,23 +46,9 @@ export const SCORE_CATEGORIES: ScoreCategory[] = [
 
 export const SCORE_OPTIONS = [5, 5.5, 6, 6.5, 7, 7.5, 8];
 
-// Belt-based passing thresholds.
-// Rank 0–6 (Putih → Biru Strip Merah): 75
-// Rank 7+ (Merah → Hitam DAN-x):       85
-export const PASS_THRESHOLD_LOW_BELT = 75;
-export const PASS_THRESHOLD_HIGH_BELT = 85;
-export const HIGH_BELT_MIN_RANK = 7;
-
-export function getPassingThreshold(sabuk: string): number {
-  const rank = SABUK_RANK[sabuk] ?? 0;
-  return rank >= HIGH_BELT_MIN_RANK
-    ? PASS_THRESHOLD_HIGH_BELT
-    : PASS_THRESHOLD_LOW_BELT;
-}
-
 export function isCategoryApplicable(cat: ScoreCategory, sabuk: string) {
   if (cat.minBeltRank === undefined) return true;
-  return (SABUK_RANK[sabuk] ?? 0) >= cat.minBeltRank;
+  return getSabukRank(sabuk) >= cat.minBeltRank;
 }
 
 export type ScoreRecord = {

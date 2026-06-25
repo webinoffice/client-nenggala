@@ -13,7 +13,7 @@ import {
 } from "../_shared/coach-attendance";
 import { getCoaches, subscribeCoaches } from "../_shared/coaches";
 import {
-  PERIODS,
+  useAcademic,
   formatPeriod,
   formatMonth,
   monthRange,
@@ -31,6 +31,9 @@ export default function CoachAttendanceClient() {
     [coaches],
   );
 
+  // Subscribe so program names re-render when the master store changes/hydrates.
+  const { periods: allPeriods } = useAcademic();
+
   const [namaInput, setNamaInput] = useState("");
   const [periodInput, setPeriodInput] = useState("32");
   const [noInput, setNoInput] = useState("");
@@ -47,14 +50,14 @@ export default function CoachAttendanceClient() {
   const monthOptions = useMemo(() => {
     const periods =
       periodInput === "All"
-        ? PERIODS
-        : PERIODS.filter((p) => p.id === periodInput);
+        ? allPeriods
+        : allPeriods.filter((p) => p.id === periodInput);
     const set = new Set<string>();
     periods.forEach((p) =>
       monthRange(p.startMonth, p.endMonth).forEach((m) => set.add(m)),
     );
     return Array.from(set).sort();
-  }, [periodInput]);
+  }, [periodInput, allPeriods]);
 
   const rows = useMemo(() => {
     return aggregateAttendance({
@@ -96,7 +99,7 @@ export default function CoachAttendanceClient() {
             }}
           >
             <option value="All">All</option>
-            {PERIODS.map((p) => (
+            {allPeriods.map((p) => (
               <option key={p.id} value={p.id}>
                 {formatPeriod(p)}
               </option>

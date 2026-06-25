@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { ArrowRight, ArrowUpRight, Bell } from "lucide-react";
-import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import { useEvents, formatEventDate } from "@/lib/events";
 import {
@@ -14,7 +13,11 @@ import {
   DAYS_OF_WEEK,
 } from "../coach/_shared/schedules";
 import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
-import { getProgramById, getSubProgramById } from "../student/_shared/academic";
+import {
+  getProgramById,
+  getSubProgramById,
+  useAcademic,
+} from "../student/_shared/academic";
 
 const CURRENT_PERIOD = "32";
 
@@ -28,8 +31,8 @@ function formatJoinedDate(iso: string) {
 }
 
 export default function CoachDashboard() {
-  const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
+  useAcademic(); // subscribe so program names re-render on master change/hydrate
 
   const schedules = useSyncExternalStore(
     subscribeSchedules,

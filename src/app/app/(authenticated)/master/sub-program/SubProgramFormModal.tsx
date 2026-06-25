@@ -1,16 +1,16 @@
 // src/app/app/(authenticated)/master/sub-program/SubProgramFormModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
-import { INITIAL_PROGRAMS } from "../_shared/programs";
+import { getPrograms, subscribePrograms } from "../_shared/programs";
 import type { SubProgram } from "../_shared/sub-programs";
 
 export type SubProgramFormValues = {
-  programId: string;
+  programId: number;
   subProgramName: string;
 };
 
@@ -55,7 +55,14 @@ function SubProgramFormBody({
   onCancel: () => void;
   onSubmit: (values: SubProgramFormValues) => void;
 }) {
-  const [programId, setProgramId] = useState(initial?.programId ?? "");
+  const programs = useSyncExternalStore(
+    subscribePrograms,
+    getPrograms,
+    getPrograms,
+  );
+  const [programId, setProgramId] = useState(
+    initial ? String(initial.programId) : "",
+  );
   const [subProgramName, setSubProgramName] = useState(
     initial?.subProgramName ?? "",
   );
@@ -75,7 +82,7 @@ function SubProgramFormBody({
       return;
     }
     onSubmit({
-      programId,
+      programId: Number(programId),
       subProgramName: subProgramName.trim(),
     });
   };
@@ -90,9 +97,9 @@ function SubProgramFormBody({
           error={errors.programId}
         >
           <option value="">Select a program</option>
-          {INITIAL_PROGRAMS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.id} — {p.programName}
+          {programs.map((p) => (
+            <option key={p.id} value={String(p.id)}>
+              {p.programName}
             </option>
           ))}
         </Select>

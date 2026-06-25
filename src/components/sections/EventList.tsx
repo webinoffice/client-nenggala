@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEvents, formatEventDate } from "@/lib/events";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 const PER_PAGE = 10;
 
@@ -85,7 +84,6 @@ export default function EventList() {
                     src={event.image}
                     alt={event.title}
                     fill
-                    unoptimized={isBlobSrc(event.image)}
                     className="object-cover transition-transform duration-500 hover:scale-105"
                     sizes="(max-width: 768px) 100vw, 220px"
                   />

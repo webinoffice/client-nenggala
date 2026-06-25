@@ -4,112 +4,16 @@ import Image from "next/image";
 import { useState } from "react";
 import { Search, Play, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Moment {
-  id: string;
-  title: string;
-  description: string;
-  thumbnail: string;
-  url: string;
-}
-
-const LOREM =
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
-
-const VIDEOS: Moment[] = [
-  {
-    id: "v1",
-    title: "Taekwondo Nenggala Online Class",
-    description: LOREM,
-    thumbnail: "/images/moment-1.jpg",
-    url: "#",
-  },
-  {
-    id: "v2",
-    title: "Taekwondo Nenggala New Normal",
-    description: LOREM,
-    thumbnail: "/images/moment-2.jpg",
-    url: "#",
-  },
-  {
-    id: "v3",
-    title: "Highlight UKT Maret 2020",
-    description: LOREM,
-    thumbnail: "/images/moment-3.jpg",
-    url: "#",
-  },
-  {
-    id: "v4",
-    title: "Latihan Bersama Nenggala Tangerang",
-    description: LOREM,
-    thumbnail: "/images/moment-4.jpg",
-    url: "#",
-  },
-  {
-    id: "v5",
-    title: "Kejuaraan Nasional 2019",
-    description: LOREM,
-    thumbnail: "/images/moment-5.jpg",
-    url: "#",
-  },
-  {
-    id: "v6",
-    title: "Open House Nenggala Kedoya",
-    description: LOREM,
-    thumbnail: "/images/moment-6.jpg",
-    url: "#",
-  },
-  {
-    id: "v7",
-    title: "Pelatihan Internasional Master",
-    description: LOREM,
-    thumbnail: "/images/moment-7.jpg",
-    url: "#",
-  },
-  {
-    id: "v8",
-    title: "Hanmadang Festival 2019",
-    description: LOREM,
-    thumbnail: "/images/moment-8.jpg",
-    url: "#",
-  },
-  {
-    id: "v9",
-    title: "Syukuran Dojang Meruya",
-    description: LOREM,
-    thumbnail: "/images/moment-9.jpg",
-    url: "#",
-  },
-  {
-    id: "v10",
-    title: "Latihan Pagi Cabang Bogor",
-    description: LOREM,
-    thumbnail: "/images/moment-10.jpg",
-    url: "#",
-  },
-  {
-    id: "v11",
-    title: "Webinar Taekwondo & Karakter",
-    description: LOREM,
-    thumbnail: "/images/moment-11.jpg",
-    url: "#",
-  },
-  {
-    id: "v12",
-    title: "Demo Taekwondo Nenggala 2020",
-    description: LOREM,
-    thumbnail: "/images/moment-12.jpg",
-    url: "#",
-  },
-];
+import { useMoments } from "@/lib/marketing/moments";
 
 const PER_PAGE = 5;
 
 export default function OurMoment() {
+  const videos = useMoments();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const filtered = VIDEOS.filter((v) => {
+  const filtered = videos.filter((v) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (

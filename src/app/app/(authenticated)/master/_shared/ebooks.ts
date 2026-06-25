@@ -1,4 +1,7 @@
 // src/app/app/(authenticated)/master/_shared/ebooks.ts
+import { fetchEbooks } from "@/lib/api/master";
+import { fileUrl } from "@/lib/api/file-url";
+import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type EbookStatus = "Active" | "Inactive";
 
@@ -108,10 +111,57 @@ export function getEbooks(): Ebook[] {
 }
 export function subscribeEbooks(listener: () => void) {
   listeners.add(listener);
+  ensureEbooksLoaded();
   return () => {
     listeners.delete(listener);
   };
 }
+
+// ---- hydration (read API) ----
+// The backend ebook table has no status column (get-ebook returns no FgStatus,
+// and there is no inact endpoint), so every fetched ebook is treated as Active;
+// the status toggle stays client-only until a server status column exists.
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadEbooks(): Promise<void> {
+  const rows = (await fetchEbooks()) ?? [];
+  _ebooks = rows.map((r) => ({
+    id: r.EBookMsId,
+    sabuk: r.BeltName ?? "",
+    volume: r.Vol ?? undefined,
+    title: r.Title ?? "",
+    pdfFile: r.EBookFile ? fileUrl(r.EBookFile) : "",
+    status: "Active",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the ebook master from the backend. */
+export function ensureEbooksLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadEbooks()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load ebooks", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the ebook master (used after a write). */
+export async function reloadEbooks(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureEbooksLoaded();
+}
+
 export function getNextEbookId(): number {
   return _ebooks.length > 0 ? Math.max(..._ebooks.map((e) => e.id)) + 1 : 1;
 }

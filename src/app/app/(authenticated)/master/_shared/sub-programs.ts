@@ -1,14 +1,17 @@
 // src/app/app/(authenticated)/master/_shared/sub-programs.ts
 //
-// NOTE (step 3): this is the *master* sub-program shape, distinct from the
-// operational `SubProgram` in student/_shared/academic.ts. They must be unified
-// against the API (see docs/API_READINESS_AUDIT.md, issue #1).
+// Master sub-program (ProgramDt) store. IDs are the backend's numeric
+// ProgramDtId; programId is the parent ProgramMsId. The operational
+// SubProgram view in student/_shared/academic.ts derives from this store.
+import { fetchSubPrograms } from "@/lib/api/master";
+import { fileUrl } from "@/lib/api/file-url";
+import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type SubProgramStatus = "Active" | "Inactive";
 
 export type SubProgram = {
-  programId: string;
-  subProgramId: string;
+  programId: number; // parent ProgramMsId
+  subProgramId: number; // ProgramDtId
   subProgramName: string;
   image?: string;
   status: SubProgramStatus;
@@ -16,15 +19,10 @@ export type SubProgram = {
   updateDate: string;
 };
 
+// Seed shown until hydration completes.
 export const INITIAL_SUB_PROGRAMS: SubProgram[] = [
-  { programId: "TKD", subProgramId: "TKD-01", subProgramName: "Kyorugi", image: "127828916.JPG", status: "Active", updatedBy: "Carolina", updateDate: "2025-12-26T19:41:32" },
-  { programId: "TKD", subProgramId: "TKD-02", subProgramName: "Poomsae", image: "TKD02_pose.JPG", status: "Active", updatedBy: "Carolina", updateDate: "2025-12-25T10:00:00" },
-  { programId: "TKD", subProgramId: "TKD-03", subProgramName: "Hosinsool", image: "TKD03_defense.JPG", status: "Active", updatedBy: "Andre", updateDate: "2025-12-20T14:00:00" },
-  { programId: "TKD", subProgramId: "TKD-04", subProgramName: "Breaking", image: "TKD04_break.JPG", status: "Active", updatedBy: "Andre", updateDate: "2025-12-18T11:00:00" },
-  { programId: "TGD", subProgramId: "TGD-01", subProgramName: "Forms", image: "TGD01_form.JPG", status: "Active", updatedBy: "Carolina", updateDate: "2025-11-10T09:00:00" },
-  { programId: "HKD", subProgramId: "HKD-01", subProgramName: "Throws", image: "HKD01_throw.JPG", status: "Active", updatedBy: "Andre", updateDate: "2025-10-20T13:00:00" },
-  { programId: "KRT", subProgramId: "KRT-01", subProgramName: "Kata", image: "KRT01_kata.JPG", status: "Active", updatedBy: "Carolina", updateDate: "2025-09-15T08:00:00" },
-  { programId: "KRT", subProgramId: "KRT-02", subProgramName: "Kumite", image: "KRT02_kumite.JPG", status: "Inactive", updatedBy: "Carolina", updateDate: "2025-09-15T08:05:00" },
+  { programId: 1, subProgramId: 1, subProgramName: "Kyorugi", status: "Active", updatedBy: "Carolina", updateDate: "2025-12-26T19:41:32" },
+  { programId: 1, subProgramId: 2, subProgramName: "Poomsae", status: "Active", updatedBy: "Carolina", updateDate: "2025-12-25T10:00:00" },
 ];
 
 // ---- mutable store ----
@@ -39,19 +37,20 @@ export function getSubPrograms(): SubProgram[] {
 }
 export function subscribeSubPrograms(listener: () => void) {
   listeners.add(listener);
+  ensureSubProgramsLoaded();
   return () => {
     listeners.delete(listener);
   };
 }
-export function getNextSubProgramId(programId: string): string {
-  return `${programId}-${Date.now()}`; // real id comes from backend
+export function getNextSubProgramId(): number {
+  return Date.now(); // temporary client id; the real ProgramDtId comes from the backend
 }
 export function addSubProgram(subProgram: SubProgram) {
   _subPrograms = [subProgram, ..._subPrograms];
   notify();
 }
 export function updateSubProgram(
-  subProgramId: string,
+  subProgramId: number,
   patch: Partial<SubProgram>,
 ) {
   _subPrograms = _subPrograms.map((sp) =>
@@ -59,7 +58,7 @@ export function updateSubProgram(
   );
   notify();
 }
-export function toggleSubProgramStatus(subProgramId: string, by: string) {
+export function toggleSubProgramStatus(subProgramId: number, by: string) {
   _subPrograms = _subPrograms.map((sp) =>
     sp.subProgramId === subProgramId
       ? {
@@ -71,4 +70,45 @@ export function toggleSubProgramStatus(subProgramId: string, by: string) {
       : sp,
   );
   notify();
+}
+
+// ---- hydration (read API) ----
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadSubPrograms(): Promise<void> {
+  const rows = (await fetchSubPrograms()) ?? [];
+  _subPrograms = rows.map((r) => ({
+    programId: r.ProgramMsId,
+    subProgramId: r.ProgramDtId,
+    subProgramName: r.ProgramDtName,
+    image: r.ProgramDtImage ? fileUrl(r.ProgramDtImage) : undefined,
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the sub-program master from the backend. */
+export function ensureSubProgramsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadSubPrograms()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load sub-programs", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the sub-program master (used after a write). */
+export async function reloadSubPrograms(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureSubProgramsLoaded();
 }

@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/coach/schedule/ScheduleFormClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, X } from "lucide-react";
@@ -17,19 +18,16 @@ import {
   updateSchedule,
 } from "../_shared/schedules";
 import {
-  PROGRAMS,
-  SUB_PROGRAMS,
-  PERIODS,
+  useAcademic,
   formatPeriod,
 } from "../../student/_shared/academic";
 import {
-  DOJANG_OPTIONS,
   getStudents,
   subscribeStudents,
 } from "../../student/_shared/students";
+import { useDojangOptions } from "../../master/_shared/dojangs";
 import { getCoaches, subscribeCoaches } from "../_shared/coaches";
 
-const CURRENT_USER = "Carolina";
 
 interface Props {
   mode: "new" | "edit";
@@ -39,6 +37,8 @@ interface Props {
 export default function ScheduleFormClient({ mode, id }: Props) {
   const router = useRouter();
   const isEditing = mode === "edit";
+  const { programs, subPrograms, periods } = useAcademic();
+  const dojangOptions = useDojangOptions();
   const coaches = useSyncExternalStore(
     subscribeCoaches,
     getCoaches,
@@ -56,8 +56,14 @@ export default function ScheduleFormClient({ mode, id }: Props) {
   const [scheduleId] = useState(() => editing?.id ?? getNextScheduleId());
 
   const [dojang, setDojang] = useState(editing?.dojang ?? "");
-  const [programId, setProgramId] = useState(editing?.programId ?? "");
-  const [subProgramId, setSubProgramId] = useState(editing?.subProgramId ?? "");
+  // Program/sub-program selects are string-native; converted to numeric
+  // ProgramMsId/ProgramDtId when building the Schedule payload.
+  const [programId, setProgramId] = useState(
+    editing ? String(editing.programId) : "",
+  );
+  const [subProgramId, setSubProgramId] = useState(
+    editing ? String(editing.subProgramId) : "",
+  );
   const [primaryCoach, setPrimaryCoach] = useState(
     editing?.primaryCoachUsername ?? "",
   );
@@ -99,8 +105,10 @@ export default function ScheduleFormClient({ mode, id }: Props) {
   );
   const availableSubPrograms = useMemo(
     () =>
-      programId ? SUB_PROGRAMS.filter((sp) => sp.programId === programId) : [],
-    [programId],
+      programId
+        ? subPrograms.filter((sp) => String(sp.programId) === programId)
+        : [],
+    [programId, subPrograms],
   );
   const studentResults = useMemo(() => {
     const q = studentSearch.toLowerCase().trim();
@@ -177,8 +185,8 @@ export default function ScheduleFormClient({ mode, id }: Props) {
     const payload: Schedule = {
       id: scheduleId,
       dojang,
-      programId,
-      subProgramId,
+      programId: Number(programId),
+      subProgramId: Number(subProgramId),
       primaryCoachUsername: primaryCoach,
       secondaryCoachUsernames: secondaryCoaches,
       assistantUsernames: assistants,
@@ -190,7 +198,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
       endSchedule,
       studentUsernames: enrolledStudents,
       status: editing?.status ?? "Active",
-      updatedBy: CURRENT_USER,
+      updatedBy: getCurrentUsername(),
       updateDate: new Date().toISOString(),
     };
     if (isEditing) updateSchedule(scheduleId, payload);
@@ -226,7 +234,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               disabled={isEditing}
             >
               <option value="">Pilih Dojang</option>
-              {DOJANG_OPTIONS.map((d) => (
+              {dojangOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -243,8 +251,8 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               disabled={isEditing}
             >
               <option value="">Pilih Program</option>
-              {PROGRAMS.map((p) => (
-                <option key={p.id} value={p.id}>
+              {programs.map((p) => (
+                <option key={p.id} value={String(p.id)}>
                   {p.name}
                 </option>
               ))}
@@ -260,8 +268,8 @@ export default function ScheduleFormClient({ mode, id }: Props) {
                 {programId ? "Pilih Sub Program" : "Pilih Program dulu"}
               </option>
               {availableSubPrograms.map((sp) => (
-                <option key={sp.id} value={sp.id}>
-                  {sp.id} · {sp.name}
+                <option key={sp.id} value={String(sp.id)}>
+                  {sp.name}
                 </option>
               ))}
             </Select>
@@ -308,7 +316,7 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               disabled={isEditing}
             >
               <option value="">Pilih Period</option>
-              {PERIODS.map((p) => (
+              {periods.map((p) => (
                 <option key={p.id} value={p.id}>
                   {formatPeriod(p)}
                 </option>

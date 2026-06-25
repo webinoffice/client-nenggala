@@ -3,8 +3,13 @@
 // Master belt list. Currently view-only in the UI, so only get/subscribe are
 // exposed; add mutators in step 3 if belt CRUD is introduced.
 //
-// NOTE (step 3): belt names here differ from SABUK_OPTIONS/SABUK_RANK in
-// student/_shared/students.ts — unify against the API (audit issue #2).
+// This is the canonical belt master: belt names, ranks (beltLevel) and the
+// passing-threshold business logic all live here now (audit issue #2). The old
+// SABUK_OPTIONS/SABUK_RANK in students.ts and the thresholds in scores.ts were
+// removed in favour of these derived helpers.
+import { useSyncExternalStore } from "react";
+import { fetchBeltMaster } from "@/lib/api/master";
+import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type BeltStatus = "Active" | "Inactive";
 
@@ -43,6 +48,7 @@ export function getBelts(): Belt[] {
 }
 export function subscribeBelts(listener: () => void) {
   listeners.add(listener);
+  ensureBeltsLoaded();
   return () => {
     listeners.delete(listener);
   };
@@ -50,4 +56,103 @@ export function subscribeBelts(listener: () => void) {
 export function setBelts(next: Belt[]) {
   _belts = next;
   notify();
+}
+
+// ---- hydration (read API) ----
+// Reads the full belt master (active + inactive). BeltPassScore is available on
+// the row (server-authoritative threshold, audit #6) but not yet stored — the
+// threshold helpers below still derive from beltLevel until #6 is settled.
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadBelts(): Promise<void> {
+  const rows = (await fetchBeltMaster()) ?? [];
+  _belts = rows.map((r) => ({
+    id: r.BeltMasterId,
+    beltName: r.BeltName,
+    beltLevel: r.BeltLevel,
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the belt master from the backend. */
+export function ensureBeltsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadBelts()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load belts", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the belt master (used after a write). */
+export async function reloadBelts(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureBeltsLoaded();
+}
+
+// ---- belt business logic (moved from students.ts SABUK_RANK + scores.ts) ----
+
+/** Belt rank used to gate score categories + thresholds (the belt's beltLevel). */
+export function getSabukRank(beltName: string): number {
+  const belt = _belts.find((b) => b.beltName === beltName);
+  return belt ? belt.beltLevel : 0;
+}
+
+// Belt-based passing thresholds:
+//   rank 0–6 (Putih → ...):  75
+//   rank 7+  (Merah → ...):  85
+export const PASS_THRESHOLD_LOW_BELT = 75;
+export const PASS_THRESHOLD_HIGH_BELT = 85;
+export const HIGH_BELT_MIN_RANK = 7;
+
+export function getPassingThreshold(beltName: string): number {
+  return getSabukRank(beltName) >= HIGH_BELT_MIN_RANK
+    ? PASS_THRESHOLD_HIGH_BELT
+    : PASS_THRESHOLD_LOW_BELT;
+}
+
+// ---- derived dropdown options (cached so useSyncExternalStore snapshots stay stable) ----
+let _beltsForNames: Belt[] | null = null;
+let _beltNames: string[] = [];
+/** Active belt names ordered by level (no "-"). */
+export function getBeltNames(): string[] {
+  if (_belts !== _beltsForNames) {
+    _beltsForNames = _belts;
+    _beltNames = _belts
+      .filter((b) => b.status === "Active")
+      .slice()
+      .sort((a, b) => a.beltLevel - b.beltLevel)
+      .map((b) => b.beltName);
+  }
+  return _beltNames;
+}
+
+let _beltsForSabuk: Belt[] | null = null;
+let _sabukOptions: string[] = [];
+/** Belt select options: "-" (unranked) followed by active belt names by level. */
+export function getSabukOptions(): string[] {
+  if (_belts !== _beltsForSabuk) {
+    _beltsForSabuk = _belts;
+    _sabukOptions = ["-", ...getBeltNames()];
+  }
+  return _sabukOptions;
+}
+
+// ---- hooks ----
+export function useBelts(): Belt[] {
+  return useSyncExternalStore(subscribeBelts, getBelts, getBelts);
+}
+export function useSabukOptions(): string[] {
+  return useSyncExternalStore(subscribeBelts, getSabukOptions, getSabukOptions);
 }

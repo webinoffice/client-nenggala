@@ -1,4 +1,10 @@
 // src/app/app/(authenticated)/master/_shared/schedule-periods.ts
+import { fetchSchedulePeriods } from "@/lib/api/master";
+import { dmyhmsToIso } from "@/lib/api/dates";
+import {
+  ensureDojangsLoaded,
+  getDojangById,
+} from "./dojangs";
 
 export type SchedulePeriodStatus = "Active" | "Inactive";
 
@@ -32,9 +38,67 @@ export function getSchedulePeriods(): SchedulePeriod[] {
 }
 export function subscribeSchedulePeriods(listener: () => void) {
   listeners.add(listener);
+  ensureSchedulePeriodsLoaded();
   return () => {
     listeners.delete(listener);
   };
+}
+
+// ---- hydration (read API) ----
+// get-schperiod (IsEntry "N"). The backend returns DojangId (not a name) and
+// dates as "dd MMMM yyyy", and has no status column — so the dojang name is
+// resolved via the dojang store, dates are normalised to "YYYY-MM", and every
+// period is treated as Active (the status toggle stays client-only).
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+/** "05 January 2026" → "2026-01". */
+function toYearMonth(value: string | null): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+async function loadSchedulePeriods(): Promise<void> {
+  // Need dojang names to resolve DojangId.
+  await ensureDojangsLoaded();
+  const rows = (await fetchSchedulePeriods()) ?? [];
+  _periods = rows.map((r) => ({
+    id: r.SchPeriodId,
+    periodName: r.PeriodTitle,
+    dojang:
+      (r.DojangId != null ? getDojangById(r.DojangId)?.dojangName : "") ?? "",
+    periodStart: toYearMonth(r.PeriodStart),
+    periodEnd: toYearMonth(r.PeriodEnd),
+    status: "Active",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the schedule-period master from the backend. */
+export function ensureSchedulePeriodsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadSchedulePeriods()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load schedule periods", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the schedule-period master (used after a write). */
+export async function reloadSchedulePeriods(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureSchedulePeriodsLoaded();
 }
 export function getMaxSchedulePeriodId(): number {
   return _periods.length > 0 ? Math.max(..._periods.map((p) => p.id)) : 0;

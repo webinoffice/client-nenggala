@@ -10,6 +10,7 @@ import Input from "@/components/ui/Input";
 import {
   getProgramById,
   getSubProgramById,
+  useAcademic,
 } from "../../student/_shared/academic";
 import {
   getSessionAttendanceFor,
@@ -40,6 +41,8 @@ export default function SubmitAttendanceModal({
   coachDisplayName,
   studentByUsername,
 }: Props) {
+  // Subscribe so program/sub-program names re-render on master change/hydrate.
+  useAcademic();
   const [date, setDate] = useState(today());
   // Coach's own attendance — the only toggle; members are always present.
   const [coachPresent, setCoachPresent] = useState(true);

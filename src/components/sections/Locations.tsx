@@ -2,57 +2,21 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-
-const LOCATIONS = [
-  {
-    id: "tajur",
-    name: "Tajur Trade Mall",
-    city: "Bogor",
-    image: "/images/location-tajur.jpg",
-  },
-  {
-    id: "kedoya",
-    name: "Kedoya Sport Club",
-    city: "Jakarta Barat",
-    image: "/images/location-kedoya.jpg",
-  },
-  {
-    id: "meruya",
-    name: "Meruya Sport Club",
-    city: "Jakarta Barat",
-    image: "/images/location-meruya.jpg",
-  },
-  {
-    id: "tajur",
-    name: "Tajur Trade Mall",
-    city: "Bogor",
-    image: "/images/location-tajur.jpg",
-  },
-  {
-    id: "kedoya",
-    name: "Kedoya Sport Club",
-    city: "Jakarta Barat",
-    image: "/images/location-kedoya.jpg",
-  },
-  {
-    id: "meruya",
-    name: "Meruya Sport Club",
-    city: "Jakarta Barat",
-    image: "/images/location-meruya.jpg",
-  },
-];
+import { useDojang } from "@/lib/marketing/dojang";
 
 const GAP = 24; // px — matches Tailwind gap-6 (1.5rem)
 const DRAG_THRESHOLD = 60; // px the user must drag before the slide commits
 
-function getPerView(width) {
+function getPerView(width: number) {
   if (width < 768) return 1; // mobile
   if (width < 1024) return 2; // tablet
   return 3; // desktop
 }
 
 export default function Locations() {
-  const viewportRef = useRef(null);
+  const locations = useDojang();
+
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [perView, setPerView] = useState(3);
   const [index, setIndex] = useState(0);
@@ -62,7 +26,7 @@ export default function Locations() {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const maxIndex = Math.max(0, LOCATIONS.length - perView);
+  const maxIndex = Math.max(0, locations.length - perView);
   const cardWidth =
     viewportWidth > 0 ? (viewportWidth - GAP * (perView - 1)) / perView : 0;
 
@@ -79,10 +43,10 @@ export default function Locations() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Keep the active index valid when perView changes.
+  // Keep the active index valid when perView (or the list) changes.
   useEffect(() => {
-    setIndex((i) => Math.min(i, Math.max(0, LOCATIONS.length - perView)));
-  }, [perView]);
+    setIndex((i) => Math.min(i, Math.max(0, locations.length - perView)));
+  }, [perView, locations.length]);
 
   const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
@@ -91,12 +55,12 @@ export default function Locations() {
   );
 
   // --- Pointer / touch drag handlers ---
-  const onPointerDown = (e) => {
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragState.current = { active: true, startX: e.clientX };
     setIsDragging(true);
   };
 
-  const onPointerMove = (e) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragState.current.active) return;
     setDragOffset(e.clientX - dragState.current.startX);
   };
@@ -150,7 +114,7 @@ export default function Locations() {
                   : "transform 500ms cubic-bezier(0.22, 1, 0.36, 1)",
               }}
             >
-              {LOCATIONS.map((loc) => (
+              {locations.map((loc) => (
                 <article
                   key={loc.id}
                   className="shrink-0 overflow-hidden rounded-sm bg-paper shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md"
@@ -173,9 +137,6 @@ export default function Locations() {
                     <h3 className="font-display text-lg font-bold uppercase tracking-wider">
                       {loc.name}
                     </h3>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-brand">
-                      {loc.city}
-                    </p>
                   </div>
                 </article>
               ))}

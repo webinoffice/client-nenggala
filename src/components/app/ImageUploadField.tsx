@@ -5,28 +5,33 @@ import { useId, useRef } from "react";
 import Image from "next/image";
 import { Upload, ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 interface ImageUploadFieldProps {
   label?: string;
   /** Current image src ("" when none). */
   value: string;
-  /** Called with a fresh object URL when the user picks a file. */
+  /** Called with a fresh object URL (for preview) when the user picks a file. */
   onChange: (src: string) => void;
+  /**
+   * Called with the picked File so the form can upload it inline (multipart) on
+   * save. The backend has no upload-returns-URL endpoint, so the File itself is
+   * what gets submitted; `value`/`onChange` remain the preview contract.
+   */
+  onFileChange?: (file: File | null) => void;
   error?: string;
   /** Tailwind aspect-ratio class for the preview box. */
   aspectClassName?: string;
 }
 
 /**
- * Mock-phase image picker. A real upload endpoint would replace the
- * URL.createObjectURL call with an upload + returned URL — the value/onChange
- * contract stays identical.
+ * Image picker. Shows an object-URL preview immediately and hands the picked
+ * File to the parent (onFileChange) for the real upload at save time.
  */
 export default function ImageUploadField({
   label,
   value,
   onChange,
+  onFileChange,
   error,
   aspectClassName = "aspect-[16/9]",
 }: ImageUploadFieldProps) {
@@ -37,6 +42,7 @@ export default function ImageUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
     onChange(URL.createObjectURL(file));
+    onFileChange?.(file);
     // Allow re-picking the same file later.
     e.target.value = "";
   };
@@ -64,7 +70,7 @@ export default function ImageUploadField({
             src={value}
             alt={label ?? "Preview"}
             fill
-            unoptimized={isBlobSrc(value)}
+            unoptimized
             className="object-cover"
             sizes="(max-width: 640px) 100vw, 480px"
           />

@@ -3,46 +3,21 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Button from "@/components/ui/Button";
-
-const PROGRAMS = [
-  {
-    id: "taekwondo",
-    name: "Taekwondo",
-    image: "/images/program-taekwondo.jpg",
-  },
-  {
-    id: "nunchaku-1",
-    name: "Nunchaku-Do",
-    image: "/images/program-nunchaku.jpg",
-  },
-  {
-    id: "gymnastic-1",
-    name: "Gymnastic",
-    image: "/images/program-gymnastic.jpg",
-  },
-  {
-    id: "nunchaku-2",
-    name: "Nunchaku-Do",
-    image: "/images/program-nunchaku.jpg",
-  },
-  {
-    id: "gymnastic-2",
-    name: "Gymnastic",
-    image: "/images/program-gymnastic.jpg",
-  },
-];
+import { usePrograms } from "@/lib/marketing/programs";
 
 const GAP = 24; // px — matches Tailwind gap-6 (1.5rem)
 const DRAG_THRESHOLD = 60; // px the user must drag before the slide commits
 
-function getPerView(width) {
+function getPerView(width: number) {
   if (width < 768) return 1; // mobile
   if (width < 1024) return 2; // tablet
   return 3; // desktop
 }
 
 export default function Champion() {
-  const viewportRef = useRef(null);
+  const programs = usePrograms();
+
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [perView, setPerView] = useState(3);
   const [index, setIndex] = useState(0);
@@ -52,7 +27,7 @@ export default function Champion() {
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
-  const maxIndex = Math.max(0, PROGRAMS.length - perView);
+  const maxIndex = Math.max(0, programs.length - perView);
   const cardWidth =
     viewportWidth > 0 ? (viewportWidth - GAP * (perView - 1)) / perView : 0;
 
@@ -69,10 +44,10 @@ export default function Champion() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Keep the active index valid when perView changes.
+  // Keep the active index valid when perView (or the list) changes.
   useEffect(() => {
-    setIndex((i) => Math.min(i, Math.max(0, PROGRAMS.length - perView)));
-  }, [perView]);
+    setIndex((i) => Math.min(i, Math.max(0, programs.length - perView)));
+  }, [perView, programs.length]);
 
   const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
@@ -81,12 +56,12 @@ export default function Champion() {
   );
 
   // --- Pointer / touch drag handlers ---
-  const onPointerDown = (e) => {
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragState.current = { active: true, startX: e.clientX };
     setIsDragging(true);
   };
 
-  const onPointerMove = (e) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragState.current.active) return;
     setDragOffset(e.clientX - dragState.current.startX);
   };
@@ -146,7 +121,7 @@ export default function Champion() {
                   : "transform 500ms cubic-bezier(0.22, 1, 0.36, 1)",
               }}
             >
-              {PROGRAMS.map((p) => (
+              {programs.map((p) => (
                 <div
                   key={p.id}
                   className="group shrink-0"

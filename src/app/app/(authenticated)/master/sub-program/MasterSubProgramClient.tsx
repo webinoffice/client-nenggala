@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/master/sub-program/MasterSubProgramClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
@@ -13,7 +14,7 @@ import Pagination from "@/components/app/Pagination";
 import SubProgramFormModal, {
   type SubProgramFormValues,
 } from "./SubProgramFormModal";
-import { INITIAL_PROGRAMS } from "../_shared/programs";
+import { getPrograms, subscribePrograms } from "../_shared/programs";
 import {
   getSubPrograms,
   subscribeSubPrograms,
@@ -36,17 +37,22 @@ function formatDate(iso: string) {
 }
 
 export default function MasterSubProgramClient() {
-  const currentUserName = "Carolina";
+  const currentUserName = getCurrentUsername();
 
   const subPrograms = useSyncExternalStore(
     subscribeSubPrograms,
     getSubPrograms,
     getSubPrograms,
   );
+  const programs = useSyncExternalStore(
+    subscribePrograms,
+    getPrograms,
+    getPrograms,
+  );
 
   const programNameById = useMemo(
-    () => new Map(INITIAL_PROGRAMS.map((p) => [p.id, p.programName])),
-    [],
+    () => new Map(programs.map((p) => [p.id, p.programName])),
+    [programs],
   );
 
   const [programFilter, setProgramFilter] = useState<string>("All");
@@ -70,7 +76,8 @@ export default function MasterSubProgramClient() {
   const filtered = useMemo(() => {
     return subPrograms.filter((sp) => {
       const matchProgram =
-        applied.programId === "All" || sp.programId === applied.programId;
+        applied.programId === "All" ||
+        String(sp.programId) === applied.programId;
       const matchName =
         applied.name === "" ||
         sp.subProgramName.toLowerCase().includes(applied.name.toLowerCase());
@@ -134,7 +141,7 @@ export default function MasterSubProgramClient() {
     } else {
       addSubProgram({
         programId: values.programId,
-        subProgramId: getNextSubProgramId(values.programId),
+        subProgramId: getNextSubProgramId(),
         subProgramName: values.subProgramName,
         status: "Active",
         updatedBy: currentUserName,
@@ -170,9 +177,9 @@ export default function MasterSubProgramClient() {
             onChange={(e) => setProgramFilter(e.target.value)}
           >
             <option value="All">All Programs</option>
-            {INITIAL_PROGRAMS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.id} — {p.programName}
+            {programs.map((p) => (
+              <option key={p.id} value={String(p.id)}>
+                {p.programName}
               </option>
             ))}
           </Select>

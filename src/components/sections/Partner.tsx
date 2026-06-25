@@ -9,6 +9,11 @@ import Image from "next/image";
  *
  * The animation is pure CSS (see PARTNER_MARQUEE_STYLES below), so the
  * component is self-contained — no tailwind.config changes required.
+ *
+ * NOTE (Section 3a): partner logos have no backend content type (the CMS model
+ * only has 6 types: banner, event highlight, banner bottom, our moment, gallery,
+ * event). This section is intentionally kept STATIC; a future CMS would need a
+ * new content type to manage it.
  */
 
 interface Partner {

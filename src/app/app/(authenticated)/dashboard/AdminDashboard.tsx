@@ -3,7 +3,6 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { Users, GraduationCap, CalendarCheck } from "lucide-react";
-import { useRole } from "@/lib/role-context";
 import { getCurrentDisplayName } from "@/lib/current-user";
 import { getStudents, subscribeStudents } from "../student/_shared/students";
 import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
@@ -14,8 +13,7 @@ import {
 } from "./_shared/admin-metrics";
 
 export default function AdminDashboard() {
-  const { role } = useRole();
-  const displayName = getCurrentDisplayName(role);
+  const displayName = getCurrentDisplayName();
 
   const students = useSyncExternalStore(
     subscribeStudents,

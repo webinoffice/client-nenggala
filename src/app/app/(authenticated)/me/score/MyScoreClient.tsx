@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { Award, Eye, TrendingUp, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useRole } from "@/lib/role-context";
 import { getCurrentUsername } from "@/lib/current-user";
 import { getStudents, subscribeStudents } from "../../student/_shared/students";
 import {
@@ -13,11 +12,15 @@ import {
   subscribeScores,
   getPassingThreshold,
 } from "../../student/_shared/scores";
-import { formatPeriod, getPeriodById } from "../../student/_shared/academic";
+import {
+  formatPeriod,
+  getPeriodById,
+  useAcademic,
+} from "../../student/_shared/academic";
 
 export default function MyScoreClient() {
-  const { role } = useRole();
-  const username = getCurrentUsername(role);
+  const username = getCurrentUsername();
+  useAcademic(); // subscribe so period labels re-render on master change/hydrate
 
   const students = useSyncExternalStore(
     subscribeStudents,

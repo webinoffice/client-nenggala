@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import type { Ebook } from "../_shared/ebooks";
-import { SABUK_OPTIONS } from "../../student/_shared/students";
+import { useSabukOptions } from "../_shared/belts";
 
 export type EbookFormValues = {
   sabuk: string;
@@ -55,6 +55,7 @@ function EbookFormBody({
   onCancel: () => void;
   onSubmit: (values: EbookFormValues) => void;
 }) {
+  const sabukOptions = useSabukOptions();
   const [sabuk, setSabuk] = useState(initial?.sabuk ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [pdfFile, setPdfFile] = useState(initial?.pdfFile ?? "");
@@ -91,7 +92,7 @@ function EbookFormBody({
           error={errors.sabuk}
         >
           <option value="">Select Sabuk</option>
-          {SABUK_OPTIONS.filter((s) => s !== "-").map((s) => (
+          {sabukOptions.filter((s) => s !== "-").map((s) => (
             <option key={s} value={s}>
               {s}
             </option>

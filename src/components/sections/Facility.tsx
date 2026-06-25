@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAboutContent } from "@/lib/cms/about";
-import { isBlobSrc } from "@/lib/cms/image-src";
 
 const GAP = 24; // px — matches Tailwind gap-6
 const DRAG_THRESHOLD = 60;
@@ -141,7 +140,6 @@ export default function Facility({
                       alt={f.name}
                       fill
                       draggable={false}
-                      unoptimized={isBlobSrc(f.image)}
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 50vw"
                     />

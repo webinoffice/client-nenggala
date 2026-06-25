@@ -1,11 +1,13 @@
 // src/lib/cms/about.ts
 //
-// About page content store (singleton). Owns the "Our Profile" text + video and
-// the facility list. The gallery is the shared gallery store
-// (src/lib/cms/gallery.ts).
+// About page content (singleton). Owns the "Our Profile" text + video and the
+// facility list consumed by the marketing OurProfile and Facility sections.
 //
-// Same in-memory pattern as the other stores. When the API arrives, replace the
-// bodies with fetch/mutation calls — the interface stays the same.
+// NOTE (Section 3a decision): the backend has NO storage for the profile text,
+// video, or facilities — its AboutUs page only exposes coaches. So this content
+// is intentionally STATIC and read-only: there are no mutators and no CMS editor
+// for it (the About CMS now manages only the shared gallery). The only backend-
+// backed About data is coaches, read via src/lib/marketing/coaches.ts.
 "use client";
 
 import { useSyncExternalStore } from "react";
@@ -25,7 +27,7 @@ export interface AboutContent {
   facilities: Facility[];
 }
 
-export const INITIAL_ABOUT: AboutContent = {
+export const ABOUT_CONTENT: AboutContent = {
   heading: "Our Profile",
   paragraphs: [
     "Nenggala Taekwondo Academy adalah sekolah beladiri berpengalaman yang telah berdiri sejak 1998. Dengan jajaran pelatih bersertifikat internasional, kami berkomitmen untuk mengasah kemampuan beladiri dan membangun karakter para siswa di Jakarta, Tangerang, dan Bogor.",
@@ -46,70 +48,16 @@ export const INITIAL_ABOUT: AboutContent = {
   ],
 };
 
-// ---- mutable store ----
-let _content: AboutContent = {
-  ...INITIAL_ABOUT,
-  paragraphs: [...INITIAL_ABOUT.paragraphs],
-  facilities: INITIAL_ABOUT.facilities.map((f) => ({ ...f })),
-};
-const listeners = new Set<() => void>();
-
-function notify() {
-  listeners.forEach((l) => l());
-}
-
 export function getAboutContent(): AboutContent {
-  return _content;
+  return ABOUT_CONTENT;
 }
 
-export function subscribeAbout(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+// Static data — no updates, so subscribe is a no-op that never notifies.
+export function subscribeAbout(): () => void {
+  return () => {};
 }
 
-/** Update the text/video fields (not the facility list). */
-export function updateAboutContent(
-  patch: Partial<Omit<AboutContent, "facilities">>,
-) {
-  _content = { ..._content, ...patch };
-  notify();
-}
-
-let _facilityCounter = INITIAL_ABOUT.facilities.length;
-function nextFacilityId(): string {
-  _facilityCounter += 1;
-  return `f${String(_facilityCounter).padStart(2, "0")}-${Date.now()}`;
-}
-
-export function addFacility(facility: Omit<Facility, "id">) {
-  _content = {
-    ..._content,
-    facilities: [..._content.facilities, { id: nextFacilityId(), ...facility }],
-  };
-  notify();
-}
-
-export function updateFacility(id: string, patch: Partial<Omit<Facility, "id">>) {
-  _content = {
-    ..._content,
-    facilities: _content.facilities.map((f) =>
-      f.id === id ? { ...f, ...patch } : f,
-    ),
-  };
-  notify();
-}
-
-export function removeFacility(id: string) {
-  _content = {
-    ..._content,
-    facilities: _content.facilities.filter((f) => f.id !== id),
-  };
-  notify();
-}
-
-/** React hook — subscribe a client component to about content. */
+/** React hook — returns the static about content. */
 export function useAboutContent(): AboutContent {
   return useSyncExternalStore(
     subscribeAbout,

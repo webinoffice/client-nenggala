@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/student/data/StudentFormClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -12,16 +13,14 @@ import {
   type Student,
   type BloodType,
   addStudent,
-  DOJANG_OPTIONS,
-  GOL_DARAH_OPTIONS,
   getStudentByUsername,
   getNextStudentUsername,
-  SABUK_OPTIONS,
   updateStudent,
-  WARGA_NEGARA_OPTIONS,
 } from "../_shared/students";
+import { GOL_DARAH_OPTIONS, WARGA_NEGARA_OPTIONS } from "@/lib/reference";
+import { useDojangOptions } from "../../master/_shared/dojangs";
+import { useSabukOptions } from "../../master/_shared/belts";
 
-const CURRENT_USER = "Carolina";
 
 type Mode = "new" | "edit";
 type FormState = {
@@ -55,6 +54,8 @@ interface Props {
 export default function StudentFormClient({ mode, username }: Props) {
   const router = useRouter();
   const isEditing = mode === "edit";
+  const dojangOptions = useDojangOptions();
+  const sabukOptions = useSabukOptions();
 
   const [editingStudent] = useState<Student | null>(() =>
     isEditing && username ? getStudentByUsername(username) : null,
@@ -162,7 +163,7 @@ export default function StudentFormClient({ mode, username }: Props) {
       alergi: form.alergi.trim() || "-",
       mulaiLatihan: form.mulaiLatihan,
       status: editingStudent?.status ?? "Active",
-      updatedBy: CURRENT_USER,
+      updatedBy: getCurrentUsername(),
       updateDate: new Date().toISOString(),
     };
     if (isEditing) updateStudent(form.username, payload);
@@ -243,7 +244,7 @@ export default function StudentFormClient({ mode, username }: Props) {
               error={errors.dojang}
             >
               <option value="">Pilih Dojang</option>
-              {DOJANG_OPTIONS.map((d) => (
+              {dojangOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -254,7 +255,7 @@ export default function StudentFormClient({ mode, username }: Props) {
               value={form.sabuk}
               onChange={(e) => update("sabuk", e.target.value)}
             >
-              {SABUK_OPTIONS.map((s) => (
+              {sabukOptions.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>

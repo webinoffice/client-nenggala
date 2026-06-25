@@ -7,7 +7,11 @@ import { ArrowLeft, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/app/PageHeader";
-import { formatPeriod, getPeriodById } from "../../../../_shared/academic";
+import {
+  formatPeriod,
+  getPeriodById,
+  useAcademic,
+} from "../../../../_shared/academic";
 import { getStudentByUsername } from "../../../../_shared/students";
 import { MIN_ATTENDANCE } from "../../../../_shared/attendance";
 import {
@@ -23,6 +27,7 @@ interface Props {
 
 export default function ScoreViewClient({ username, periodId }: Props) {
   const router = useRouter();
+  useAcademic(); // subscribe so period labels re-render on master change/hydrate
   const [student] = useState(() => getStudentByUsername(username));
   const [record] = useState(() => getScoreFor(username, periodId));
   const period = getPeriodById(periodId);

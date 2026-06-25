@@ -5,6 +5,7 @@ import Modal from "@/components/ui/Modal";
 import {
   getProgramById,
   getSubProgramById,
+  useAcademic,
 } from "../../student/_shared/academic";
 import type { Schedule } from "../../coach/_shared/schedules";
 import type { Coach } from "../../coach/_shared/coaches";
@@ -23,6 +24,8 @@ export default function ClassListModal({
   coachByUsername,
   studentByUsername,
 }: Props) {
+  // Subscribe so the title's program/sub-program names stay fresh (3c hydrate).
+  useAcademic();
   if (!schedule) {
     return (
       <Modal open={false} onClose={onClose} title="">

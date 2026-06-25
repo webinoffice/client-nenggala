@@ -21,6 +21,7 @@ import {
   formatPeriod,
   getEnrolledUsernamesByDojang,
   getPeriodById,
+  useAcademic,
 } from "../_shared/academic";
 import {
   getStudents,
@@ -50,6 +51,7 @@ function downloadXLSX(
 
 export default function ScoreClient() {
   const router = useRouter();
+  useAcademic(); // subscribe so period labels re-render on master change/hydrate
   const [selection, setSelection] =
     useState<DrillDownSelection>(EMPTY_SELECTION);
   const students = useSyncExternalStore(

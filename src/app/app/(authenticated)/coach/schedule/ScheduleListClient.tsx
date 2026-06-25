@@ -1,5 +1,6 @@
 // src/app/app/(authenticated)/coach/schedule/ScheduleListClient.tsx
 "use client";
+import { getCurrentUsername } from "@/lib/current-user";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Pencil, Ban, Power, Eye, Star } from "lucide-react";
@@ -17,18 +18,17 @@ import {
   toggleScheduleStatus,
 } from "../_shared/schedules";
 import {
-  PROGRAMS,
-  PERIODS,
+  useAcademic,
   formatPeriod,
   getProgramById,
   getPeriodById,
   getSubProgramById,
 } from "../../student/_shared/academic";
 import {
-  DOJANG_OPTIONS,
   getStudents,
   subscribeStudents,
 } from "../../student/_shared/students";
+import { useDojangOptions } from "../../master/_shared/dojangs";
 import {
   addRecommendation,
   findRecommendation,
@@ -39,10 +39,11 @@ import {
 } from "../_shared/recommendations";
 import { getCoaches, subscribeCoaches } from "../_shared/coaches";
 
-const CURRENT_USER = "Carolina";
 
 export default function ScheduleListClient() {
   const router = useRouter();
+  const { programs, periods } = useAcademic();
+  const dojangOptions = useDojangOptions();
   const schedules = useSyncExternalStore(
     subscribeSchedules,
     getSchedules,
@@ -88,7 +89,7 @@ export default function ScheduleListClient() {
     () =>
       schedules
         .filter((s) => {
-          if (applied.kelas !== "All" && s.programId !== applied.kelas)
+          if (applied.kelas !== "All" && String(s.programId) !== applied.kelas)
             return false;
           if (applied.dojang !== "All" && s.dojang !== applied.dojang)
             return false;
@@ -124,7 +125,7 @@ export default function ScheduleListClient() {
       scheduleId: schedule.id,
       dojang: student.dojang,
       sabuk: student.sabuk,
-      category: subProgram?.name ?? schedule.subProgramId,
+      category: subProgram?.name ?? String(schedule.subProgramId),
       coachUsername: schedule.primaryCoachUsername,
       periodId: schedule.periodId,
       recommendationDate: new Date().toISOString().slice(0, 10),
@@ -151,7 +152,7 @@ export default function ScheduleListClient() {
             onChange={(e) => setKelasInput(e.target.value)}
           >
             <option value="All">All</option>
-            {PROGRAMS.map((p) => (
+            {programs.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
@@ -163,7 +164,7 @@ export default function ScheduleListClient() {
             onChange={(e) => setDojangInput(e.target.value)}
           >
             <option value="All">All</option>
-            {DOJANG_OPTIONS.map((d) => (
+            {dojangOptions.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>
@@ -174,7 +175,7 @@ export default function ScheduleListClient() {
             value={periodInput}
             onChange={(e) => setPeriodInput(e.target.value)}
           >
-            {PERIODS.map((p) => (
+            {periods.map((p) => (
               <option key={p.id} value={p.id}>
                 {formatPeriod(p)}
               </option>
@@ -482,7 +483,7 @@ export default function ScheduleListClient() {
         open={confirming !== null}
         onClose={() => setConfirming(null)}
         onConfirm={() => {
-          if (confirming) toggleScheduleStatus(confirming.id, CURRENT_USER);
+          if (confirming) toggleScheduleStatus(confirming.id, getCurrentUsername());
         }}
         title={
           confirming?.status === "Inactive"

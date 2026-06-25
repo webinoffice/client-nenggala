@@ -2,7 +2,7 @@
 import type { Student } from "../../student/_shared/students";
 import type { Schedule } from "../../coach/_shared/schedules";
 import type { SessionAttendance } from "../../coach/_shared/session-attendance";
-import { SABUK_OPTIONS } from "../../student/_shared/students";
+import { getBeltNames } from "../../master/_shared/belts";
 
 export type MonthlyBucket = {
   label: string; // "Jan", "Feb"...
@@ -145,9 +145,11 @@ export function getBeltDistribution(students: Student[]) {
     const key = s.sabuk || "-";
     counts.set(key, (counts.get(key) ?? 0) + 1);
   });
-  // Preserve the canonical order from SABUK_OPTIONS
-  return SABUK_OPTIONS.filter((b) => b !== "-" && counts.has(b)).map((b) => ({
-    sabuk: b,
-    count: counts.get(b) ?? 0,
-  }));
+  // Preserve the canonical belt order (by level) from the belt master.
+  return getBeltNames()
+    .filter((b) => counts.has(b))
+    .map((b) => ({
+      sabuk: b,
+      count: counts.get(b) ?? 0,
+    }));
 }

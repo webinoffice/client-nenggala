@@ -1,48 +1,36 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useMemo } from "react";
+import { usePrograms, useSubPrograms } from "@/lib/marketing/programs";
 
-interface ProgramCard {
-  name: string;
-  image: string;
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
-
-interface ProgramCategory {
-  title: string;
-  href: string;
-  cards: ProgramCard[];
-}
-
-const CATEGORIES: ProgramCategory[] = [
-  {
-    title: "Taekwondo",
-    href: "/program/taekwondo",
-    cards: [
-      { name: "Pomsae", image: "/images/program-taekwondo.jpg" },
-      { name: "Kyurugi", image: "/images/program-taekwondo.jpg" },
-      { name: "Tricking", image: "/images/program-taekwondo.jpg" },
-    ],
-  },
-  {
-    title: "Nunchaku",
-    href: "/program/nunchaku",
-    cards: [
-      { name: "Nunchaku Do", image: "/images/program-nunchaku.jpg" },
-      { name: "Kumite", image: "/images/program-nunchaku.jpg" },
-      { name: "Freestyle", image: "/images/program-nunchaku.jpg" },
-    ],
-  },
-  {
-    title: "Gymnastic",
-    href: "/program/gymnastic",
-    cards: [
-      { name: "Kids", image: "/images/program-gymnastic.jpg" },
-      { name: "Teens", image: "/images/program-gymnastic.jpg" },
-      { name: "Adult", image: "/images/program-gymnastic.jpg" },
-    ],
-  },
-];
 
 export default function OurProgram() {
+  const programs = usePrograms();
+  const subPrograms = useSubPrograms();
+
+  // Group sub-programs under their parent program; only show programs that have
+  // at least one sub-program card.
+  const categories = useMemo(
+    () =>
+      programs
+        .map((program) => ({
+          ...program,
+          href: `/program/${slugify(program.name)}`,
+          cards: subPrograms.filter((s) => s.programId === program.id),
+        }))
+        .filter((category) => category.cards.length > 0),
+    [programs, subPrograms],
+  );
+
   return (
     <section className="bg-paper py-16 md:py-20">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
@@ -51,16 +39,16 @@ export default function OurProgram() {
         </h2>
 
         <div className="mt-12 space-y-12 md:space-y-14">
-          {CATEGORIES.map((category) => (
-            <div key={category.title}>
+          {categories.map((category) => (
+            <div key={category.id}>
               <h3 className="font-display text-2xl font-bold uppercase tracking-wider">
-                {category.title}
+                {category.name}
               </h3>
 
               <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 md:gap-6">
                 {category.cards.map((card) => (
                   <Link
-                    key={card.name}
+                    key={card.id}
                     href={category.href}
                     className="group overflow-hidden rounded-md border border-ink/10 bg-paper transition-shadow hover:shadow-md"
                   >

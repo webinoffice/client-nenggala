@@ -1,4 +1,12 @@
 // src/app/app/(authenticated)/master/_shared/dojangs.ts
+//
+// Canonical dojang master. The old hardcoded DOJANG_OPTIONS arrays in admins.ts
+// and students.ts were removed in favour of getDojangOptions()/useDojangOptions()
+// derived from this store (audit issue #2).
+import { useSyncExternalStore } from "react";
+import { fetchDojangs } from "@/lib/api/master";
+import { fileUrl } from "@/lib/api/file-url";
+import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type DojangStatus = "Active" | "Inactive";
 
@@ -85,10 +93,52 @@ export function getDojangs(): Dojang[] {
 }
 export function subscribeDojangs(listener: () => void) {
   listeners.add(listener);
+  ensureDojangsLoaded();
   return () => {
     listeners.delete(listener);
   };
 }
+
+// ---- hydration (read API) ----
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadDojangs(): Promise<void> {
+  const rows = (await fetchDojangs()) ?? [];
+  _dojangs = rows.map((r) => ({
+    id: r.DojangId,
+    dojangName: r.DojangName,
+    image: r.DojangImage ? fileUrl(r.DojangImage) : undefined,
+    status: r.FgStatus === "Y" ? "Active" : "Inactive",
+    updatedBy: r.UpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UpdateDate),
+  }));
+  notify();
+}
+
+/** One-time hydration of the dojang master from the backend. */
+export function ensureDojangsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadDojangs()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load dojangs", err);
+        _loadPromise = null;
+      });
+  }
+  return _loadPromise;
+}
+
+/** Re-fetch the dojang master (used after a write). */
+export async function reloadDojangs(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureDojangsLoaded();
+}
+
 export function getDojangById(id: number): Dojang | null {
   return _dojangs.find((d) => d.id === id) ?? null;
 }
@@ -115,4 +165,27 @@ export function toggleDojangStatus(id: number, by: string) {
       : d,
   );
   notify();
+}
+
+// ---- derived dropdown options (cached for stable useSyncExternalStore snapshots) ----
+let _dojangsForOptions: Dojang[] | null = null;
+let _dojangOptions: string[] = [];
+/** Active dojang names (sorted), for selects/filters. */
+export function getDojangOptions(): string[] {
+  if (_dojangs !== _dojangsForOptions) {
+    _dojangsForOptions = _dojangs;
+    _dojangOptions = _dojangs
+      .filter((d) => d.status === "Active")
+      .map((d) => d.dojangName)
+      .sort((a, b) => a.localeCompare(b));
+  }
+  return _dojangOptions;
+}
+
+// ---- hooks ----
+export function useDojangs(): Dojang[] {
+  return useSyncExternalStore(subscribeDojangs, getDojangs, getDojangs);
+}
+export function useDojangOptions(): string[] {
+  return useSyncExternalStore(subscribeDojangs, getDojangOptions, getDojangOptions);
 }

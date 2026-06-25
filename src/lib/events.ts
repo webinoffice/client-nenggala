@@ -3,13 +3,32 @@
 // Canonical events store. Feeds the marketing event list (/event), the
 // homepage/gallery/event "highlight" banner, and the CMS Events editor.
 //
-// Same in-memory pattern as the other stores (INITIAL_* + listeners + notify +
-// get/subscribe/mutators). When the API arrives, replace the bodies of these
-// functions with fetch/mutation calls — the component-facing interface stays
-// the same.
+// READ is now backed by the backend (Section 3a): event rows come from the
+// "Event" content page (ContentTypeCode "E") and the single featured event from
+// "Event Highlight" (ContentTypeCode "Z"). Hydration runs once on first
+// subscribe and notify()s; subscribe/getSnapshot stay synchronous so consumers
+// are unchanged. The mutators below are still in-memory and get real bodies in
+// Section 2 (CMS writes).
 "use client";
 
 import { useSyncExternalStore } from "react";
+import {
+  fetchContentPage,
+  saveContent,
+  deleteContent,
+  parseContentDate,
+  CONTENT_TYPE,
+  type ContentRow,
+} from "@/lib/api/content";
+import { fileUrl } from "@/lib/api/file-url";
+
+/**
+ * Synthetic id for the single featured/highlight event. The backend models the
+ * highlight as its own content row (type "Z"), not a reference into the event
+ * list, so the events store injects it under this constant id and the homepage
+ * store points highlightEventId at it — keeping EventBanner unchanged.
+ */
+export const HIGHLIGHT_EVENT_ID = "evt-highlight";
 
 export type EventStatus = "Active" | "Inactive";
 
@@ -90,38 +109,125 @@ export function getEvents(): EventItem[] {
 
 export function subscribeEvents(listener: () => void) {
   listeners.add(listener);
+  ensureEventsLoaded();
   return () => {
     listeners.delete(listener);
   };
+}
+
+// ---- hydration (read API) ----
+
+/** Strip a leading protocol so consumers can prefix `https://` themselves. */
+function normalizeRegisterUrl(link: string | null): string {
+  return (link ?? "").replace(/^https?:\/\//i, "");
+}
+
+function rowToEvent(row: ContentRow, fallbackId: string): EventItem {
+  return {
+    id: row.ContentId != null ? `evt-${row.ContentId}` : fallbackId,
+    title: row.ContentTitle ?? "",
+    date: parseContentDate(row.ContentDate),
+    description: row.ContentDesc ?? "",
+    image: fileUrl(row.ContentFile),
+    registerUrl: normalizeRegisterUrl(row.ContentLink),
+    status: "Active",
+    updatedBy: "",
+    updateDate: "",
+  };
+}
+
+let _loaded = false;
+let _loadPromise: Promise<void> | null = null;
+
+async function loadEvents(): Promise<void> {
+  const data = await fetchContentPage("Event");
+  const list = (data.ObjEvent ?? []).map((row, i) => rowToEvent(row, `evt-${i + 1}`));
+  const highlight = data.ObjEventHighlight?.[0];
+  _events = highlight
+    ? [{ ...rowToEvent(highlight, HIGHLIGHT_EVENT_ID), id: HIGHLIGHT_EVENT_ID }, ...list]
+    : list;
+  notify();
+}
+
+/** One-time hydration of the events list from the backend. */
+export function ensureEventsLoaded(): Promise<void> {
+  if (_loaded) return Promise.resolve();
+  if (!_loadPromise) {
+    _loadPromise = loadEvents()
+      .then(() => {
+        _loaded = true;
+      })
+      .catch((err) => {
+        console.error("Failed to load events", err);
+        _loadPromise = null; // allow a later retry
+      });
+  }
+  return _loadPromise;
 }
 
 export function getEventById(id: string): EventItem | null {
   return _events.find((e) => e.id === id) ?? null;
 }
 
-export function getNextEventId(): string {
-  const max = _events.reduce((m, e) => {
-    const num = parseInt(e.id.replace(/^e/, ""), 10);
-    return Number.isFinite(num) && num > m ? num : m;
-  }, 0);
-  return `e${max + 1}`;
+/** Re-fetch the events list (used after a write). */
+export async function reloadEvents(): Promise<void> {
+  _loaded = false;
+  _loadPromise = null;
+  await ensureEventsLoaded();
 }
 
-export function addEvent(event: EventItem) {
-  _events = [event, ..._events];
-  notify();
+// ---- write API (CMS, super-admin) ----
+
+/** Recover the backend ContentId from a store id (`evt-<ContentId>`). */
+function contentIdFromEventId(id: string): number {
+  const n = parseInt(id.replace(/^evt-/, ""), 10);
+  return Number.isFinite(n) ? n : 0;
 }
 
-export function updateEvent(id: string, patch: Partial<EventItem>) {
-  _events = _events.map((e) => (e.id === id ? { ...e, ...patch } : e));
-  notify();
+export interface EventInput {
+  title: string;
+  date: string; // YYYY-MM-DD
+  description: string;
+  registerUrl: string;
 }
 
-export function removeEvent(id: string) {
-  _events = _events.filter((e) => e.id !== id);
-  notify();
+/**
+ * Create (id null) or update (id set) an event content row, then re-hydrate.
+ * An image File is required on EVERY save — the backend deletes the previous
+ * file on edit, so a fresh one must accompany the request.
+ */
+export async function saveEvent(
+  id: string | null,
+  input: EventInput,
+  file: File | null,
+): Promise<void> {
+  await saveContent(
+    {
+      ContentId: id ? contentIdFromEventId(id) : 0,
+      ContentTitle: input.title,
+      ContentDesc: input.description,
+      ContentLink: input.registerUrl,
+      ContentTypeId: CONTENT_TYPE.EVENT,
+      ContentDate: input.date || null,
+      FgHighlight: "N",
+      FgMode: id ? "E" : "I",
+    },
+    file,
+  );
+  await reloadEvents();
 }
 
+export async function removeEvent(id: string): Promise<void> {
+  await deleteContent(contentIdFromEventId(id));
+  await reloadEvents();
+}
+
+/**
+ * Local-only status toggle. The backend Content model has no status column, so
+ * this does NOT persist — a reload resets every event to Active.
+ * TODO(#status): add a visibility/status column server-side if events must be
+ * disable-able from the marketing site.
+ */
 export function toggleEventStatus(id: string, by: string) {
   _events = _events.map((e) =>
     e.id === id
