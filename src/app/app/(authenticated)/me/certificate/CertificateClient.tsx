@@ -2,36 +2,40 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Maximize2, X } from "lucide-react";
-import { useRole } from "@/lib/role-context";
-import { getCurrentUsername } from "@/lib/current-user";
 import {
-  getCertifications,
-  subscribeCertifications,
+  fetchCertif,
   formatCertDate,
-  type Certification,
-} from "@/lib/certifications";
+  type CertifRow,
+} from "@/lib/api/certifications";
+import { fileUrl } from "@/lib/api/file-url";
+
+const FALLBACK_IMAGE = "/images/event-ukt-promo.jpg";
 
 export default function CertificateClient() {
-  const { role } = useRole();
-  const username = getCurrentUsername();
-  const recipientType = role === "coach" ? "coach" : "student";
+  // get-certif is scoped to the logged-in user server-side, so no client filter.
+  const [certifications, setCertifications] = useState<CertifRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const certifications = useSyncExternalStore(
-    subscribeCertifications,
-    getCertifications,
-    getCertifications,
-  );
+  useEffect(() => {
+    let alive = true;
+    fetchCertif()
+      .then((rows) => {
+        if (alive) setCertifications(rows ?? []);
+      })
+      .catch(() => {
+        if (alive) setCertifications([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const myCertifications = certifications
-    .filter(
-      (c) =>
-        c.recipientType === recipientType && c.recipientUsername === username,
-    )
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  const [lightbox, setLightbox] = useState<Certification | null>(null);
+  const [lightbox, setLightbox] = useState<CertifRow | null>(null);
 
   return (
     <>
@@ -39,50 +43,58 @@ export default function CertificateClient() {
         Your Certification
       </h1>
 
-      {myCertifications.length === 0 ? (
+      {loading ? (
+        <div className="bg-paper rounded-sm border border-ink/10 p-12 text-center text-sm text-muted uppercase tracking-widest font-bold">
+          Loading…
+        </div>
+      ) : certifications.length === 0 ? (
         <div className="bg-paper rounded-sm border border-ink/10 p-12 text-center text-sm text-muted uppercase tracking-widest font-bold">
           No certifications yet
         </div>
       ) : (
         <div className="bg-paper rounded-sm border border-ink/10 divide-y divide-ink/10">
-          {myCertifications.map((cert) => (
-            <article
-              key={cert.id}
-              className="p-4 md:p-5 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 md:gap-5"
-            >
-              <button
-                onClick={() => setLightbox(cert)}
-                className="group relative aspect-[4/3] overflow-hidden rounded-sm bg-ink cursor-zoom-in"
-                aria-label={`Expand certificate: ${cert.title}`}
+          {certifications.map((cert) => {
+            const img = fileUrl(cert.CertifImage) || FALLBACK_IMAGE;
+            return (
+              <article
+                key={cert.CertifId}
+                className="p-4 md:p-5 grid grid-cols-1 sm:grid-cols-[180px_1fr] gap-4 md:gap-5"
               >
-                <Image
-                  src={cert.thumbnail}
-                  alt={cert.title}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="180px"
-                />
-                {/* Hover overlay with expand icon */}
-                <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/40 transition-colors flex items-center justify-center">
-                  <Maximize2
-                    size={24}
-                    className="text-paper opacity-0 group-hover:opacity-100 transition-opacity"
+                <button
+                  onClick={() => setLightbox(cert)}
+                  className="group relative aspect-[4/3] overflow-hidden rounded-sm bg-ink cursor-zoom-in"
+                  aria-label={`Expand certificate: ${cert.CertifTitle ?? ""}`}
+                >
+                  <Image
+                    src={img}
+                    alt={cert.CertifTitle ?? "Certificate"}
+                    fill
+                    unoptimized
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    sizes="180px"
                   />
+                  {/* Hover overlay with expand icon */}
+                  <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/40 transition-colors flex items-center justify-center">
+                    <Maximize2
+                      size={24}
+                      className="text-paper opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  </div>
+                </button>
+                <div className="min-w-0">
+                  <h3 className="font-display text-base md:text-lg font-bold text-ink leading-snug">
+                    {cert.CertifTitle}
+                  </h3>
+                  <p className="text-xs text-ink/70 mt-1">
+                    {formatCertDate(cert.CertifDate)}
+                  </p>
+                  <p className="text-sm text-ink/80 mt-2 leading-relaxed">
+                    {cert.CertifDesc}
+                  </p>
                 </div>
-              </button>
-              <div className="min-w-0">
-                <h3 className="font-display text-base md:text-lg font-bold text-ink leading-snug">
-                  {cert.title}
-                </h3>
-                <p className="text-xs text-ink/70 mt-1">
-                  {formatCertDate(cert.date)}
-                </p>
-                <p className="text-sm text-ink/80 mt-2 leading-relaxed">
-                  {cert.description}
-                </p>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -95,7 +107,7 @@ function CertificateLightbox({
   cert,
   onClose,
 }: {
-  cert: Certification | null;
+  cert: CertifRow | null;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -113,6 +125,8 @@ function CertificateLightbox({
   }, [cert, onClose]);
 
   if (!cert) return null;
+
+  const img = fileUrl(cert.CertifImage) || FALLBACK_IMAGE;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
@@ -132,9 +146,10 @@ function CertificateLightbox({
         </button>
         <div className="relative aspect-[4/3] w-full bg-ink rounded-sm overflow-hidden">
           <Image
-            src={cert.fullImage}
-            alt={cert.title}
+            src={img}
+            alt={cert.CertifTitle ?? "Certificate"}
             fill
+            unoptimized
             className="object-contain"
             sizes="(max-width: 1024px) 100vw, 1024px"
             priority
@@ -142,10 +157,10 @@ function CertificateLightbox({
         </div>
         <div className="mt-4 text-paper">
           <h2 className="font-display text-lg md:text-xl font-bold">
-            {cert.title}
+            {cert.CertifTitle}
           </h2>
           <p className="text-xs text-paper/70 mt-1">
-            {formatCertDate(cert.date)}
+            {formatCertDate(cert.CertifDate)}
           </p>
         </div>
       </div>

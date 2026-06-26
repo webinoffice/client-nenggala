@@ -98,7 +98,7 @@ export default function ExamRegistrationModal({ schedule, onClose }: Props) {
               label="Time"
               value={`${schedule.startTime} – ${schedule.endTime}`}
             />
-            <InfoRow label="Period" value={schedule.periodId} />
+            <InfoRow label="Period" value={schedule.periodTitle} />
           </div>
 
           <div className="bg-accent/10 border border-accent/30 rounded-sm p-3 text-xs text-ink/80 leading-relaxed">

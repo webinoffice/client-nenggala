@@ -9,6 +9,7 @@ import {
   getProgramsForSelection,
   getSubProgramsForSelection,
   useAcademic,
+  useEnrollments,
 } from "./academic";
 
 export type DrillDownSelection = {
@@ -39,23 +40,28 @@ export default function StudentDrillDown({
 }: Props) {
   const { periodId, dojang, programId, subProgramId } = selection;
   // Subscribe so the selectors re-render when programs/sub-programs change
-  // (master CRUD now, fetch hydration in 3c).
+  // (master CRUD / hydrate) and when the schedules-derived enrollment data
+  // hydrates (drives which dojangs/programs/sub-programs have rosters).
   const { periods } = useAcademic();
+  const enrollments = useEnrollments();
 
   const dojangOptions = useMemo(
-    () => (periodId ? getDojangsForPeriod(periodId) : []),
-    [periodId],
+    () => (periodId ? getDojangsForPeriod(enrollments, periodId) : []),
+    [periodId, enrollments],
   );
   const programOptions = useMemo(
-    () => (periodId && dojang ? getProgramsForSelection(periodId, dojang) : []),
-    [periodId, dojang],
+    () =>
+      periodId && dojang
+        ? getProgramsForSelection(enrollments, periodId, dojang)
+        : [],
+    [periodId, dojang, enrollments],
   );
   const subProgramOptions = useMemo(
     () =>
       periodId && dojang && programId
-        ? getSubProgramsForSelection(periodId, dojang, programId)
+        ? getSubProgramsForSelection(enrollments, periodId, dojang, programId)
         : [],
-    [periodId, dojang, programId],
+    [periodId, dojang, programId, enrollments],
   );
 
   return (

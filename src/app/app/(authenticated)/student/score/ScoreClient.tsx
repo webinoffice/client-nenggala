@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/student/score/ScoreClient.tsx
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -22,13 +22,20 @@ import {
   getEnrolledUsernamesByDojang,
   getPeriodById,
   useAcademic,
+  useEnrollments,
 } from "../_shared/academic";
 import {
   getStudents,
   subscribeStudents,
   type Student,
 } from "../_shared/students";
-import { getAttendance, MIN_ATTENDANCE } from "../_shared/attendance";
+import {
+  getAttendance,
+  getAttendanceVersion,
+  ensureStudentAtdLoaded,
+  subscribeAttendance,
+  MIN_ATTENDANCE,
+} from "../_shared/attendance";
 import {
   getScoreFor,
   getScores,
@@ -61,15 +68,34 @@ export default function ScoreClient() {
   );
   // subscribe to scores so submitted-status flips reactively
   useSyncExternalStore(subscribeScores, getScores, getScores);
+  const enrollments = useEnrollments(); // schedules-derived; drives the roster
+  // re-render when a period's attendance hydrates
+  useSyncExternalStore(
+    subscribeAttendance,
+    getAttendanceVersion,
+    getAttendanceVersion,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // load attendance for the selected period (get-student-atd)
+  useEffect(() => {
+    if (selection.periodId) {
+      void ensureStudentAtdLoaded(Number(selection.periodId));
+    }
+  }, [selection.periodId]);
 
   const ready = selection.periodId && selection.dojang;
 
-  const enrolled: Student[] = ready
-    ? getEnrolledUsernamesByDojang(selection.periodId, selection.dojang)
-        .map((u) => students.find((s) => s.username === u))
-        .filter((s): s is Student => s !== undefined)
-    : [];
+  const enrolled = useMemo<Student[]>(() => {
+    if (!(selection.periodId && selection.dojang)) return [];
+    return getEnrolledUsernamesByDojang(
+      enrollments,
+      selection.periodId,
+      selection.dojang,
+    )
+      .map((u) => students.find((s) => s.username === u))
+      .filter((s): s is Student => s !== undefined);
+  }, [selection.periodId, selection.dojang, students, enrollments]);
 
   const period = selection.periodId ? getPeriodById(selection.periodId) : null;
 

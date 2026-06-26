@@ -2,8 +2,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { Users, ClipboardCheck, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Users, ClipboardCheck } from "lucide-react";
 import { getCurrentUsername } from "@/lib/current-user";
 import {
   getSchedules,
@@ -18,10 +17,6 @@ import {
   getSubProgramById,
   useAcademic,
 } from "../../student/_shared/academic";
-import {
-  getSessionAttendance,
-  subscribeSessionAttendance,
-} from "../../coach/_shared/session-attendance";
 import ClassListModal from "./ClassListModal";
 import SubmitAttendanceModal from "./SubmitAttendanceModal";
 
@@ -46,11 +41,6 @@ export default function CoachScheduleClient() {
     getStudents,
     getStudents,
   );
-  const sessionAttendance = useSyncExternalStore(
-    subscribeSessionAttendance,
-    getSessionAttendance,
-    getSessionAttendance,
-  );
 
   // Lookup maps
   const coachByUsername = useMemo(
@@ -62,17 +52,17 @@ export default function CoachScheduleClient() {
     [students],
   );
 
-  // Schedules where this coach is involved (primary, secondary, or assistant)
+  // Schedules where this coach is involved (primary or additional).
+  // TODO(me-view-pass): scope to the coach's current period via
+  // get-instructor-schedule; the store now spans all periods.
   const mySchedules = useMemo(
     () =>
       schedules
         .filter(
           (s) =>
-            s.periodId === CURRENT_PERIOD &&
-            s.status === "Active" &&
-            (s.primaryCoachUsername === username ||
-              s.secondaryCoachUsernames.includes(username) ||
-              s.assistantUsernames.includes(username)),
+            s.primaryCoachUsername === username ||
+            s.secondaryCoachUsernames.includes(username) ||
+            s.assistantUsernames.includes(username),
         )
         .sort(
           (a, b) =>
@@ -81,15 +71,6 @@ export default function CoachScheduleClient() {
         ),
     [schedules, username],
   );
-
-  // Submission count per schedule (across all dates)
-  const submissionCountBySchedule = useMemo(() => {
-    const map = new Map<string, number>();
-    sessionAttendance.forEach((r) => {
-      map.set(r.scheduleId, (map.get(r.scheduleId) ?? 0) + 1);
-    });
-    return map;
-  }, [sessionAttendance]);
 
   const [viewingClass, setViewingClass] = useState<Schedule | null>(null);
   const [submitting, setSubmitting] = useState<Schedule | null>(null);
@@ -131,7 +112,6 @@ export default function CoachScheduleClient() {
                 mySchedules.map((s) => {
                   const program = getProgramById(s.programId);
                   const subProgram = getSubProgramById(s.subProgramId);
-                  const submissions = submissionCountBySchedule.get(s.id) ?? 0;
                   return (
                     <tr
                       key={s.id}
@@ -158,24 +138,10 @@ export default function CoachScheduleClient() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         <button
                           onClick={() => setSubmitting(s)}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
-                            submissions > 0
-                              ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
-                              : "bg-emerald-500 text-white hover:brightness-95",
-                          )}
+                          className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition bg-emerald-500 text-white hover:brightness-95"
                         >
-                          {submissions > 0 ? (
-                            <>
-                              <CheckCircle2 size={12} />
-                              Submit ({submissions})
-                            </>
-                          ) : (
-                            <>
-                              <ClipboardCheck size={12} />
-                              Submit
-                            </>
-                          )}
+                          <ClipboardCheck size={12} />
+                          Submit
                         </button>
                       </td>
                       <td className="px-4 py-3 text-ink/70 whitespace-nowrap">
@@ -203,11 +169,6 @@ export default function CoachScheduleClient() {
       <SubmitAttendanceModal
         schedule={submitting}
         onClose={() => setSubmitting(null)}
-        coachUsername={username}
-        coachDisplayName={
-          coachByUsername.get(username)?.namaLengkap ?? username
-        }
-        studentByUsername={studentByUsername}
       />
     </>
   );

@@ -45,16 +45,13 @@ export default function ScheduleClient() {
     [coaches],
   );
 
-  // Schedules this student is enrolled in (current period only)
+  // Schedules this student is enrolled in.
+  // TODO(me-view-pass): scope to the student's current period via
+  // get-student-schedule; the store now spans all periods.
   const mySchedules = useMemo(
     () =>
       schedules
-        .filter(
-          (s) =>
-            s.studentUsernames.includes(username) &&
-            s.periodId === CURRENT_PERIOD &&
-            s.status === "Active",
-        )
+        .filter((s) => s.studentUsernames.includes(username))
         .sort(
           (a, b) =>
             DAYS_OF_WEEK.indexOf(a.dayOfWeek) -

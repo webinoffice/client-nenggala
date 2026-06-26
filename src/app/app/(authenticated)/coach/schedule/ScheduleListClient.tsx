@@ -1,9 +1,8 @@
 // src/app/app/(authenticated)/coach/schedule/ScheduleListClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Pencil, Ban, Power, Eye, Star } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Eye, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
@@ -12,78 +11,113 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import {
   type Schedule,
+  type ScheduleMember,
   DAYS_OF_WEEK,
   getSchedules,
   subscribeSchedules,
-  toggleScheduleStatus,
+  deleteSchedule,
 } from "../_shared/schedules";
 import {
   useAcademic,
-  formatPeriod,
   getProgramById,
-  getPeriodById,
   getSubProgramById,
 } from "../../student/_shared/academic";
 import {
-  getStudents,
-  subscribeStudents,
-} from "../../student/_shared/students";
+  getSchedulePeriods,
+  subscribeSchedulePeriods,
+} from "../../master/_shared/schedule-periods";
 import { useDojangOptions } from "../../master/_shared/dojangs";
 import {
-  addRecommendation,
-  findRecommendation,
-  getNextRecommendationId,
-  getRecommendations,
-  removeRecommendation,
-  subscribeRecommendations,
-} from "../_shared/recommendations";
-import { getCoaches, subscribeCoaches } from "../_shared/coaches";
-
+  fetchStudentRecom,
+  fetchStudentToRecom,
+  saveStudentRecom,
+} from "@/lib/api/recommendations";
 
 export default function ScheduleListClient() {
   const router = useRouter();
-  const { programs, periods } = useAcademic();
+  const { programs } = useAcademic();
   const dojangOptions = useDojangOptions();
   const schedules = useSyncExternalStore(
     subscribeSchedules,
     getSchedules,
     getSchedules,
   );
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
-  const students = useSyncExternalStore(
-    subscribeStudents,
-    getStudents,
-    getStudents,
-  );
-  useSyncExternalStore(
-    subscribeRecommendations,
-    getRecommendations,
-    getRecommendations,
+  const periods = useSyncExternalStore(
+    subscribeSchedulePeriods,
+    getSchedulePeriods,
+    getSchedulePeriods,
   );
 
   const [kelasInput, setKelasInput] = useState("All");
   const [dojangInput, setDojangInput] = useState("All");
-  const [periodInput, setPeriodInput] = useState("32");
+  const [periodInput, setPeriodInput] = useState("All");
   const [applied, setApplied] = useState({
     kelas: "All",
     dojang: "All",
-    period: "32",
+    period: "All",
   });
   const [confirming, setConfirming] = useState<Schedule | null>(null);
   const [viewing, setViewing] = useState<Schedule | null>(null);
+  const [actionError, setActionError] = useState("");
 
-  const coachByUsername = useMemo(
-    () => new Map(coaches.map((c) => [c.username, c])),
-    [coaches],
+  // ── recommendations (per-period, fetched when the View modal opens) ──
+  // A StudentRecommendation is keyed on (SchPeriodId, StudentId, main ProgramMsId)
+  // and is INSERT-only — the backend has no un-recommend, so the star is one-way
+  // and asks for confirmation. `recommendedIds` are students already recommended;
+  // `candidateProgram` maps a still-recommendable student to the ProgramMsId to
+  // save (the main program, from get-student-to-recom).
+  const [recomLoading, setRecomLoading] = useState(false);
+  const [recommendedIds, setRecommendedIds] = useState<Set<number>>(new Set());
+  const [candidateProgram, setCandidateProgram] = useState<Map<number, number>>(
+    new Map(),
   );
-  const studentByUsername = useMemo(
-    () => new Map(students.map((s) => [s.username, s])),
-    [students],
-  );
+  const [recommending, setRecommending] = useState<ScheduleMember | null>(null);
+
+  const loadRecommendations = useCallback(async (schPeriodId: number) => {
+    setRecomLoading(true);
+    try {
+      const [recom, toRecom] = await Promise.all([
+        fetchStudentRecom({ schPeriodId }),
+        fetchStudentToRecom(schPeriodId),
+      ]);
+      setRecommendedIds(new Set(recom.map((r) => r.UserDataId)));
+      setCandidateProgram(
+        new Map(toRecom.map((c) => [c.StudentId, c.ProgramMsId])),
+      );
+    } catch {
+      setRecommendedIds(new Set());
+      setCandidateProgram(new Map());
+    } finally {
+      setRecomLoading(false);
+    }
+  }, []);
+
+  const openView = (s: Schedule) => {
+    setViewing(s);
+    setRecommendedIds(new Set());
+    setCandidateProgram(new Map());
+    void loadRecommendations(s.schPeriodId);
+  };
+
+  const confirmRecommend = async () => {
+    if (!viewing || !recommending) return;
+    const programMsId = candidateProgram.get(recommending.studentId);
+    const schPeriodId = viewing.schPeriodId;
+    const studentId = recommending.studentId;
+    setRecommending(null);
+    if (!programMsId) return;
+    try {
+      await saveStudentRecom({
+        SchPeriodId: schPeriodId,
+        DataRecomStudent: [{ StudentId: studentId, ProgramMsId: programMsId }],
+      });
+      await loadRecommendations(schPeriodId);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to save recommendation",
+      );
+    }
+  };
 
   const filtered = useMemo(
     () =>
@@ -93,7 +127,10 @@ export default function ScheduleListClient() {
             return false;
           if (applied.dojang !== "All" && s.dojang !== applied.dojang)
             return false;
-          if (applied.period !== "All" && s.periodId !== applied.period)
+          if (
+            applied.period !== "All" &&
+            String(s.schPeriodId) !== applied.period
+          )
             return false;
           return true;
         })
@@ -105,32 +142,10 @@ export default function ScheduleListClient() {
     [schedules, applied],
   );
 
-  const periodObj = getPeriodById(applied.period);
-
-  const handleToggleRecommendation = (
-    schedule: Schedule,
-    studentUsername: string,
-  ) => {
-    const existing = findRecommendation(studentUsername, schedule.id);
-    if (existing) {
-      removeRecommendation(existing.id);
-      return;
-    }
-    const student = studentByUsername.get(studentUsername);
-    if (!student) return;
-    const subProgram = getSubProgramById(schedule.subProgramId);
-    addRecommendation({
-      id: getNextRecommendationId(),
-      studentUsername,
-      scheduleId: schedule.id,
-      dojang: student.dojang,
-      sabuk: student.sabuk,
-      category: subProgram?.name ?? String(schedule.subProgramId),
-      coachUsername: schedule.primaryCoachUsername,
-      periodId: schedule.periodId,
-      recommendationDate: new Date().toISOString().slice(0, 10),
-    });
-  };
+  const periodObj =
+    applied.period !== "All"
+      ? periods.find((p) => String(p.id) === applied.period)
+      : null;
 
   return (
     <>
@@ -175,9 +190,11 @@ export default function ScheduleListClient() {
             value={periodInput}
             onChange={(e) => setPeriodInput(e.target.value)}
           >
+            <option value="All">All</option>
             {periods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {formatPeriod(p)}
+              <option key={p.id} value={String(p.id)}>
+                {p.periodName}
+                {p.dojang ? ` · ${p.dojang}` : ""}
               </option>
             ))}
           </Select>
@@ -201,7 +218,8 @@ export default function ScheduleListClient() {
 
       {periodObj && (
         <div className="font-display font-bold uppercase tracking-widest text-sm text-ink mb-3">
-          {formatPeriod(periodObj)}
+          {periodObj.periodName}
+          {periodObj.dojang ? ` · ${periodObj.dojang}` : ""}
         </div>
       )}
 
@@ -231,9 +249,6 @@ export default function ScheduleListClient() {
                 <th className="text-left px-4 py-3.5 whitespace-nowrap">
                   End Time
                 </th>
-                <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                  Status
-                </th>
                 <th className="text-right px-4 py-3.5 whitespace-nowrap">
                   Action
                 </th>
@@ -243,7 +258,7 @@ export default function ScheduleListClient() {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No schedules found
@@ -252,13 +267,6 @@ export default function ScheduleListClient() {
               ) : (
                 filtered.map((s) => {
                   const program = getProgramById(s.programId);
-                  const primaryCoach = coachByUsername.get(
-                    s.primaryCoachUsername,
-                  );
-                  const secondaryNames = s.secondaryCoachUsernames.map(
-                    (u) => coachByUsername.get(u)?.panggilan ?? u,
-                  );
-                  const isActive = s.status === "Active";
                   return (
                     <tr
                       key={s.id}
@@ -271,10 +279,10 @@ export default function ScheduleListClient() {
                         {program?.name ?? s.programId}
                       </td>
                       <td className="px-4 py-3 text-ink whitespace-nowrap">
-                        {primaryCoach?.namaLengkap ?? s.primaryCoachUsername}
-                        {secondaryNames.length > 0 && (
+                        {s.primaryCoachName || s.primaryCoachUsername}
+                        {s.additionalCoaches.length > 0 && (
                           <span className="text-muted text-xs ml-1">
-                            (+{secondaryNames.length})
+                            (+{s.additionalCoaches.length})
                           </span>
                         )}
                       </td>
@@ -284,10 +292,10 @@ export default function ScheduleListClient() {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => setViewing(s)}
+                          onClick={() => openView(s)}
                           className="inline-flex items-center gap-1.5 bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:brightness-95 transition"
                         >
-                          <Eye size={12} /> View ({s.studentUsernames.length})
+                          <Eye size={12} /> View ({s.members.length})
                         </button>
                       </td>
                       <td className="px-4 py-3 text-ink/70 whitespace-nowrap">
@@ -295,23 +303,6 @@ export default function ScheduleListClient() {
                       </td>
                       <td className="px-4 py-3 text-ink/70 whitespace-nowrap">
                         {s.endTime}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                          <span
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full",
-                              isActive
-                                ? "bg-emerald-500"
-                                : "bg-muted-foreground",
-                            )}
-                          />
-                          <span
-                            className={isActive ? "text-ink" : "text-muted"}
-                          >
-                            {s.status}
-                          </span>
-                        </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
@@ -326,15 +317,10 @@ export default function ScheduleListClient() {
                           </button>
                           <button
                             onClick={() => setConfirming(s)}
-                            title={isActive ? "Disable" : "Enable"}
-                            className={cn(
-                              "p-1.5 rounded-sm transition",
-                              isActive
-                                ? "bg-brand text-brand-foreground hover:bg-brand-hover"
-                                : "bg-ink text-paper hover:bg-ink-soft",
-                            )}
+                            title="Delete"
+                            className="bg-brand text-brand-foreground p-1.5 rounded-sm hover:bg-brand-hover transition"
                           >
-                            {isActive ? <Ban size={14} /> : <Power size={14} />}
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -380,33 +366,20 @@ export default function ScheduleListClient() {
                         {viewing.primaryCoachUsername}
                       </td>
                       <td className="px-3 py-2 text-ink">
-                        {coachByUsername.get(viewing.primaryCoachUsername)
-                          ?.namaLengkap ?? viewing.primaryCoachUsername}
+                        {viewing.primaryCoachName ||
+                          viewing.primaryCoachUsername}
                       </td>
                       <td className="px-3 py-2 text-ink/70">Primary Coach</td>
                     </tr>
-                    {viewing.secondaryCoachUsernames.map((u) => (
-                      <tr key={u} className="border-t border-ink/5">
-                        <td className="px-3 py-2 font-medium text-ink">{u}</td>
+                    {viewing.additionalCoaches.map((c) => (
+                      <tr key={c.scheduleCoachId} className="border-t border-ink/5">
+                        <td className="px-3 py-2 font-medium text-ink">
+                          {c.username}
+                        </td>
                         <td className="px-3 py-2 text-ink">
-                          {coachByUsername.get(u)?.namaLengkap ?? u}
+                          {c.name || c.username}
                         </td>
                         <td className="px-3 py-2 text-ink/70">Coach</td>
-                      </tr>
-                    ))}
-                    {viewing.assistantUsernames.map((u) => (
-                      <tr key={u} className="border-t border-ink/5">
-                        <td className="px-3 py-2 font-medium text-ink">{u}</td>
-                        <td className="px-3 py-2 text-ink">
-                          {coachByUsername.get(u)?.namaLengkap ??
-                            studentByUsername.get(u)?.namaLengkap ??
-                            u}
-                        </td>
-                        <td className="px-3 py-2 text-ink/70">
-                          {coachByUsername.has(u)
-                            ? "Assistant (Coach)"
-                            : "Assistant (Student)"}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -416,7 +389,7 @@ export default function ScheduleListClient() {
 
             {/* Members */}
             <div className="text-xs text-muted uppercase tracking-widest font-bold">
-              {viewing.studentUsernames.length} members enrolled
+              {viewing.members.length} members enrolled
             </div>
             <div className="border border-ink/10 rounded-sm overflow-hidden">
               <table className="w-full text-sm">
@@ -430,37 +403,44 @@ export default function ScheduleListClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {viewing.studentUsernames.map((u) => {
-                    const s = studentByUsername.get(u);
-                    const recommended =
-                      findRecommendation(u, viewing.id) !== null;
+                  {viewing.members.map((m) => {
+                    const recommended = recommendedIds.has(m.studentId);
+                    const isCandidate = candidateProgram.has(m.studentId);
+                    const disabled =
+                      recomLoading || recommended || !isCandidate;
                     return (
-                      <tr key={u} className="border-t border-ink/5">
-                        <td className="px-3 py-2 font-medium text-ink">{u}</td>
-                        <td className="px-3 py-2 text-ink">
-                          {s?.namaLengkap ?? "-"}
+                      <tr key={m.scheduleMbrId} className="border-t border-ink/5">
+                        <td className="px-3 py-2 font-medium text-ink">
+                          {m.username}
+                        </td>
+                        <td className="px-3 py-2 text-ink">{m.name || "-"}</td>
+                        <td className="px-3 py-2 text-ink/70">
+                          {m.dojang || "-"}
                         </td>
                         <td className="px-3 py-2 text-ink/70">
-                          {s?.dojang ?? "-"}
-                        </td>
-                        <td className="px-3 py-2 text-ink/70">
-                          {s?.sabuk ?? "-"}
+                          {m.belt || "-"}
                         </td>
                         <td className="px-3 py-2 text-right">
                           <button
-                            onClick={() =>
-                              handleToggleRecommendation(viewing, u)
-                            }
+                            onClick={() => setRecommending(m)}
+                            disabled={disabled}
                             title={
                               recommended
-                                ? "Remove recommendation"
-                                : "Mark as recommended"
+                                ? "Recommended (cannot be undone)"
+                                : recomLoading
+                                  ? "Loading…"
+                                  : isCandidate
+                                    ? "Mark as recommended"
+                                    : "Not eligible for recommendation this period"
                             }
                             className={cn(
                               "inline-flex items-center justify-center p-1.5 rounded-sm transition",
                               recommended
-                                ? "bg-accent text-accent-foreground hover:brightness-95"
-                                : "border border-ink/15 text-muted hover:text-ink hover:border-ink/30",
+                                ? "bg-accent text-accent-foreground"
+                                : "border border-ink/15 text-muted",
+                              disabled
+                                ? "cursor-not-allowed opacity-60"
+                                : "hover:text-ink hover:border-ink/30",
                             )}
                           >
                             <Star
@@ -482,24 +462,53 @@ export default function ScheduleListClient() {
       <ConfirmDialog
         open={confirming !== null}
         onClose={() => setConfirming(null)}
-        onConfirm={() => {
-          if (confirming) toggleScheduleStatus(confirming.id, getCurrentUsername());
+        onConfirm={async () => {
+          if (!confirming) return;
+          try {
+            await deleteSchedule(confirming.id);
+          } catch (err) {
+            setActionError(
+              err instanceof Error ? err.message : "Failed to delete schedule",
+            );
+          }
         }}
-        title={
-          confirming?.status === "Inactive"
-            ? "Enable Schedule"
-            : "Disable Schedule"
-        }
+        title="Delete Schedule"
         description={
           confirming
-            ? confirming.status === "Inactive"
-              ? `Enable ${confirming.dayOfWeek} schedule (${confirming.id})?`
-              : `Disable ${confirming.dayOfWeek} schedule (${confirming.id})?`
+            ? `Delete the ${confirming.dayOfWeek} ${confirming.startTime} schedule? This cannot be undone.`
             : ""
         }
-        confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}
-        variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
+        confirmLabel="Delete"
+        variant="destructive"
       />
+
+      <ConfirmDialog
+        open={recommending !== null}
+        onClose={() => setRecommending(null)}
+        onConfirm={confirmRecommend}
+        title="Confirm Recommendation"
+        description={
+          recommending
+            ? `Mark ${recommending.name || recommending.username} as recommended for this period? This cannot be undone — there is no way to remove a recommendation once saved.`
+            : ""
+        }
+        confirmLabel="Recommend"
+        variant="primary"
+      />
+
+      <Modal
+        open={actionError !== ""}
+        onClose={() => setActionError("")}
+        title="Cannot Delete Schedule"
+        size="sm"
+      >
+        <p className="text-sm text-ink/80">{actionError}</p>
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setActionError("")}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

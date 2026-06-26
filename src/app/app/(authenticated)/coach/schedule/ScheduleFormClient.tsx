@@ -1,7 +1,12 @@
 // src/app/app/(authenticated)/coach/schedule/ScheduleFormClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -12,22 +17,27 @@ import {
   type Schedule,
   type DayOfWeek,
   DAYS_OF_WEEK,
-  addSchedule,
   getScheduleById,
-  getNextScheduleId,
-  updateSchedule,
+  saveSchedule,
 } from "../_shared/schedules";
+import { fetchInstructorSchTrans } from "@/lib/api/schedules";
+import { useAcademic } from "../../student/_shared/academic";
 import {
-  useAcademic,
-  formatPeriod,
-} from "../../student/_shared/academic";
-import {
-  getStudents,
-  subscribeStudents,
-} from "../../student/_shared/students";
+  getSchedulePeriods,
+  subscribeSchedulePeriods,
+} from "../../master/_shared/schedule-periods";
+import { getStudents, subscribeStudents } from "../../student/_shared/students";
 import { useDojangOptions } from "../../master/_shared/dojangs";
 import { getCoaches, subscribeCoaches } from "../_shared/coaches";
 
+// Selectable additional-coach pool entry (get-instructor-schtrans: type-I
+// coaches UNION type-S students flagged FgAssist='Y').
+type CoachPoolEntry = {
+  coachId: number;
+  username: string;
+  name: string;
+  isAssistant: boolean;
+};
 
 interface Props {
   mode: "new" | "edit";
@@ -37,8 +47,13 @@ interface Props {
 export default function ScheduleFormClient({ mode, id }: Props) {
   const router = useRouter();
   const isEditing = mode === "edit";
-  const { programs, subPrograms, periods } = useAcademic();
+  const { programs, subPrograms } = useAcademic();
   const dojangOptions = useDojangOptions();
+  const periods = useSyncExternalStore(
+    subscribeSchedulePeriods,
+    getSchedulePeriods,
+    getSchedulePeriods,
+  );
   const coaches = useSyncExternalStore(
     subscribeCoaches,
     getCoaches,
@@ -51,13 +66,12 @@ export default function ScheduleFormClient({ mode, id }: Props) {
   );
 
   const [editing] = useState<Schedule | null>(() =>
-    isEditing && id ? getScheduleById(id) : null,
+    isEditing && id ? getScheduleById(Number(id)) : null,
   );
-  const [scheduleId] = useState(() => editing?.id ?? getNextScheduleId());
 
   const [dojang, setDojang] = useState(editing?.dojang ?? "");
-  // Program/sub-program selects are string-native; converted to numeric
-  // ProgramMsId/ProgramDtId when building the Schedule payload.
+  // Program/sub-program/period selects are string-native; converted to numeric
+  // (ProgramMsId/ProgramDtId/SchPeriodId) when building the write payload.
   const [programId, setProgramId] = useState(
     editing ? String(editing.programId) : "",
   );
@@ -67,32 +81,56 @@ export default function ScheduleFormClient({ mode, id }: Props) {
   const [primaryCoach, setPrimaryCoach] = useState(
     editing?.primaryCoachUsername ?? "",
   );
-  const [secondaryCoaches, setSecondaryCoaches] = useState<string[]>(
-    editing?.secondaryCoachUsernames ?? [],
-  );
-  const [assistants, setAssistants] = useState<string[]>(
-    editing?.assistantUsernames ?? [],
+  // Additional coaches/assistants are a single flat ScheduleCoach list (keyed by
+  // UserDataId), sourced from get-instructor-schtrans.
+  const [additionalCoachIds, setAdditionalCoachIds] = useState<number[]>(
+    editing?.additionalCoaches.map((c) => c.coachId) ?? [],
   );
   const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek | "">(
     editing?.dayOfWeek ?? "",
   );
   const [startTime, setStartTime] = useState(editing?.startTime ?? "");
   const [endTime, setEndTime] = useState(editing?.endTime ?? "");
-  const [periodId, setPeriodId] = useState(editing?.periodId ?? "");
-  const [startSchedule, setStartSchedule] = useState(
-    editing?.startSchedule ?? "",
+  const [periodId, setPeriodId] = useState(
+    editing ? String(editing.schPeriodId) : "",
   );
-  const [endSchedule, setEndSchedule] = useState(editing?.endSchedule ?? "");
+  const [dateStart, setDateStart] = useState(editing?.dateStart ?? "");
+  const [dateEnd, setDateEnd] = useState(editing?.dateEnd ?? "");
   const [enrolledStudents, setEnrolledStudents] = useState<string[]>(
     editing?.studentUsernames ?? [],
   );
 
+  // additional-coach pool (fetched once)
+  const [coachPool, setCoachPool] = useState<CoachPoolEntry[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetchInstructorSchTrans()
+      .then((rows) => {
+        if (!alive) return;
+        setCoachPool(
+          (rows ?? []).map((r) => ({
+            coachId: r.CoachId,
+            username: r.CoachNoId ?? "",
+            name: r.CoachName ?? r.CoachNoId ?? "",
+            isAssistant: r.FgAssist === "Y",
+          })),
+        );
+      })
+      .catch(() => {
+        /* leave the pool empty; the picker just shows nothing to add */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // pickers
-  const [secondaryPick, setSecondaryPick] = useState("");
-  const [assistantPick, setAssistantPick] = useState("");
+  const [additionalPick, setAdditionalPick] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   // ── hooks (must always run, in stable order) ──
   const coachByUsername = useMemo(
@@ -103,12 +141,48 @@ export default function ScheduleFormClient({ mode, id }: Props) {
     () => new Map(students.map((s) => [s.username, s])),
     [students],
   );
+  // username → UserDataId (StudentId), merging the live store with the loaded
+  // schedule's own members so edit-mode rosters always resolve.
+  const studentIdByUsername = useMemo(() => {
+    const m = new Map<string, number>();
+    students.forEach((s) => {
+      if (s.userDataId) m.set(s.username, s.userDataId);
+    });
+    (editing?.members ?? []).forEach((mem) => m.set(mem.username, mem.studentId));
+    return m;
+  }, [students, editing]);
+  // coachId → display, merging the pool with the loaded schedule's coaches.
+  const coachNameById = useMemo(() => {
+    const m = new Map<number, string>();
+    coachPool.forEach((c) =>
+      m.set(c.coachId, c.isAssistant ? `${c.name} (Assistant)` : c.name),
+    );
+    (editing?.additionalCoaches ?? []).forEach((c) => {
+      if (!m.has(c.coachId)) m.set(c.coachId, c.name || c.username);
+    });
+    return m;
+  }, [coachPool, editing]);
   const availableSubPrograms = useMemo(
     () =>
       programId
         ? subPrograms.filter((sp) => String(sp.programId) === programId)
         : [],
     [programId, subPrograms],
+  );
+  // Periods are per-dojang; once a dojang is chosen only its periods apply.
+  const availablePeriods = useMemo(
+    () => (dojang ? periods.filter((p) => p.dojang === dojang) : periods),
+    [dojang, periods],
+  );
+  const primaryCoachId = coachByUsername.get(primaryCoach)?.userDataId ?? 0;
+  const availableAdditional = useMemo(
+    () =>
+      coachPool.filter(
+        (c) =>
+          c.coachId !== primaryCoachId &&
+          !additionalCoachIds.includes(c.coachId),
+      ),
+    [coachPool, primaryCoachId, additionalCoachIds],
   );
   const studentResults = useMemo(() => {
     const q = studentSearch.toLowerCase().trim();
@@ -146,20 +220,6 @@ export default function ScheduleFormClient({ mode, id }: Props) {
     );
   }
 
-  // ── plain derived values (no hooks) can live below the early return ──
-  const availableSecondary = coaches.filter(
-    (c) =>
-      c.username !== primaryCoach && !secondaryCoaches.includes(c.username),
-  );
-  const availableAssistants = [
-    ...coaches
-      .filter((c) => !assistants.includes(c.username))
-      .map((c) => ({ value: c.username, label: `${c.namaLengkap} (Coach)` })),
-    ...students
-      .filter((s) => !assistants.includes(s.username))
-      .map((s) => ({ value: s.username, label: `${s.namaLengkap} (Student)` })),
-  ];
-
   const validate = () => {
     const e: Record<string, string> = {};
     if (!dojang) e.dojang = "Required";
@@ -172,47 +232,48 @@ export default function ScheduleFormClient({ mode, id }: Props) {
     else if (startTime && endTime && endTime <= startTime)
       e.endTime = "Must be after start";
     if (!periodId) e.periodId = "Required";
-    if (!startSchedule) e.startSchedule = "Required";
-    if (!endSchedule) e.endSchedule = "Required";
-    else if (startSchedule && endSchedule && endSchedule < startSchedule)
-      e.endSchedule = "Must be after start";
+    if (!dateStart) e.dateStart = "Required";
+    if (!dateEnd) e.dateEnd = "Required";
+    else if (dateStart && dateEnd && dateEnd < dateStart)
+      e.dateEnd = "Must be after start";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    const payload: Schedule = {
-      id: scheduleId,
-      dojang,
-      programId: Number(programId),
-      subProgramId: Number(subProgramId),
-      primaryCoachUsername: primaryCoach,
-      secondaryCoachUsernames: secondaryCoaches,
-      assistantUsernames: assistants,
-      dayOfWeek: dayOfWeek as DayOfWeek,
-      startTime,
-      endTime,
-      periodId,
-      startSchedule,
-      endSchedule,
-      studentUsernames: enrolledStudents,
-      status: editing?.status ?? "Active",
-      updatedBy: getCurrentUsername(),
-      updateDate: new Date().toISOString(),
-    };
-    if (isEditing) updateSchedule(scheduleId, payload);
-    else addSchedule(payload);
-    router.push("/app/coach/schedule");
+    setSaveError("");
+    setSaving(true);
+    const memberIds = enrolledStudents
+      .map((u) => studentIdByUsername.get(u) ?? 0)
+      .filter((n) => n > 0);
+    const coachIds = additionalCoachIds.filter((cid) => cid !== primaryCoachId);
+    try {
+      await saveSchedule({
+        id: editing?.id ?? null,
+        schPeriodId: Number(periodId),
+        dateStart,
+        dateEnd,
+        startTime,
+        endTime,
+        dayScheduleNum: DAYS_OF_WEEK.indexOf(dayOfWeek as DayOfWeek),
+        subProgramId: Number(subProgramId),
+        primaryCoachId,
+        memberIds,
+        coachIds,
+      });
+      router.push("/app/coach/schedule");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save schedule");
+      setSaving(false);
+    }
   };
 
   return (
     <>
       <PageHeader
         title={isEditing ? "Update Schedule" : "Add Schedule"}
-        description={
-          isEditing ? `Editing ${scheduleId}` : `New schedule · ${scheduleId}`
-        }
+        description={isEditing ? `Editing #${editing?.id}` : "New schedule"}
         actions={
           <Button
             variant="outline"
@@ -229,7 +290,10 @@ export default function ScheduleFormClient({ mode, id }: Props) {
             <Select
               label="Dojang"
               value={dojang}
-              onChange={(e) => setDojang(e.target.value)}
+              onChange={(e) => {
+                setDojang(e.target.value);
+                setPeriodId(""); // ← reset period when dojang changes
+              }}
               error={errors.dojang}
               disabled={isEditing}
             >
@@ -301,7 +365,6 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
               error={errors.endTime}
-              disabled={isEditing}
             />
           </div>
         </FormSection>
@@ -313,29 +376,31 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={periodId}
               onChange={(e) => setPeriodId(e.target.value)}
               error={errors.periodId}
-              disabled={isEditing}
+              disabled={!dojang || isEditing}
             >
-              <option value="">Pilih Period</option>
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {formatPeriod(p)}
+              <option value="">
+                {dojang ? "Pilih Period" : "Pilih Dojang dulu"}
+              </option>
+              {availablePeriods.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.periodName}
                 </option>
               ))}
             </Select>
             <Input
-              label="Start Schedule"
-              type="month"
-              value={startSchedule}
-              onChange={(e) => setStartSchedule(e.target.value)}
-              error={errors.startSchedule}
+              label="Date Start"
+              type="date"
+              value={dateStart}
+              onChange={(e) => setDateStart(e.target.value)}
+              error={errors.dateStart}
               disabled={isEditing}
             />
             <Input
-              label="End Schedule"
-              type="month"
-              value={endSchedule}
-              onChange={(e) => setEndSchedule(e.target.value)}
-              error={errors.endSchedule}
+              label="Date End"
+              type="date"
+              value={dateEnd}
+              onChange={(e) => setDateEnd(e.target.value)}
+              error={errors.dateEnd}
             />
           </div>
         </FormSection>
@@ -347,10 +412,12 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={primaryCoach}
               onChange={(e) => {
                 setPrimaryCoach(e.target.value);
-                // Remove if previously in secondary
-                setSecondaryCoaches((arr) =>
-                  arr.filter((u) => u !== e.target.value),
-                );
+                // Drop the new PIC from the additional list if present.
+                const pid = coachByUsername.get(e.target.value)?.userDataId;
+                if (pid != null)
+                  setAdditionalCoachIds((arr) =>
+                    arr.filter((cid) => cid !== pid),
+                  );
               }}
               error={errors.primaryCoach}
               disabled={!programId || isEditing}
@@ -366,56 +433,29 @@ export default function ScheduleFormClient({ mode, id }: Props) {
             </Select>
 
             <ChipPicker
-              label="Secondary Coaches (optional)"
-              selected={secondaryCoaches.map((u) => ({
-                value: u,
-                label: coachByUsername.get(u)?.namaLengkap ?? u,
+              label="Additional Coaches & Assistants (optional)"
+              selected={additionalCoachIds.map((cid) => ({
+                value: String(cid),
+                label: coachNameById.get(cid) ?? String(cid),
               }))}
-              pickerValue={secondaryPick}
-              setPickerValue={setSecondaryPick}
-              options={availableSecondary.map((c) => ({
-                value: c.username,
-                label: c.namaLengkap,
+              pickerValue={additionalPick}
+              setPickerValue={setAdditionalPick}
+              options={availableAdditional.map((c) => ({
+                value: String(c.coachId),
+                label: c.isAssistant ? `${c.name} (Assistant)` : c.name,
               }))}
               onAdd={() => {
-                if (secondaryPick) {
-                  setSecondaryCoaches((arr) => [...arr, secondaryPick]);
-                  setSecondaryPick("");
+                if (additionalPick) {
+                  setAdditionalCoachIds((arr) => [...arr, Number(additionalPick)]);
+                  setAdditionalPick("");
                 }
               }}
               onRemove={(v) =>
-                setSecondaryCoaches((arr) => arr.filter((u) => u !== v))
+                setAdditionalCoachIds((arr) =>
+                  arr.filter((cid) => cid !== Number(v)),
+                )
               }
-              emptyHint="No secondary coaches assigned."
-            />
-
-            <ChipPicker
-              label="Assistants (Student or Coach)"
-              selected={assistants.map((u) => {
-                const c = coachByUsername.get(u);
-                const s = studentByUsername.get(u);
-                return {
-                  value: u,
-                  label: c
-                    ? `${c.namaLengkap} (Coach)`
-                    : s
-                      ? `${s.namaLengkap} (Student)`
-                      : u,
-                };
-              })}
-              pickerValue={assistantPick}
-              setPickerValue={setAssistantPick}
-              options={availableAssistants}
-              onAdd={() => {
-                if (assistantPick) {
-                  setAssistants((arr) => [...arr, assistantPick]);
-                  setAssistantPick("");
-                }
-              }}
-              onRemove={(v) =>
-                setAssistants((arr) => arr.filter((u) => u !== v))
-              }
-              emptyHint="No assistants assigned."
+              emptyHint="No additional coaches assigned."
             />
           </div>
         </FormSection>
@@ -512,15 +552,26 @@ export default function ScheduleFormClient({ mode, id }: Props) {
           </div>
         </FormSection>
 
+        {saveError && (
+          <div className="bg-brand/10 border border-brand/30 rounded-sm px-4 py-3 text-sm text-brand">
+            {saveError}
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-2 pt-2 pb-4">
           <Button
             variant="outline"
             onClick={() => router.push("/app/coach/schedule")}
+            disabled={saving}
           >
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {isEditing ? "Save Changes" : "Add Schedule"}
+          <Button variant="primary" onClick={handleSubmit} disabled={saving}>
+            {saving
+              ? "Saving…"
+              : isEditing
+                ? "Save Changes"
+                : "Add Schedule"}
           </Button>
         </div>
       </div>

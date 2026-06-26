@@ -1,101 +1,112 @@
 // src/app/app/(authenticated)/certificate/AddCertificateClient.tsx
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
-import { Check, X, Award } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, X, Award, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import PageHeader from "@/components/app/PageHeader";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
-  getStudents,
-  subscribeStudents,
-} from "../student/_shared/students";
-import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
-import {
-  type CertRecipientType,
-  getCertifications,
-  subscribeCertifications,
-  addCertification,
-  getNextCertId,
+  fetchCertif,
+  fetchUserCertifEntry,
+  saveCertif,
+  deleteCertif,
   formatCertDate,
-} from "@/lib/certifications";
+  type CertifRow,
+  type UserCertifEntryRow,
+} from "@/lib/api/certifications";
 
-const DEFAULT_IMAGE = "/images/event-ukt-promo.jpg";
 const MAX_RESULTS = 8;
 
-type Recipient = { username: string; name: string; meta: string };
+type RecipientType = "student" | "coach";
+const TYPE_CODE: Record<RecipientType, string> = { student: "S", coach: "I" };
 
 export default function AddCertificateClient() {
-  const students = useSyncExternalStore(
-    subscribeStudents,
-    getStudents,
-    getStudents,
-  );
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
-  const certifications = useSyncExternalStore(
-    subscribeCertifications,
-    getCertifications,
-    getCertifications,
-  );
+  const [entries, setEntries] = useState<UserCertifEntryRow[]>([]);
+  const [certifications, setCertifications] = useState<CertifRow[]>([]);
+  const [listLoading, setListLoading] = useState(true);
 
-  const [recipientType, setRecipientType] =
-    useState<CertRecipientType>("student");
+  const [recipientType, setRecipientType] = useState<RecipientType>("student");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Recipient | null>(null);
+  const [selected, setSelected] = useState<UserCertifEntryRow | null>(null);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<{
     recipient?: string;
     title?: string;
     date?: string;
   }>({});
+  const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [deleting, setDeleting] = useState<CertifRow | null>(null);
 
-  const nameByUsername = useMemo(() => {
-    const map = new Map<string, string>();
-    students.forEach((s) => map.set(s.username, s.namaLengkap));
-    coaches.forEach((c) => map.set(c.username, c.namaLengkap));
-    return map;
-  }, [students, coaches]);
+  const reloadCertifications = () => {
+    setListLoading(true);
+    fetchCertif()
+      .then((rows) => setCertifications(rows ?? []))
+      .catch(() => setCertifications([]))
+      .finally(() => setListLoading(false));
+  };
 
-  const results = useMemo<Recipient[]>(() => {
+  useEffect(() => {
+    let alive = true;
+    fetchUserCertifEntry()
+      .then((rows) => {
+        if (alive) setEntries(rows ?? []);
+      })
+      .catch(() => {
+        if (alive) setEntries([]);
+      });
+    fetchCertif()
+      .then((rows) => {
+        if (alive) setCertifications(rows ?? []);
+      })
+      .catch(() => {
+        if (alive) setCertifications([]);
+      })
+      .finally(() => {
+        if (alive) setListLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const results = useMemo<UserCertifEntryRow[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    const pool: Recipient[] =
-      recipientType === "student"
-        ? students.map((s) => ({
-            username: s.username,
-            name: s.namaLengkap,
-            meta: `${s.dojang} · ${s.sabuk}`,
-          }))
-        : coaches.map((c) => ({
-            username: c.username,
-            name: c.namaLengkap,
-            meta: `${c.dojang} · ${c.sabuk}`,
-          }));
-    return pool
+    const code = TYPE_CODE[recipientType];
+    return entries
+      .filter((e) => e.UserTypeCode === code)
       .filter(
-        (r) =>
-          r.username.toLowerCase().includes(q) ||
-          r.name.toLowerCase().includes(q),
+        (e) =>
+          (e.UserNoId ?? "").toLowerCase().includes(q) ||
+          (e.UserName ?? "").toLowerCase().includes(q),
       )
       .slice(0, MAX_RESULTS);
-  }, [query, recipientType, students, coaches]);
+  }, [query, recipientType, entries]);
 
-  const switchType = (t: CertRecipientType) => {
+  const switchType = (t: RecipientType) => {
     setRecipientType(t);
     setSelected(null);
     setQuery("");
   };
 
-  const handleSubmit = () => {
+  const resetForm = () => {
+    setTitle("");
+    setDate("");
+    setDescription("");
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSubmit = async () => {
     const next: typeof errors = {};
     if (!selected) next.recipient = "Pilih penerima";
     if (!title.trim()) next.title = "Required";
@@ -103,21 +114,45 @@ export default function AddCertificateClient() {
     setErrors(next);
     if (Object.keys(next).length > 0 || !selected) return;
 
-    addCertification({
-      id: getNextCertId(),
-      recipientType,
-      recipientUsername: selected.username,
-      title: title.trim(),
-      date,
-      description: description.trim(),
-      thumbnail: image.trim() || DEFAULT_IMAGE,
-      fullImage: image.trim() || DEFAULT_IMAGE,
-    });
-    setDone(true);
-    setTitle("");
-    setDate("");
-    setDescription("");
-    setImage("");
+    setSaving(true);
+    setDone(false);
+    setSaveError("");
+    try {
+      await saveCertif(
+        {
+          CertifId: 0,
+          UserDataId: selected.UserDataId,
+          CertifTitle: title.trim(),
+          CertifDesc: description.trim(),
+          CertifDate: date,
+          FgMode: "I",
+        },
+        file,
+      );
+      setDone(true);
+      resetForm();
+      reloadCertifications();
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Failed to save certificate",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const id = deleting.CertifId;
+    setDeleting(null);
+    try {
+      await deleteCertif(id);
+      reloadCertifications();
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Failed to delete certificate",
+      );
+    }
   };
 
   return (
@@ -135,7 +170,7 @@ export default function AddCertificateClient() {
               Penerima
             </label>
             <div className="inline-flex rounded-sm border border-ink/15 overflow-hidden">
-              {(["student", "coach"] as CertRecipientType[]).map((t) => (
+              {(["student", "coach"] as RecipientType[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => switchType(t)}
@@ -156,16 +191,10 @@ export default function AddCertificateClient() {
           {selected ? (
             <div className="flex items-center justify-between gap-4 rounded-sm border border-ink/10 bg-paper-soft px-4 py-3">
               <div>
-                <p className="text-ink font-medium">{selected.name}</p>
-                <p className="text-xs text-muted mt-0.5">
-                  {selected.username} · {selected.meta}
-                </p>
+                <p className="text-ink font-medium">{selected.UserName}</p>
+                <p className="text-xs text-muted mt-0.5">{selected.UserNoId}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelected(null)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
                 <X size={14} /> Ganti
               </Button>
             </div>
@@ -177,8 +206,8 @@ export default function AddCertificateClient() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={
                   recipientType === "student"
-                    ? "e.g. U0006 atau Devaloka"
-                    : "e.g. C0001 atau Marvin"
+                    ? "e.g. NS00001 atau Nando"
+                    : "e.g. NI00001 atau Cibaido"
                 }
                 error={errors.recipient}
               />
@@ -191,7 +220,7 @@ export default function AddCertificateClient() {
                   ) : (
                     results.map((r) => (
                       <button
-                        key={r.username}
+                        key={r.UserDataId}
                         onClick={() => {
                           setSelected(r);
                           setQuery("");
@@ -199,9 +228,9 @@ export default function AddCertificateClient() {
                         }}
                         className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-paper-soft transition-colors"
                       >
-                        <span className="text-sm text-ink">{r.name}</span>
+                        <span className="text-sm text-ink">{r.UserName}</span>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-ink/60 bg-paper-soft border border-ink/10 rounded-sm px-1.5 py-0.5">
-                          {r.username}
+                          {r.UserNoId}
                         </span>
                       </button>
                     ))
@@ -238,16 +267,25 @@ export default function AddCertificateClient() {
               className="rounded-sm border border-ink/15 bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-colors"
             />
           </div>
-          <Input
-            label="Image"
-            value={image}
-            onChange={(e) => setImage(e.target.value)}
-            placeholder="e.g. /images/event-ukt-promo.jpg"
-          />
+          <div className="flex flex-col gap-2">
+            <label className="font-display text-[11px] font-bold uppercase tracking-widest text-ink">
+              Image
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-ink/15 file:bg-paper-soft file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:tracking-widest file:text-ink hover:file:bg-paper"
+            />
+            {file && (
+              <p className="text-xs text-muted">Selected: {file.name}</p>
+            )}
+          </div>
 
           <div className="flex justify-end pt-1">
-            <Button variant="primary" onClick={handleSubmit}>
-              <Award size={16} /> Add Certificate
+            <Button variant="primary" onClick={handleSubmit} disabled={saving}>
+              <Award size={16} /> {saving ? "Saving…" : "Add Certificate"}
             </Button>
           </div>
 
@@ -255,6 +293,12 @@ export default function AddCertificateClient() {
             <div className="flex items-start gap-3 rounded-sm bg-emerald-500/10 border border-emerald-500/30 px-4 py-3">
               <Check size={18} className="text-emerald-600 mt-0.5 shrink-0" />
               <p className="text-sm text-ink">Sertifikat berhasil dibuat.</p>
+            </div>
+          )}
+          {saveError && (
+            <div className="flex items-start gap-3 rounded-sm bg-brand/10 border border-brand/30 px-4 py-3">
+              <X size={18} className="text-brand mt-0.5 shrink-0" />
+              <p className="text-sm text-ink">{saveError}</p>
             </div>
           )}
         </section>
@@ -272,13 +316,23 @@ export default function AddCertificateClient() {
                   <th className="text-left px-4 py-3">Type</th>
                   <th className="text-left px-4 py-3">Title</th>
                   <th className="text-left px-4 py-3">Date</th>
+                  <th className="text-right px-4 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {certifications.length === 0 ? (
+                {listLoading ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
+                      className="text-center px-4 py-10 text-muted uppercase tracking-widest text-xs font-bold"
+                    >
+                      Loading…
+                    </td>
+                  </tr>
+                ) : certifications.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
                       className="text-center px-4 py-10 text-muted uppercase tracking-widest text-xs font-bold"
                     >
                       No certificates yet
@@ -287,22 +341,34 @@ export default function AddCertificateClient() {
                 ) : (
                   certifications.map((c) => (
                     <tr
-                      key={c.id}
+                      key={c.CertifId}
                       className="border-b border-ink/5 last:border-b-0"
                     >
                       <td className="px-4 py-3 text-ink">
-                        {nameByUsername.get(c.recipientUsername) ??
-                          c.recipientUsername}
+                        {c.UserName ?? "-"}
                         <span className="text-muted text-xs ml-1">
-                          ({c.recipientUsername})
+                          ({c.UserNoId})
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-ink/70 capitalize">
-                        {c.recipientType}
+                      <td className="px-4 py-3 text-ink/70">
+                        {c.UserTypeCode === "S"
+                          ? "Student"
+                          : c.UserTypeCode === "I"
+                            ? "Coach"
+                            : "-"}
                       </td>
-                      <td className="px-4 py-3 text-ink">{c.title}</td>
+                      <td className="px-4 py-3 text-ink">{c.CertifTitle}</td>
                       <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
-                        {formatCertDate(c.date)}
+                        {formatCertDate(c.CertifDate)}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => setDeleting(c)}
+                          title="Delete"
+                          className="bg-brand text-brand-foreground p-1.5 rounded-sm hover:bg-brand-hover transition"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -312,6 +378,20 @@ export default function AddCertificateClient() {
           </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        title="Delete Certificate"
+        description={
+          deleting
+            ? `Delete "${deleting.CertifTitle}" for ${deleting.UserName ?? deleting.UserNoId}? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        variant="destructive"
+      />
     </>
   );
 }

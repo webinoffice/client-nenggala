@@ -1,11 +1,18 @@
 // src/app/app/(authenticated)/student/_shared/academic.ts
 //
-// Operational academic data. Programs/sub-programs are NO LONGER defined here —
-// they derive from the canonical master stores (audit issue #1), so master CRUD
-// is the single source of truth. Periods/enrollments remain mock for now (wired
-// in step 3c). Everything is exposed reactively via use*() hooks; the getter
-// helpers stay synchronous (canonical pattern) so existing call sites keep
-// working and simply re-render when the underlying stores change/hydrate.
+// Operational academic data — now fully fetch-backed (Step 3c Tier B).
+//  - Programs/sub-programs derive from the canonical master stores (audit #1).
+//  - PERIODS derive from the schedule-period master (get-schperiod, via
+//    schedule-periods.ts). A Period.id is the numeric SchPeriodId.
+//  - ENROLLMENTS derive from the operational SCHEDULES store: a student is
+//    "enrolled" in (period, dojang, sub-program) when a ScheduleHd in that
+//    period/dojang/sub-program lists them as a member (ScheduleMbr). No separate
+//    enrollment endpoint exists — the schedule roster IS the enrollment.
+//
+// Everything stays exposed via synchronous getById/forSelection helpers (so the
+// existing inline-during-render call sites keep working) plus use*() hooks that
+// subscribe to the underlying stores. The helpers accept the drill-down's string
+// form values and coerce to the numeric backend ids internally.
 "use client";
 
 import { useSyncExternalStore } from "react";
@@ -17,11 +24,21 @@ import {
   getSubPrograms as getMasterSubPrograms,
   subscribeSubPrograms as subscribeMasterSubPrograms,
 } from "../../master/_shared/sub-programs";
+import {
+  getSchedulePeriods,
+  subscribeSchedulePeriods,
+} from "../../master/_shared/schedule-periods";
+import {
+  getSchedules,
+  subscribeSchedules,
+} from "../../coach/_shared/schedules";
 
 export type Period = {
-  id: string; // "32"
+  id: number; // SchPeriodId
+  name: string; // "Period 1"
+  dojang: string; // owning dojang name
   startMonth: string; // "2026-01"
-  endMonth: string; // "2026-06"
+  endMonth: string; // "2026-05"
 };
 
 // Lightweight operational views over the master program/sub-program records.
@@ -37,9 +54,10 @@ export type SubProgram = {
 };
 
 export type Enrollment = {
-  studentUsername: string;
-  periodId: string;
-  dojang: string;
+  studentUsername: string; // UserNoId
+  periodId: number; // SchPeriodId
+  dojang: string; // DojangName
+  programId: number; // ProgramMsId
   subProgramId: number; // ProgramDtId
 };
 
@@ -89,49 +107,57 @@ export function getSubProgramById(id: number): SubProgram | null {
     : null;
 }
 
-// ---- periods + enrollments (mock; reactive-ready, wired to fetch in 3c) ----
-export const PERIODS: Period[] = [
-  { id: "32", startMonth: "2026-01", endMonth: "2026-06" },
-  { id: "31", startMonth: "2025-07", endMonth: "2025-12" },
-  { id: "30", startMonth: "2025-01", endMonth: "2025-06" },
-  { id: "29", startMonth: "2024-07", endMonth: "2024-12" },
-];
-
-// subProgramId values are numeric (ProgramDtId). These remain mock until the
-// enrollment endpoints are wired (Tier B); the numbers are placeholders and
-// won't resolve against the live sub-program master.
-export const ENROLLMENTS: Enrollment[] = [
-  // Period 32 — Kedoya Sport Club
-  { studentUsername: "U0001", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 1 },
-  { studentUsername: "U0002", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 1 },
-  { studentUsername: "U0003", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 2 },
-  { studentUsername: "U0004", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 2 },
-  { studentUsername: "U0005", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 3 },
-  { studentUsername: "U0006", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 3 },
-  { studentUsername: "U0007", periodId: "32", dojang: "Kedoya Sport Club", subProgramId: 3 },
-  // Period 32 — Senayan
-  { studentUsername: "U0008", periodId: "32", dojang: "Senayan Dojang", subProgramId: 1 },
-  // Period 30 — Kedoya (historical for U0006)
-  { studentUsername: "U0006", periodId: "30", dojang: "Kedoya Sport Club", subProgramId: 3 },
-  { studentUsername: "U0007", periodId: "30", dojang: "Kedoya Sport Club", subProgramId: 3 },
-  // Period 29 — Kedoya (historical for U0006)
-  { studentUsername: "U0006", periodId: "29", dojang: "Kedoya Sport Club", subProgramId: 2 },
-];
-
-// Mock periods/enrollments never mutate in 3b, but expose a no-op subscription so
-// consumers are reactive once these become fetch-backed stores (3c).
-const academicMockListeners = new Set<() => void>();
-function subscribeAcademicMock(cb: () => void) {
-  academicMockListeners.add(cb);
-  return () => {
-    academicMockListeners.delete(cb);
-  };
+// ---- periods (derived from the schedule-period master) ----
+let _periodSrc: ReturnType<typeof getSchedulePeriods> | null = null;
+let _periods: Period[] = [];
+function getPeriodsSnapshot(): Period[] {
+  const src = getSchedulePeriods();
+  if (src !== _periodSrc) {
+    _periodSrc = src;
+    _periods = src.map((p) => ({
+      id: p.id,
+      name: p.periodName,
+      dojang: p.dojang,
+      startMonth: p.periodStart,
+      endMonth: p.periodEnd,
+    }));
+  }
+  return _periods;
 }
+
 export function getPeriods(): Period[] {
-  return PERIODS;
+  return getPeriodsSnapshot();
+}
+export function getPeriodById(id: string | number): Period | null {
+  const numId = Number(id);
+  return getPeriodsSnapshot().find((p) => p.id === numId) ?? null;
+}
+
+// ---- enrollments (derived from the operational schedules store) ----
+let _enrSrc: ReturnType<typeof getSchedules> | null = null;
+let _enrollments: Enrollment[] = [];
+function getEnrollmentsSnapshot(): Enrollment[] {
+  const src = getSchedules();
+  if (src !== _enrSrc) {
+    _enrSrc = src;
+    const out: Enrollment[] = [];
+    src.forEach((s) =>
+      s.members.forEach((m) =>
+        out.push({
+          studentUsername: m.username,
+          periodId: s.schPeriodId,
+          dojang: s.dojang,
+          programId: s.programId,
+          subProgramId: s.subProgramId,
+        }),
+      ),
+    );
+    _enrollments = out;
+  }
+  return _enrollments;
 }
 export function getEnrollments(): Enrollment[] {
-  return ENROLLMENTS;
+  return getEnrollmentsSnapshot();
 }
 
 const MONTHS_ID = [
@@ -150,16 +176,17 @@ const MONTHS_ID = [
 ];
 
 export function formatPeriod(p: Period): string {
+  const label = p.dojang ? `${p.name} · ${p.dojang}` : p.name;
   const [sy, sm] = p.startMonth.split("-").map(Number);
   const [ey, em] = p.endMonth.split("-").map(Number);
+  if (!sy || !sm || !ey || !em) return label;
   const startName = MONTHS_ID[sm - 1];
   const endName = MONTHS_ID[em - 1];
-  if (sy === ey) return `${p.id} (${startName} - ${endName} ${ey})`;
-  return `${p.id} (${startName} ${sy} - ${endName} ${ey})`;
-}
-
-export function getPeriodById(id: string): Period | null {
-  return PERIODS.find((p) => p.id === id) ?? null;
+  const range =
+    sy === ey
+      ? `${startName} - ${endName} ${ey}`
+      : `${startName} ${sy} - ${endName} ${ey}`;
+  return `${label} (${range})`;
 }
 
 /** Inclusive list of "YYYY-MM" months from startMonth to endMonth. */
@@ -167,6 +194,7 @@ export function monthRange(startMonth: string, endMonth: string): string[] {
   const [sy, sm] = startMonth.split("-").map(Number);
   const [ey, em] = endMonth.split("-").map(Number);
   const out: string[] = [];
+  if (!sy || !sm || !ey || !em) return out;
   let y = sy;
   let m = sm;
   while (y < ey || (y === ey && m <= em)) {
@@ -186,69 +214,84 @@ export function formatMonth(ym: string): string {
   return `${MONTHS_ID[m - 1]} ${y}`;
 }
 
-export function getDojangsForPeriod(periodId: string): string[] {
+// ---- selection helpers ----
+// Pure derivations over the enrollment list (from useEnrollments()). They accept
+// the drill-down's string form values and coerce to numeric backend ids. Taking
+// `enrollments` explicitly keeps them pure and makes them a real memo dependency
+// at the call sites (the data reactively hydrates with the schedules store).
+export function getDojangsForPeriod(
+  enrollments: Enrollment[],
+  periodId: string,
+): string[] {
+  const pid = Number(periodId);
   const set = new Set<string>();
-  ENROLLMENTS.filter((e) => e.periodId === periodId).forEach((e) =>
-    set.add(e.dojang),
-  );
+  enrollments.forEach((e) => {
+    if (e.periodId === pid && e.dojang) set.add(e.dojang);
+  });
   return Array.from(set).sort();
 }
 
 export function getProgramsForSelection(
+  enrollments: Enrollment[],
   periodId: string,
   dojang: string,
 ): Program[] {
-  const subProgramIds = new Set(
-    ENROLLMENTS.filter(
-      (e) => e.periodId === periodId && e.dojang === dojang,
-    ).map((e) => e.subProgramId),
-  );
-  // Resolve the parent program of each enrolled sub-program via the master store.
-  const programIds = new Set(
-    getMasterSubPrograms()
-      .filter((sp) => subProgramIds.has(sp.subProgramId))
-      .map((sp) => sp.programId),
-  );
+  const pid = Number(periodId);
+  const programIds = new Set<number>();
+  enrollments.forEach((e) => {
+    if (e.periodId === pid && e.dojang === dojang) programIds.add(e.programId);
+  });
   return getProgramsSnapshot().filter((p) => programIds.has(p.id));
 }
 
 export function getSubProgramsForSelection(
+  enrollments: Enrollment[],
   periodId: string,
   dojang: string,
   programId: string,
 ): SubProgram[] {
-  const subProgramIds = new Set(
-    ENROLLMENTS.filter(
-      (e) => e.periodId === periodId && e.dojang === dojang,
-    ).map((e) => e.subProgramId),
-  );
-  return getSubProgramsSnapshot().filter(
-    (sp) => String(sp.programId) === programId && subProgramIds.has(sp.id),
-  );
+  const pid = Number(periodId);
+  const prog = Number(programId);
+  const subProgramIds = new Set<number>();
+  enrollments.forEach((e) => {
+    if (e.periodId === pid && e.dojang === dojang && e.programId === prog) {
+      subProgramIds.add(e.subProgramId);
+    }
+  });
+  return getSubProgramsSnapshot().filter((sp) => subProgramIds.has(sp.id));
 }
 
 export function getEnrolledUsernames(
+  enrollments: Enrollment[],
   periodId: string,
   dojang: string,
   subProgramId: number,
 ): string[] {
-  return ENROLLMENTS.filter(
-    (e) =>
-      e.periodId === periodId &&
+  const pid = Number(periodId);
+  const set = new Set<string>();
+  enrollments.forEach((e) => {
+    if (
+      e.periodId === pid &&
       e.dojang === dojang &&
-      e.subProgramId === subProgramId,
-  ).map((e) => e.studentUsername);
+      e.subProgramId === subProgramId
+    ) {
+      set.add(e.studentUsername);
+    }
+  });
+  return Array.from(set);
 }
 
 /** All students enrolled in a period + dojang, regardless of sub-program (deduped). */
 export function getEnrolledUsernamesByDojang(
+  enrollments: Enrollment[],
   periodId: string,
   dojang: string,
 ): string[] {
+  const pid = Number(periodId);
   const set = new Set<string>();
-  ENROLLMENTS.filter(
-    (e) => e.periodId === periodId && e.dojang === dojang,
-  ).forEach((e) => set.add(e.studentUsername));
+  enrollments.forEach((e) => {
+    if (e.periodId === pid && e.dojang === dojang) set.add(e.studentUsername);
+  });
   return Array.from(set);
 }
 
@@ -268,26 +311,37 @@ export function useSubPrograms(): SubProgram[] {
   );
 }
 export function usePeriods(): Period[] {
-  return useSyncExternalStore(subscribeAcademicMock, getPeriods, getPeriods);
+  return useSyncExternalStore(
+    subscribeSchedulePeriods,
+    getPeriodsSnapshot,
+    getPeriodsSnapshot,
+  );
 }
+/**
+ * Subscribe to the operational enrollment source (the schedules store). Returns
+ * the derived Enrollment[] so callers can use it as a memo dependency — this is
+ * what makes the drill-down's dojang/program/sub-program options and the
+ * enrolled rosters recompute once the schedules fan-out hydrates. Heavy (it
+ * triggers the schedule fetch), so only the drill-down screens use it — NOT
+ * useAcademic.
+ */
 export function useEnrollments(): Enrollment[] {
   return useSyncExternalStore(
-    subscribeAcademicMock,
-    getEnrollments,
-    getEnrollments,
+    subscribeSchedules,
+    getEnrollmentsSnapshot,
+    getEnrollmentsSnapshot,
   );
 }
 
 /**
- * Subscribe to all academic data at once. Returns the live arrays and, by
- * subscribing, guarantees the calling component re-renders when programs/
- * sub-programs change (master CRUD now, fetch hydration in 3c) — so the
- * synchronous getById/forSelection helpers stay safe to call during render.
+ * Subscribe to all (lightweight) academic master data at once: programs,
+ * sub-programs and periods. Deliberately does NOT subscribe to the heavy
+ * schedules/enrollment source — screens that need enrollments call
+ * useEnrollments() explicitly.
  */
 export function useAcademic() {
   const programs = usePrograms();
   const subPrograms = useSubPrograms();
   const periods = usePeriods();
-  const enrollments = useEnrollments();
-  return { programs, subPrograms, periods, enrollments };
+  return { programs, subPrograms, periods };
 }

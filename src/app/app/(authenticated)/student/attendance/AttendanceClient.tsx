@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/student/attendance/AttendanceClient.tsx
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import PageHeader from "@/components/app/PageHeader";
 import StudentDrillDown, {
   EMPTY_SELECTION,
@@ -13,13 +13,20 @@ import {
   getPeriodById,
   getSubProgramById,
   useAcademic,
+  useEnrollments,
 } from "../_shared/academic";
 import {
   getStudents,
   subscribeStudents,
   type Student,
 } from "../_shared/students";
-import { getAttendance, MIN_ATTENDANCE } from "../_shared/attendance";
+import {
+  getAttendance,
+  getAttendanceVersion,
+  ensureStudentAtdLoaded,
+  subscribeAttendance,
+  MIN_ATTENDANCE,
+} from "../_shared/attendance";
 import { cn } from "@/lib/utils";
 
 export default function AttendanceClient() {
@@ -31,6 +38,20 @@ export default function AttendanceClient() {
     getStudents,
   );
   useAcademic(); // subscribe so period/sub-program labels re-render on hydrate
+  const enrollments = useEnrollments(); // schedules-derived; drives the roster
+  // re-render when a period's attendance hydrates
+  useSyncExternalStore(
+    subscribeAttendance,
+    getAttendanceVersion,
+    getAttendanceVersion,
+  );
+
+  // load attendance for the selected period (get-student-atd)
+  useEffect(() => {
+    if (selection.periodId) {
+      void ensureStudentAtdLoaded(Number(selection.periodId));
+    }
+  }, [selection.periodId]);
 
   const ready =
     selection.periodId &&
@@ -38,15 +59,33 @@ export default function AttendanceClient() {
     selection.programId &&
     selection.subProgramId;
 
-  const enrolled: Student[] = ready
-    ? getEnrolledUsernames(
-        selection.periodId,
-        selection.dojang,
-        Number(selection.subProgramId),
+  const enrolled = useMemo<Student[]>(() => {
+    if (
+      !(
+        selection.periodId &&
+        selection.dojang &&
+        selection.programId &&
+        selection.subProgramId
       )
-        .map((u) => students.find((s) => s.username === u))
-        .filter((s): s is Student => s !== undefined)
-    : [];
+    ) {
+      return [];
+    }
+    return getEnrolledUsernames(
+      enrollments,
+      selection.periodId,
+      selection.dojang,
+      Number(selection.subProgramId),
+    )
+      .map((u) => students.find((s) => s.username === u))
+      .filter((s): s is Student => s !== undefined);
+  }, [
+    selection.periodId,
+    selection.dojang,
+    selection.programId,
+    selection.subProgramId,
+    students,
+    enrollments,
+  ]);
 
   const period = selection.periodId ? getPeriodById(selection.periodId) : null;
   const subProgram = selection.subProgramId

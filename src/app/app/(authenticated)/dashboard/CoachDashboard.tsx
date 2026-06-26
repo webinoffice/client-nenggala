@@ -58,16 +58,16 @@ export default function CoachDashboard() {
     [events],
   );
 
-  // Schedules where this coach is primary or secondary (current period)
+  // Schedules where this coach is primary or additional.
+  // TODO(me-view-pass): scope to the current period via get-instructor-schedule;
+  // the store now spans all periods.
   const mySchedules = useMemo(
     () =>
       schedules
         .filter(
           (s) =>
-            s.periodId === CURRENT_PERIOD &&
-            s.status === "Active" &&
-            (s.primaryCoachUsername === username ||
-              s.secondaryCoachUsernames.includes(username)),
+            s.primaryCoachUsername === username ||
+            s.secondaryCoachUsernames.includes(username),
         )
         .sort(
           (a, b) =>

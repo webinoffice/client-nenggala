@@ -1,127 +1,91 @@
 // src/app/app/(authenticated)/coach/attendance/CoachAttendanceClient.tsx
 "use client";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/app/PageHeader";
 import {
-  aggregateAttendance,
-  type AggregatedAttendance,
-} from "../_shared/coach-attendance";
-import { getCoaches, subscribeCoaches } from "../_shared/coaches";
-import {
-  useAcademic,
-  formatPeriod,
-  formatMonth,
-  monthRange,
-  getProgramById,
-} from "../../student/_shared/academic";
+  fetchCoachAtd,
+  fetchCoachAtdDetail,
+  type CoachAtdRow,
+  type CoachAtdDetailRow,
+} from "@/lib/api/attendance";
+
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
 
 export default function CoachAttendanceClient() {
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
-  const coachByUsername = useMemo(
-    () => new Map(coaches.map((c) => [c.username, c])),
-    [coaches],
-  );
-
-  // Subscribe so program names re-render when the master store changes/hydrates.
-  const { periods: allPeriods } = useAcademic();
-
   const [namaInput, setNamaInput] = useState("");
-  const [periodInput, setPeriodInput] = useState("32");
   const [noInput, setNoInput] = useState("");
-  const [monthInput, setMonthInput] = useState(""); // YYYY-MM
+  const [monthInput, setMonthInput] = useState(currentMonth());
   const [applied, setApplied] = useState({
     nama: "",
-    period: "32",
     no: "",
-    month: "",
+    month: currentMonth(),
   });
-  const [detail, setDetail] = useState<AggregatedAttendance | null>(null);
+  const [rows, setRows] = useState<CoachAtdRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Months available depend on the selected period.
-  const monthOptions = useMemo(() => {
-    const periods =
-      periodInput === "All"
-        ? allPeriods
-        : allPeriods.filter((p) => p.id === periodInput);
-    const set = new Set<string>();
-    periods.forEach((p) =>
-      monthRange(p.startMonth, p.endMonth).forEach((m) => set.add(m)),
-    );
-    return Array.from(set).sort();
-  }, [periodInput, allPeriods]);
+  const [detail, setDetail] = useState<CoachAtdRow | null>(null);
+  const [detailRows, setDetailRows] = useState<CoachAtdDetailRow[]>([]);
 
-  const rows = useMemo(() => {
-    return aggregateAttendance({
-      monthFilter: applied.month || undefined,
-      periodFilter: applied.period === "All" ? undefined : applied.period,
-      coachUsernameFilter: applied.no.trim() || undefined,
-      nameMatcher: applied.nama.trim()
-        ? (u) => {
-            const c = coachByUsername.get(u);
-            return (
-              !!c &&
-              c.namaLengkap
-                .toLowerCase()
-                .includes(applied.nama.toLowerCase().trim())
-            );
-          }
-        : undefined,
-    });
-  }, [applied, coachByUsername]);
+  // get-coach-atd is per-month; load on applied-filter change (and on mount).
+  useEffect(() => {
+    if (!applied.month) return;
+    let alive = true;
+    fetchCoachAtd({
+      monthPeriod: applied.month,
+      userName: applied.nama.trim(),
+      userNoId: applied.no.trim(),
+    })
+      .then((r) => {
+        if (alive) setRows(r ?? []);
+      })
+      .catch(() => {
+        if (alive) setRows([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [applied]);
+
+  const openDetail = (row: CoachAtdRow) => {
+    setDetail(row);
+    setDetailRows([]);
+    fetchCoachAtdDetail({ monthPeriod: applied.month, programMsId: row.ProgramMsId })
+      .then((r) => setDetailRows(r ?? []))
+      .catch(() => setDetailRows([]));
+  };
 
   return (
     <>
       <PageHeader title="Coach Attendance Report" />
 
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
           <Input
             label="Nama"
             value={namaInput}
             onChange={(e) => setNamaInput(e.target.value)}
-            placeholder="e.g. Marvin Hadi"
+            placeholder="e.g. Cibaido"
           />
-          <Select
-            label="Period"
-            value={periodInput}
-            onChange={(e) => {
-              setPeriodInput(e.target.value);
-              setMonthInput(""); // reset month when period changes
-            }}
-          >
-            <option value="All">All</option>
-            {allPeriods.map((p) => (
-              <option key={p.id} value={p.id}>
-                {formatPeriod(p)}
-              </option>
-            ))}
-          </Select>
-          <Select
-            label="Bulan"
-            value={monthInput}
-            onChange={(e) => setMonthInput(e.target.value)}
-          >
-            <option value="">Semua Bulan</option>
-            {monthOptions.map((m) => (
-              <option key={m} value={m}>
-                {formatMonth(m)}
-              </option>
-            ))}
-          </Select>
           <Input
             label="No. Reg"
             value={noInput}
             onChange={(e) => setNoInput(e.target.value)}
-            placeholder="e.g. C0001"
+            placeholder="e.g. NI00001"
+          />
+          <Input
+            label="Bulan"
+            type="month"
+            value={monthInput}
+            onChange={(e) => setMonthInput(e.target.value)}
           />
         </div>
         <div className="flex items-center justify-end gap-2 mt-6">
@@ -130,29 +94,21 @@ export default function CoachAttendanceClient() {
             size="sm"
             onClick={() => {
               setNamaInput("");
-              setPeriodInput("32");
               setNoInput("");
-              setMonthInput("");
-              setApplied({
-                nama: "",
-                period: "32",
-                no: "",
-                month: "",
-              });
+              setMonthInput(currentMonth());
+              setLoading(true);
+              setApplied({ nama: "", no: "", month: currentMonth() });
             }}
           >
             Reset
           </Button>
           <Button
             variant="secondary"
-            onClick={() =>
-              setApplied({
-                nama: namaInput,
-                period: periodInput,
-                no: noInput,
-                month: monthInput,
-              })
-            }
+            onClick={() => {
+              setLoading(true);
+              setApplied({ nama: namaInput, no: noInput, month: monthInput });
+            }}
+            disabled={!monthInput}
           >
             <Search size={16} />
             Search
@@ -170,19 +126,24 @@ export default function CoachAttendanceClient() {
               <th className="text-left px-4 py-3.5 whitespace-nowrap">
                 Nama Lengkap
               </th>
-              <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                Program
-              </th>
-              <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                Periode
-              </th>
+              <th className="text-left px-4 py-3.5 whitespace-nowrap">Program</th>
+              <th className="text-left px-4 py-3.5 whitespace-nowrap">Periode</th>
               <th className="text-right px-4 py-3.5 whitespace-nowrap">
                 Attendance
               </th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
+                >
+                  Loading…
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={5}
@@ -192,37 +153,33 @@ export default function CoachAttendanceClient() {
                 </td>
               </tr>
             ) : (
-              rows.map((r) => {
-                const c = coachByUsername.get(r.coachUsername);
-                const prog = getProgramById(r.programId);
-                return (
-                  <tr
-                    key={`${r.coachUsername}-${r.programId}-${r.periodId}`}
-                    className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
-                      {r.coachUsername}
-                    </td>
-                    <td className="px-4 py-3 text-ink whitespace-nowrap">
-                      {c?.namaLengkap ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-ink whitespace-nowrap">
-                      {prog?.name ?? r.programId}
-                    </td>
-                    <td className="px-4 py-3 text-ink/70 whitespace-nowrap">
-                      {r.periodId}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setDetail(r)}
-                        className="font-display font-bold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-brand transition"
-                      >
-                        {r.count}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+              rows.map((r) => (
+                <tr
+                  key={`${r.UserDataId}-${r.ProgramMsId}-${r.PeriodTitle}`}
+                  className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
+                >
+                  <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
+                    {r.UserNoId}
+                  </td>
+                  <td className="px-4 py-3 text-ink whitespace-nowrap">
+                    {r.UserName ?? "-"}
+                  </td>
+                  <td className="px-4 py-3 text-ink whitespace-nowrap">
+                    {r.ProgramName}
+                  </td>
+                  <td className="px-4 py-3 text-ink/70 whitespace-nowrap">
+                    {r.PeriodTitle}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => openDetail(r)}
+                      className="font-display font-bold text-ink underline decoration-accent decoration-2 underline-offset-4 hover:text-brand transition"
+                    >
+                      {r.TotalAtd}
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
@@ -231,22 +188,17 @@ export default function CoachAttendanceClient() {
       <Modal
         open={detail !== null}
         onClose={() => setDetail(null)}
-        title={
-          detail
-            ? `Session dates · ${coachByUsername.get(detail.coachUsername)?.namaLengkap}`
-            : ""
-        }
+        title={detail ? `Session dates · ${detail.UserName}` : ""}
         size="md"
       >
         {detail && (
           <div className="space-y-3">
             <div className="text-xs text-muted uppercase tracking-widest font-bold">
-              {getProgramById(detail.programId)?.name} · Period{" "}
-              {detail.periodId}
+              {detail.ProgramName} · {detail.PeriodTitle}
             </div>
             <div className="text-sm text-ink">
               <span className="font-display font-bold text-2xl mr-2">
-                {detail.count}
+                {detail.TotalAtd}
               </span>
               <span className="text-muted">sessions taught</span>
             </div>
@@ -256,20 +208,30 @@ export default function CoachAttendanceClient() {
                   <tr>
                     <th className="text-left px-3 py-2">Date</th>
                     <th className="text-left px-3 py-2">Dojang</th>
+                    <th className="text-left px-3 py-2">Type</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...detail.sessions]
-                    .sort((a, b) => a.date.localeCompare(b.date))
-                    .map((s) => (
-                      <tr
-                        key={`${s.date}-${s.dojang}`}
-                        className="border-t border-ink/5"
+                  {detailRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="text-center px-3 py-6 text-muted text-xs uppercase tracking-widest font-bold"
                       >
-                        <td className="px-3 py-2 text-ink">{s.date}</td>
-                        <td className="px-3 py-2 text-ink/70">{s.dojang}</td>
+                        No sessions
+                      </td>
+                    </tr>
+                  ) : (
+                    detailRows.map((s, i) => (
+                      <tr key={i} className="border-t border-ink/5">
+                        <td className="px-3 py-2 text-ink">{s.ScheduleDate}</td>
+                        <td className="px-3 py-2 text-ink/70">{s.DojangName}</td>
+                        <td className="px-3 py-2 text-ink/70">
+                          {s.ProgramDtName}
+                        </td>
                       </tr>
-                    ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
