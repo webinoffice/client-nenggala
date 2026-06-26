@@ -7,6 +7,7 @@ import { getCurrentUsername } from "@/lib/current-user";
 import {
   getSchedules,
   subscribeSchedules,
+  getCurrentPeriod,
   DAYS_OF_WEEK,
   type Schedule,
 } from "../../coach/_shared/schedules";
@@ -19,8 +20,6 @@ import {
 } from "../../student/_shared/academic";
 import ClassListModal from "./ClassListModal";
 import SubmitAttendanceModal from "./SubmitAttendanceModal";
-
-const CURRENT_PERIOD = "32";
 
 export default function CoachScheduleClient() {
   const username = getCurrentUsername();
@@ -52,24 +51,32 @@ export default function CoachScheduleClient() {
     [students],
   );
 
-  // Schedules where this coach is involved (primary or additional).
-  // TODO(me-view-pass): scope to the coach's current period via
-  // get-instructor-schedule; the store now spans all periods.
+  // Every class this coach is involved in (primary or additional), across all
+  // periods…
+  const involved = useMemo(
+    () =>
+      schedules.filter(
+        (s) =>
+          s.primaryCoachUsername === username ||
+          s.secondaryCoachUsernames.includes(username) ||
+          s.assistantUsernames.includes(username),
+      ),
+    [schedules, username],
+  );
+  // …scoped to the current period (derived from the involved classes' dates).
+  const currentPeriod = useMemo(() => getCurrentPeriod(involved), [involved]);
+  const periodId = currentPeriod?.id ?? 0;
+
   const mySchedules = useMemo(
     () =>
-      schedules
-        .filter(
-          (s) =>
-            s.primaryCoachUsername === username ||
-            s.secondaryCoachUsernames.includes(username) ||
-            s.assistantUsernames.includes(username),
-        )
+      involved
+        .filter((s) => periodId !== 0 && s.schPeriodId === periodId)
         .sort(
           (a, b) =>
             DAYS_OF_WEEK.indexOf(a.dayOfWeek) -
             DAYS_OF_WEEK.indexOf(b.dayOfWeek),
         ),
-    [schedules, username],
+    [involved, periodId],
   );
 
   const [viewingClass, setViewingClass] = useState<Schedule | null>(null);
@@ -81,7 +88,8 @@ export default function CoachScheduleClient() {
         Coaching Schedule
       </h1>
       <p className="text-sm text-muted mb-8">
-        Period {CURRENT_PERIOD} · Your weekly classes & attendance submissions.
+        {currentPeriod?.title ?? "—"} · Your weekly classes & attendance
+        submissions.
       </p>
 
       <div className="bg-paper rounded-sm border border-ink/10 overflow-hidden">

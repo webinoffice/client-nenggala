@@ -3,7 +3,11 @@
 // Master sub-program (ProgramDt) store. IDs are the backend's numeric
 // ProgramDtId; programId is the parent ProgramMsId. The operational
 // SubProgram view in student/_shared/academic.ts derives from this store.
-import { fetchSubPrograms } from "@/lib/api/master";
+import {
+  fetchSubPrograms,
+  saveProgramDt,
+  inactProgramDt,
+} from "@/lib/api/master";
 import { fileUrl } from "@/lib/api/file-url";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
@@ -42,34 +46,61 @@ export function subscribeSubPrograms(listener: () => void) {
     listeners.delete(listener);
   };
 }
-export function getNextSubProgramId(): number {
-  return Date.now(); // temporary client id; the real ProgramDtId comes from the backend
-}
-export function addSubProgram(subProgram: SubProgram) {
-  _subPrograms = [subProgram, ..._subPrograms];
-  notify();
-}
-export function updateSubProgram(
-  subProgramId: number,
-  patch: Partial<SubProgram>,
+// ---- writes (save-programdt multipart + inact-programdt toggle) ----
+
+export async function addSubProgram(
+  programId: number,
+  subProgramName: string,
+  file: File | null,
 ) {
-  _subPrograms = _subPrograms.map((sp) =>
-    sp.subProgramId === subProgramId ? { ...sp, ...patch } : sp,
-  );
-  notify();
+  try {
+    await saveProgramDt(
+      {
+        ProgramDtId: 0,
+        ProgramMsId: programId,
+        ProgramDtName: subProgramName,
+        FgMode: "I",
+      },
+      file,
+    );
+    await reloadSubPrograms();
+  } catch (err) {
+    console.error("Failed to add sub-program", err);
+  }
 }
-export function toggleSubProgramStatus(subProgramId: number, by: string) {
-  _subPrograms = _subPrograms.map((sp) =>
-    sp.subProgramId === subProgramId
-      ? {
-          ...sp,
-          status: sp.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : sp,
-  );
-  notify();
+
+export async function updateSubProgram(
+  subProgramId: number,
+  programId: number,
+  subProgramName: string,
+  file: File | null,
+) {
+  try {
+    await saveProgramDt(
+      {
+        ProgramDtId: subProgramId,
+        ProgramMsId: programId,
+        ProgramDtName: subProgramName,
+        FgMode: "E",
+      },
+      file,
+    );
+    await reloadSubPrograms();
+  } catch (err) {
+    console.error("Failed to update sub-program", err);
+  }
+}
+
+export async function toggleSubProgramStatus(
+  subProgramId: number,
+  current: SubProgramStatus,
+) {
+  try {
+    await inactProgramDt(subProgramId, current === "Active" ? "N" : "Y");
+    await reloadSubPrograms();
+  } catch (err) {
+    console.error("Failed to change sub-program status", err);
+  }
 }
 
 // ---- hydration (read API) ----

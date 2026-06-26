@@ -109,6 +109,11 @@ export function getSabukRank(beltName: string): number {
   return belt ? belt.beltLevel : 0;
 }
 
+/** Resolve a belt name to its backend BeltMasterId (null when unknown). */
+export function getBeltIdByName(beltName: string): number | null {
+  return _belts.find((b) => b.beltName === beltName)?.id ?? null;
+}
+
 // Belt-based passing thresholds:
 //   rank 0–6 (Putih → ...):  75
 //   rank 7+  (Merah → ...):  85

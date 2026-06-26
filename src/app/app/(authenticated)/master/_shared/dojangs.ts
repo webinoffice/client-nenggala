@@ -4,7 +4,7 @@
 // and students.ts were removed in favour of getDojangOptions()/useDojangOptions()
 // derived from this store (audit issue #2).
 import { useSyncExternalStore } from "react";
-import { fetchDojangs } from "@/lib/api/master";
+import { fetchDojangs, saveDojang, inactDojang } from "@/lib/api/master";
 import { fileUrl } from "@/lib/api/file-url";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
@@ -142,29 +142,37 @@ export async function reloadDojangs(): Promise<void> {
 export function getDojangById(id: number): Dojang | null {
   return _dojangs.find((d) => d.id === id) ?? null;
 }
-export function getNextDojangId(): number {
-  return _dojangs.length > 0 ? Math.max(..._dojangs.map((d) => d.id)) + 1 : 1;
+// ---- writes (save-dojang multipart + inact-dojang toggle) ----
+
+export async function addDojang(dojangName: string, file: File | null) {
+  try {
+    await saveDojang({ DojangId: 0, DojangName: dojangName, FgMode: "I" }, file);
+    await reloadDojangs();
+  } catch (err) {
+    console.error("Failed to add dojang", err);
+  }
 }
-export function addDojang(dojang: Dojang) {
-  _dojangs = [dojang, ..._dojangs];
-  notify();
+
+export async function updateDojang(
+  id: number,
+  dojangName: string,
+  file: File | null,
+) {
+  try {
+    await saveDojang({ DojangId: id, DojangName: dojangName, FgMode: "E" }, file);
+    await reloadDojangs();
+  } catch (err) {
+    console.error("Failed to update dojang", err);
+  }
 }
-export function updateDojang(id: number, patch: Partial<Dojang>) {
-  _dojangs = _dojangs.map((d) => (d.id === id ? { ...d, ...patch } : d));
-  notify();
-}
-export function toggleDojangStatus(id: number, by: string) {
-  _dojangs = _dojangs.map((d) =>
-    d.id === id
-      ? {
-          ...d,
-          status: d.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : d,
-  );
-  notify();
+
+export async function toggleDojangStatus(id: number, current: DojangStatus) {
+  try {
+    await inactDojang(id, current === "Active" ? "N" : "Y");
+    await reloadDojangs();
+  } catch (err) {
+    console.error("Failed to change dojang status", err);
+  }
 }
 
 // ---- derived dropdown options (cached for stable useSyncExternalStore snapshots) ----

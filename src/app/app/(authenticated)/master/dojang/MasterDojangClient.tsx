@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/master/dojang/MasterDojangClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
@@ -17,7 +16,6 @@ import DojangFormModal, { type DojangFormValues } from "./DojangFormModal";
 import {
   getDojangs,
   subscribeDojangs,
-  getNextDojangId,
   addDojang,
   updateDojang,
   toggleDojangStatus,
@@ -36,8 +34,6 @@ function formatDate(iso: string) {
 }
 
 export default function MasterDojangClient() {
-  const currentUserName = getCurrentUsername();
-
   const dojangs = useSyncExternalStore(subscribeDojangs, getDojangs, getDojangs);
 
   const [dojangInput, setDojangInput] = useState("");
@@ -103,23 +99,10 @@ export default function MasterDojangClient() {
   };
 
   const handleSubmit = (values: DojangFormValues) => {
-    const now = new Date().toISOString();
     if (editing) {
-      updateDojang(editing.id, {
-        dojangName: values.dojangName,
-        image: values.image || undefined,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      updateDojang(editing.id, values.dojangName, values.imageFile);
     } else {
-      addDojang({
-        id: getNextDojangId(),
-        dojangName: values.dojangName,
-        image: values.image || undefined,
-        status: "Active",
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      addDojang(values.dojangName, values.imageFile);
     }
     setFormOpen(false);
     setEditing(null);
@@ -127,7 +110,7 @@ export default function MasterDojangClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleDojangStatus(confirming.id, currentUserName);
+    toggleDojangStatus(confirming.id, confirming.status);
   };
 
   return (

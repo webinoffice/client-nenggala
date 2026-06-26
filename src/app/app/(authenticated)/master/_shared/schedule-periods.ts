@@ -1,9 +1,14 @@
 // src/app/app/(authenticated)/master/_shared/schedule-periods.ts
-import { fetchSchedulePeriods } from "@/lib/api/master";
+import {
+  fetchSchedulePeriods,
+  saveSchPeriod,
+  deleteSchPeriod,
+} from "@/lib/api/master";
 import { dmyhmsToIso } from "@/lib/api/dates";
 import {
   ensureDojangsLoaded,
   getDojangById,
+  getDojangs,
 } from "./dojangs";
 
 export type SchedulePeriodStatus = "Active" | "Inactive";
@@ -103,25 +108,88 @@ export async function reloadSchedulePeriods(): Promise<void> {
 export function getMaxSchedulePeriodId(): number {
   return _periods.length > 0 ? Math.max(..._periods.map((p) => p.id)) : 0;
 }
-/** Add one or more periods (the form creates one record per selected dojang). */
-export function addSchedulePeriods(created: SchedulePeriod[]) {
-  _periods = [...created, ..._periods];
-  notify();
+
+// ---- writes ----
+// save-schperiod / delete-schperiod (plain JSON). The backend has no status
+// column and no inact endpoint, so "disable" is a hard delete (guarded against
+// in-use periods server-side). On insert the backend auto-assigns PeriodCount
+// (the "Period N" name) per dojang, so the form's periodName is informational.
+
+/** "2026-01" → "2026-01-01" (first of month). */
+function startOfMonth(ym: string): string {
+  return ym ? `${ym}-01` : "";
 }
-export function updateSchedulePeriod(id: number, patch: Partial<SchedulePeriod>) {
-  _periods = _periods.map((p) => (p.id === id ? { ...p, ...patch } : p));
-  notify();
+/** "2026-06" → "2026-06-30" (last of month) — keeps CURDATE-in-period checks right. */
+function endOfMonth(ym: string): string {
+  if (!ym) return "";
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${ym}-${String(last).padStart(2, "0")}`;
 }
-export function toggleSchedulePeriodStatus(id: number, by: string) {
-  _periods = _periods.map((p) =>
-    p.id === id
-      ? {
-          ...p,
-          status: p.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : p,
-  );
-  notify();
+
+function resolveDojangId(name: string): number | null {
+  return getDojangs().find((d) => d.dojangName === name)?.id ?? null;
+}
+
+/** Insert one period per created row (the form fans out over the selected
+ *  dojangs). Resolves dojang name → id, converts "YYYY-MM" to dates, then
+ *  re-fetches so the server-assigned ids/period names land. */
+export async function addSchedulePeriods(created: SchedulePeriod[]) {
+  try {
+    await ensureDojangsLoaded();
+    for (const p of created) {
+      const dojangId = resolveDojangId(p.dojang);
+      if (dojangId == null) {
+        console.error(`Unknown dojang "${p.dojang}" — skipping period insert`);
+        continue;
+      }
+      await saveSchPeriod({
+        SchPeriodId: 0,
+        DojangId: dojangId,
+        PeriodStart: startOfMonth(p.periodStart),
+        PeriodEnd: endOfMonth(p.periodEnd),
+        PeriodTitle: p.periodName,
+        FgMode: "I",
+      });
+    }
+    await reloadSchedulePeriods();
+  } catch (err) {
+    console.error("Failed to add schedule period(s)", err);
+  }
+}
+
+/** Edit a period. The backend edit path only persists PeriodEnd (the start and
+ *  the auto-generated name are immutable); DojangId + the existing start are
+ *  resent for the overlap/edit validations. */
+export async function updateSchedulePeriod(
+  id: number,
+  patch: Partial<SchedulePeriod>,
+) {
+  try {
+    const existing = _periods.find((p) => p.id === id);
+    if (!existing) return;
+    const dojangId = resolveDojangId(existing.dojang);
+    if (dojangId == null) {
+      console.error(`Unknown dojang "${existing.dojang}" — skipping period edit`);
+      return;
+    }
+    await saveSchPeriod({
+      SchPeriodId: id,
+      DojangId: dojangId,
+      PeriodStart: startOfMonth(existing.periodStart),
+      PeriodEnd: endOfMonth(patch.periodEnd ?? existing.periodEnd),
+      PeriodTitle: patch.periodName ?? existing.periodName,
+      FgMode: "E",
+    });
+    await reloadSchedulePeriods();
+  } catch (err) {
+    console.error("Failed to update schedule period", err);
+  }
+}
+
+/** Hard delete (the backend has no status). Throws the server's "already used"
+ *  error when a schedule references the period, so the caller can surface it. */
+export async function deleteSchedulePeriod(id: number) {
+  await deleteSchPeriod(id);
+  await reloadSchedulePeriods();
 }

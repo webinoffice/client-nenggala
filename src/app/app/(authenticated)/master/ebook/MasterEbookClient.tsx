@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/master/ebook/MasterEbookClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
@@ -8,6 +7,7 @@ import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
@@ -15,14 +15,12 @@ import EbookFormModal, { type EbookFormValues } from "./EbookFormModal";
 import {
   getEbooks,
   subscribeEbooks,
-  getNextEbookId,
   addEbook,
-  updateEbook,
-  toggleEbookStatus,
+  removeEbook,
   type Ebook,
   type EbookStatus,
 } from "../_shared/ebooks";
-import { useSabukOptions } from "../_shared/belts";
+import { useSabukOptions, getBeltIdByName } from "../_shared/belts";
 
 type StatusFilter = "All" | EbookStatus;
 
@@ -35,7 +33,6 @@ function fmtDate(iso: string) {
 }
 
 export default function MasterEbookClient() {
-  const currentUserName = getCurrentUsername();
   const ebooks = useSyncExternalStore(subscribeEbooks, getEbooks, getEbooks);
   const sabukOptions = useSabukOptions();
 
@@ -49,8 +46,8 @@ export default function MasterEbookClient() {
   });
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Ebook | null>(null);
   const [confirming, setConfirming] = useState<Ebook | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -97,39 +94,30 @@ export default function MasterEbookClient() {
   };
 
   const handleAdd = () => {
-    setEditing(null);
-    setFormOpen(true);
-  };
-
-  const handleEdit = (e: Ebook) => {
-    setEditing(e);
     setFormOpen(true);
   };
 
   const handleSubmit = (values: EbookFormValues) => {
-    const now = new Date().toISOString();
-    if (editing) {
-      updateEbook(editing.id, {
-        ...values,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
-    } else {
-      addEbook({
-        id: getNextEbookId(),
-        ...values,
-        status: "Active",
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+    const beltId = getBeltIdByName(values.sabuk);
+    if (beltId == null) {
+      setActionError(`Unknown belt "${values.sabuk}".`);
+      return;
     }
+    addEbook(beltId, values.title, null, values.file);
     setFormOpen(false);
-    setEditing(null);
   };
 
-  const handleToggleStatus = () => {
+  const handleDelete = async () => {
     if (!confirming) return;
-    toggleEbookStatus(confirming.id, currentUserName);
+    const target = confirming;
+    setConfirming(null);
+    try {
+      await removeEbook(target.id);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to delete e-book",
+      );
+    }
   };
 
   return (
@@ -222,14 +210,18 @@ export default function MasterEbookClient() {
                       <td className="px-4 py-3 text-ink">{e.sabuk}</td>
                       <td className="px-4 py-3 text-ink">{e.title}</td>
                       <td className="px-4 py-3">
-                        <a
-                          href={`/ebooks/${e.pdfFile}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand hover:text-brand-hover underline underline-offset-4 font-mono text-xs"
-                        >
-                          {e.pdfFile}
-                        </a>
+                        {e.pdfFile ? (
+                          <a
+                            href={e.pdfFile}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand hover:text-brand-hover underline underline-offset-4 font-mono text-xs"
+                          >
+                            View PDF
+                          </a>
+                        ) : (
+                          <span className="text-muted text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
@@ -255,21 +247,10 @@ export default function MasterEbookClient() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleEdit(e)}
-                            className="bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:brightness-95 transition"
-                          >
-                            Update
-                          </button>
-                          <button
                             onClick={() => setConfirming(e)}
-                            className={cn(
-                              "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
-                              isActive
-                                ? "bg-brand text-brand-foreground hover:bg-brand-hover"
-                                : "bg-ink text-paper hover:bg-ink-soft",
-                            )}
+                            className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
                           >
-                            {isActive ? "Disable" : "Enable"}
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -295,31 +276,37 @@ export default function MasterEbookClient() {
 
       <EbookFormModal
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
-        initial={editing}
+        onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
       />
 
       <ConfirmDialog
         open={confirming !== null}
         onClose={() => setConfirming(null)}
-        onConfirm={handleToggleStatus}
-        title={
-          confirming?.status === "Inactive" ? "Enable E-Book" : "Disable E-Book"
-        }
+        onConfirm={handleDelete}
+        title="Delete E-Book"
         description={
           confirming
-            ? confirming.status === "Inactive"
-              ? `Enable "${confirming.title}"? It will become visible to students.`
-              : `Disable "${confirming.title}"? It will be hidden from students.`
+            ? `Delete "${confirming.title}"? This cannot be undone.`
             : ""
         }
-        confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}
-        variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
+        confirmLabel="Delete"
+        variant="destructive"
       />
+
+      <Modal
+        open={actionError !== ""}
+        onClose={() => setActionError("")}
+        title="Cannot Delete E-Book"
+        size="sm"
+      >
+        <p className="text-sm text-ink/80">{actionError}</p>
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setActionError("")}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

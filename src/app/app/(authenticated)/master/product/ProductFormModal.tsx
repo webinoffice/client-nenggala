@@ -1,26 +1,19 @@
 // src/app/app/(authenticated)/master/product/ProductFormModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import type { Product } from "../_shared/products";
-import { PRODUCT_TYPES, type ProductType } from "../_shared/product-types";
+import { useProductTypes } from "../_shared/product-types";
 
 export type ProductFormValues = {
-  type: ProductType;
+  typeId: number;
   productName: string;
   link: string;
-  image: string;
-};
-
-const EMPTY: ProductFormValues = {
-  type: PRODUCT_TYPES[0],
-  productName: "",
-  link: "",
-  image: "",
+  imageFile: File | null;
 };
 
 interface ProductFormModalProps {
@@ -65,31 +58,35 @@ function ProductFormBody({
   onCancel: () => void;
   onSubmit: (values: ProductFormValues) => void;
 }) {
-  const [values, setValues] = useState<ProductFormValues>(() =>
-    initial
-      ? {
-          type: initial.type,
-          productName: initial.productName,
-          link: initial.link,
-          image: initial.image,
-        }
-      : EMPTY,
-  );
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof ProductFormValues, string>>
-  >({});
+  const productTypes = useProductTypes();
+  const [typeId, setTypeId] = useState<number | "">(initial?.typeId ?? "");
+  const [productName, setProductName] = useState(initial?.productName ?? "");
+  const [link, setLink] = useState(initial?.link ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [errors, setErrors] = useState<{
+    typeId?: string;
+    productName?: string;
+    link?: string;
+  }>({});
 
   const isEditing = initial !== null;
 
   const handleSubmit = () => {
     const next: typeof errors = {};
-    if (!values.productName.trim()) next.productName = "Required";
-    if (!values.link.trim()) next.link = "Required";
+    if (typeId === "") next.typeId = "Required";
+    if (!productName.trim()) next.productName = "Required";
+    if (!link.trim()) next.link = "Required";
     if (Object.keys(next).length > 0) {
       setErrors(next);
       return;
     }
-    onSubmit(values);
+    onSubmit({
+      typeId: Number(typeId),
+      productName: productName.trim(),
+      link: link.trim(),
+      imageFile,
+    });
   };
 
   return (
@@ -97,40 +94,61 @@ function ProductFormBody({
       <div className="space-y-4">
         <Select
           label="Type"
-          value={values.type}
+          value={typeId === "" ? "" : String(typeId)}
           onChange={(e) =>
-            setValues((v) => ({ ...v, type: e.target.value as ProductType }))
+            setTypeId(e.target.value === "" ? "" : Number(e.target.value))
           }
+          error={errors.typeId}
         >
-          {PRODUCT_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          <option value="">Select a type</option>
+          {productTypes.map((t) => (
+            <option key={t.id} value={String(t.id)}>
+              {t.name}
             </option>
           ))}
         </Select>
         <Input
           label="Product Name"
           placeholder="e.g. Uniform"
-          value={values.productName}
-          onChange={(e) =>
-            setValues((v) => ({ ...v, productName: e.target.value }))
-          }
+          value={productName}
+          onChange={(e) => setProductName(e.target.value)}
           error={errors.productName}
         />
         <Input
           label="Link"
           placeholder="https://..."
-          value={values.link}
-          onChange={(e) => setValues((v) => ({ ...v, link: e.target.value }))}
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
           error={errors.link}
         />
-        <Input
-          label="Image"
-          placeholder="e.g. /images/product-placeholder.jpg"
-          value={values.image}
-          onChange={(e) => setValues((v) => ({ ...v, image: e.target.value }))}
-          error={errors.image}
-        />
+        <div className="flex flex-col gap-2">
+          <label className="font-display text-[11px] font-bold uppercase tracking-widest text-ink">
+            Image
+          </label>
+          {isEditing && initial?.image && !imageFile && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={initial.image}
+              alt={initial.productName}
+              className="h-24 w-24 rounded-sm border border-ink/10 object-cover"
+            />
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            className="text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-ink/15 file:bg-paper-soft file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:tracking-widest file:text-ink hover:file:bg-paper"
+          />
+          {imageFile && (
+            <p className="text-xs text-muted">Selected: {imageFile.name}</p>
+          )}
+          {isEditing && (
+            <p className="text-xs text-muted">
+              Leave empty to keep the current image.
+            </p>
+          )}
+        </div>
       </div>
       <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-ink/10">
         <Button variant="outline" size="sm" onClick={onCancel}>

@@ -125,6 +125,33 @@ export function getScheduleById(id: number): Schedule | null {
   return _schedules.find((s) => s.id === id) ?? null;
 }
 
+/**
+ * The period considered "current" for a given set of schedules: the one whose
+ * date range contains today, else the most recently ended. Returns null when the
+ * list is empty. Used by the me-views / coach dashboard to scope to the active
+ * period and label it (replacing the old hardcoded "Period 32").
+ */
+export function getCurrentPeriod(
+  schedules: Schedule[],
+): { id: number; title: string } | null {
+  if (schedules.length === 0) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const inRange = schedules.find((s) => {
+    const start = new Date(s.dateStart);
+    const end = new Date(s.dateEnd);
+    return (
+      !Number.isNaN(start.getTime()) &&
+      !Number.isNaN(end.getTime()) &&
+      today >= start &&
+      today <= end
+    );
+  });
+  const pick =
+    inRange ?? [...schedules].sort((a, b) => b.dateEnd.localeCompare(a.dateEnd))[0];
+  return pick ? { id: pick.schPeriodId, title: pick.periodTitle } : null;
+}
+
 // ---- hydration (read API) ----
 let _loaded = false;
 let _loadPromise: Promise<void> | null = null;

@@ -1,5 +1,10 @@
 // src/app/app/(authenticated)/master/_shared/programs.ts
-import { fetchPrograms } from "@/lib/api/master";
+import {
+  fetchPrograms,
+  saveProgramMs,
+  inactProgramMs,
+} from "@/lib/api/master";
+import { fileUrl } from "@/lib/api/file-url";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type ProgramStatus = "Active" | "Inactive";
@@ -7,6 +12,7 @@ export type ProgramStatus = "Active" | "Inactive";
 export type Program = {
   id: number; // ProgramMsId
   programName: string;
+  image?: string; // resolved ProgramMsImage URL
   isMain?: boolean; // the main program (Taekwondo) — cannot be disabled
   status: ProgramStatus;
   updatedBy: string;
@@ -43,29 +49,47 @@ export function subscribePrograms(listener: () => void) {
 export function getProgramById(id: number): Program | null {
   return _programs.find((p) => p.id === id) ?? null;
 }
-export function getNextProgramId(): number {
-  return Date.now(); // temporary client id; the real ProgramMsId comes from the backend
+
+// ---- writes (save-programms multipart + inact-programms toggle) ----
+// Mutators call the backend then reload<X>() so server-assigned ids/images land;
+// the backend stamps UpdatedBy from the token. Add/edit swallow errors (the form
+// closes optimistically); the status toggle is non-destructive.
+
+export async function addProgram(programName: string, file: File | null) {
+  try {
+    await saveProgramMs(
+      { ProgramMsId: 0, ProgramName: programName, FgMode: "I" },
+      file,
+    );
+    await reloadPrograms();
+  } catch (err) {
+    console.error("Failed to add program", err);
+  }
 }
-export function addProgram(program: Program) {
-  _programs = [program, ..._programs];
-  notify();
+
+export async function updateProgram(
+  id: number,
+  programName: string,
+  file: File | null,
+) {
+  try {
+    await saveProgramMs(
+      { ProgramMsId: id, ProgramName: programName, FgMode: "E" },
+      file,
+    );
+    await reloadPrograms();
+  } catch (err) {
+    console.error("Failed to update program", err);
+  }
 }
-export function updateProgram(id: number, patch: Partial<Program>) {
-  _programs = _programs.map((p) => (p.id === id ? { ...p, ...patch } : p));
-  notify();
-}
-export function toggleProgramStatus(id: number, by: string) {
-  _programs = _programs.map((p) =>
-    p.id === id
-      ? {
-          ...p,
-          status: p.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : p,
-  );
-  notify();
+
+export async function toggleProgramStatus(id: number, current: ProgramStatus) {
+  try {
+    await inactProgramMs(id, current === "Active" ? "N" : "Y");
+    await reloadPrograms();
+  } catch (err) {
+    console.error("Failed to change program status", err);
+  }
 }
 
 // ---- hydration (read API) ----
@@ -77,6 +101,7 @@ async function loadPrograms(): Promise<void> {
   _programs = rows.map((r) => ({
     id: r.ProgramMsId,
     programName: r.ProgramName,
+    image: r.ProgramMsImage ? fileUrl(r.ProgramMsImage) : undefined,
     isMain: isMainProgram(r.ProgramName),
     status: r.FgStatus === "Y" ? "Active" : "Inactive",
     updatedBy: r.UpdatedBy ?? "",

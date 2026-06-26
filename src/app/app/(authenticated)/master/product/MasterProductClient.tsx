@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/master/product/MasterProductClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
@@ -13,11 +12,10 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import ProductFormModal, { type ProductFormValues } from "./ProductFormModal";
-import { PRODUCT_TYPES } from "../_shared/product-types";
+import { useProductTypes } from "../_shared/product-types";
 import {
   getProducts,
   subscribeProducts,
-  getNextProductId,
   addProduct,
   updateProduct,
   removeProduct,
@@ -37,13 +35,12 @@ function toHref(link: string) {
 }
 
 export default function MasterProductClient() {
-  const currentUserName = getCurrentUsername();
-
   const products = useSyncExternalStore(
     subscribeProducts,
     getProducts,
     getProducts,
   );
+  const productTypes = useProductTypes();
   const [typeInput, setTypeInput] = useState("All");
   const [productInput, setProductInput] = useState("");
   const [applied, setApplied] = useState({ type: "All", product: "" });
@@ -52,6 +49,7 @@ export default function MasterProductClient() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [confirming, setConfirming] = useState<Product | null>(null);
   const [viewingImage, setViewingImage] = useState<Product | null>(null);
+  const [actionError, setActionError] = useState("");
 
   // pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,28 +99,31 @@ export default function MasterProductClient() {
   };
 
   const handleSubmit = (values: ProductFormValues) => {
-    const now = new Date().toISOString();
+    const input = {
+      typeId: values.typeId,
+      productName: values.productName,
+      link: values.link,
+    };
     if (editing) {
-      updateProduct(editing.id, {
-        ...values,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      updateProduct(editing.id, input, values.imageFile);
     } else {
-      addProduct({
-        id: getNextProductId(),
-        ...values,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      addProduct(input, values.imageFile);
     }
     setFormOpen(false);
     setEditing(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!confirming) return;
-    removeProduct(confirming.id);
+    const target = confirming;
+    setConfirming(null);
+    try {
+      await removeProduct(target.id);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to delete product",
+      );
+    }
   };
 
   return (
@@ -146,9 +147,9 @@ export default function MasterProductClient() {
             onChange={(e) => setTypeInput(e.target.value)}
           >
             <option value="All">All</option>
-            {PRODUCT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {productTypes.map((t) => (
+              <option key={t.id} value={t.name}>
+                {t.name}
               </option>
             ))}
           </Select>
@@ -307,6 +308,20 @@ export default function MasterProductClient() {
         confirmLabel="Delete"
         variant="destructive"
       />
+
+      <Modal
+        open={actionError !== ""}
+        onClose={() => setActionError("")}
+        title="Cannot Delete Product"
+        size="sm"
+      >
+        <p className="text-sm text-ink/80">{actionError}</p>
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setActionError("")}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

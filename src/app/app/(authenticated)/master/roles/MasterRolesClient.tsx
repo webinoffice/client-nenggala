@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/master/roles/MasterRolesClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Search, Eye, EyeOff } from "lucide-react";
@@ -34,8 +33,6 @@ function formatDate(iso: string) {
 }
 
 export default function MasterRolesClient() {
-  const currentUserName = getCurrentUsername();
-
   const users = useSyncExternalStore(
     subscribeAppUsers,
     getAppUsers,
@@ -115,14 +112,10 @@ export default function MasterRolesClient() {
 
   const handleSubmit = (values: UserFormValues) => {
     if (!editing) return;
-    const now = new Date().toISOString();
-    // Only password and role can change.
+    // Only send what actually changed: role (if different) and/or a new password.
     updateAppUser(editing.id, {
-      role: values.role,
-      password:
-        values.password.trim() === "" ? editing.password : values.password,
-      updatedBy: currentUserName,
-      updateDate: now,
+      role: values.role !== editing.role ? values.role : undefined,
+      password: values.password.trim() === "" ? undefined : values.password,
     });
     setFormOpen(false);
     setEditing(null);
@@ -130,7 +123,7 @@ export default function MasterRolesClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleAppUserStatus(confirming.id, currentUserName);
+    toggleAppUserStatus(confirming.id, confirming.status);
   };
 
   return (

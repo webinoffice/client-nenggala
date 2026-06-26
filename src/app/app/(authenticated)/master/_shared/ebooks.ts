@@ -1,5 +1,5 @@
 // src/app/app/(authenticated)/master/_shared/ebooks.ts
-import { fetchEbooks } from "@/lib/api/master";
+import { fetchEbooks, saveEBook, deleteEBook } from "@/lib/api/master";
 import { fileUrl } from "@/lib/api/file-url";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
@@ -162,27 +162,35 @@ export async function reloadEbooks(): Promise<void> {
   await ensureEbooksLoaded();
 }
 
-export function getNextEbookId(): number {
-  return _ebooks.length > 0 ? Math.max(..._ebooks.map((e) => e.id)) + 1 : 1;
+// ---- writes (save-ebook multipart insert + delete-ebook HARD delete) ----
+// The backend saveEBookMs is insert-only (no edit path), so this is insert +
+// delete only — there is no update/toggle.
+
+export async function addEbook(
+  beltMasterId: number,
+  title: string,
+  vol: string | null,
+  file: File | null,
+) {
+  try {
+    await saveEBook(
+      {
+        EBookMsId: 0,
+        BeltMasterId: beltMasterId,
+        Vol: vol,
+        Title: title,
+        FgMode: "I",
+      },
+      file,
+    );
+    await reloadEbooks();
+  } catch (err) {
+    console.error("Failed to add ebook", err);
+  }
 }
-export function addEbook(ebook: Ebook) {
-  _ebooks = [ebook, ..._ebooks];
-  notify();
-}
-export function updateEbook(id: number, patch: Partial<Ebook>) {
-  _ebooks = _ebooks.map((e) => (e.id === id ? { ...e, ...patch } : e));
-  notify();
-}
-export function toggleEbookStatus(id: number, by: string) {
-  _ebooks = _ebooks.map((e) =>
-    e.id === id
-      ? {
-          ...e,
-          status: e.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : e,
-  );
-  notify();
+
+/** Hard delete. Throws so the consumer can surface the error in a Modal. */
+export async function removeEbook(id: number) {
+  await deleteEBook(id);
+  await reloadEbooks();
 }

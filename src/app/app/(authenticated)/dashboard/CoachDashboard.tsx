@@ -10,6 +10,7 @@ import { useEvents, formatEventDate } from "@/lib/events";
 import {
   getSchedules,
   subscribeSchedules,
+  getCurrentPeriod,
   DAYS_OF_WEEK,
 } from "../coach/_shared/schedules";
 import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
@@ -18,8 +19,6 @@ import {
   getSubProgramById,
   useAcademic,
 } from "../student/_shared/academic";
-
-const CURRENT_PERIOD = "32";
 
 function formatJoinedDate(iso: string) {
   if (!iso) return "-";
@@ -58,23 +57,29 @@ export default function CoachDashboard() {
     [events],
   );
 
-  // Schedules where this coach is primary or additional.
-  // TODO(me-view-pass): scope to the current period via get-instructor-schedule;
-  // the store now spans all periods.
+  // Schedules where this coach is primary or additional, scoped to the current
+  // period (derived from those classes' dates).
+  const involved = useMemo(
+    () =>
+      schedules.filter(
+        (s) =>
+          s.primaryCoachUsername === username ||
+          s.secondaryCoachUsernames.includes(username),
+      ),
+    [schedules, username],
+  );
+  const currentPeriod = useMemo(() => getCurrentPeriod(involved), [involved]);
+  const periodId = currentPeriod?.id ?? 0;
   const mySchedules = useMemo(
     () =>
-      schedules
-        .filter(
-          (s) =>
-            s.primaryCoachUsername === username ||
-            s.secondaryCoachUsernames.includes(username),
-        )
+      involved
+        .filter((s) => periodId !== 0 && s.schPeriodId === periodId)
         .sort(
           (a, b) =>
             DAYS_OF_WEEK.indexOf(a.dayOfWeek) -
             DAYS_OF_WEEK.indexOf(b.dayOfWeek),
         ),
-    [schedules, username],
+    [involved, periodId],
   );
 
   if (!coach) {
@@ -95,7 +100,7 @@ export default function CoachDashboard() {
           Welcome, {coach.panggilan || coach.namaLengkap}
         </h1>
         <p className="text-sm text-muted mt-1">
-          Period {CURRENT_PERIOD} · Let&apos;s shape the next champions.
+          {currentPeriod?.title ?? "—"} · Let&apos;s shape the next champions.
         </p>
       </div>
 

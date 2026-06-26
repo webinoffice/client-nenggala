@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/sub-program/SubProgramFormModal.tsx
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -12,6 +12,7 @@ import type { SubProgram } from "../_shared/sub-programs";
 export type SubProgramFormValues = {
   programId: number;
   subProgramName: string;
+  imageFile: File | null;
 };
 
 interface SubProgramFormModalProps {
@@ -66,6 +67,8 @@ function SubProgramFormBody({
   const [subProgramName, setSubProgramName] = useState(
     initial?.subProgramName ?? "",
   );
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<{
     programId?: string;
     subProgramName?: string;
@@ -84,6 +87,7 @@ function SubProgramFormBody({
     onSubmit({
       programId: Number(programId),
       subProgramName: subProgramName.trim(),
+      imageFile,
     });
   };
 
@@ -110,6 +114,34 @@ function SubProgramFormBody({
           onChange={(e) => setSubProgramName(e.target.value)}
           error={errors.subProgramName}
         />
+        <div className="flex flex-col gap-2">
+          <label className="font-display text-[11px] font-bold uppercase tracking-widest text-ink">
+            Image
+          </label>
+          {isEditing && initial?.image && !imageFile && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={initial.image}
+              alt={initial.subProgramName}
+              className="h-20 w-20 rounded-sm border border-ink/10 object-cover"
+            />
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            className="text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-ink/15 file:bg-paper-soft file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:tracking-widest file:text-ink hover:file:bg-paper"
+          />
+          {imageFile && (
+            <p className="text-xs text-muted">Selected: {imageFile.name}</p>
+          )}
+          {isEditing && (
+            <p className="text-xs text-muted">
+              Leave empty to keep the current image.
+            </p>
+          )}
+        </div>
       </div>
       <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-ink/10">
         <Button variant="outline" size="sm" onClick={onCancel}>

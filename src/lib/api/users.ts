@@ -91,6 +91,49 @@ export async function fetchUserDataMany(
  * User-table PK kept for the future status-toggle write. Status is derived from
  * FgStatus by the caller's own union literals.
  */
+// ===========================================================================
+// Roles-screen writes
+// ===========================================================================
+// All keyed on UserId (the User-table PK the roles store carries). The backend
+// stamps UpdatedBy from the bearer token.
+
+/** inact-user-data — toggle the User.FgStatus ("Y" active / "N" inactive). */
+export function inactUserData(
+  userId: number,
+  fgStatus: "Y" | "N",
+): Promise<void> {
+  return apiPost<void>(
+    "/user/inact-user-data",
+    { objParam: { UserId: userId, FgStatus: fgStatus } },
+    { auth: true },
+  );
+}
+
+/** update-user-password — set a new password (the backend hashes it). */
+export function updateUserPassword(
+  userId: number,
+  password: string,
+): Promise<void> {
+  return apiPost<void>(
+    "/user/update-user-password",
+    { objParam: { UserId: userId, UserPassword: password } },
+    { auth: true },
+  );
+}
+
+/** update-user-role — change the user's role (User.UserTypeId, resolved from the
+ *  UserTypeCode server-side). UserNoId keeps its original prefix. */
+export function updateUserRole(
+  userId: number,
+  userTypeCode: "X" | "A" | "I" | "S",
+): Promise<void> {
+  return apiPost<void>(
+    "/user/update-user-role",
+    { objParam: { UserId: userId, UserTypeCode: userTypeCode } },
+    { auth: true },
+  );
+}
+
 export function mapUserRow(r: UserDataRow) {
   return {
     username: r.UserNoId,

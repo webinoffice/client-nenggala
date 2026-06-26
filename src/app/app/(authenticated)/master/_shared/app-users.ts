@@ -1,7 +1,12 @@
 // src/app/app/(authenticated)/master/_shared/app-users.ts
 import type { Role } from "@/lib/roles";
-import { roleFromUserTypeCode } from "@/lib/roles";
-import { fetchUserDataMany } from "@/lib/api/users";
+import { roleFromUserTypeCode, ROLE_TO_USER_TYPE } from "@/lib/roles";
+import {
+  fetchUserDataMany,
+  inactUserData,
+  updateUserPassword,
+  updateUserRole,
+} from "@/lib/api/users";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type UserStatus = "Active" | "Inactive";
@@ -91,20 +96,33 @@ export async function reloadAppUsers(): Promise<void> {
   _loadPromise = null;
   await ensureAppUsersLoaded();
 }
-export function updateAppUser(id: number, patch: Partial<AppUser>) {
-  _users = _users.map((u) => (u.id === id ? { ...u, ...patch } : u));
-  notify();
+// ---- writes (update-user-role + update-user-password + inact-user-data) ----
+// The roles screen edits role and/or password; each maps to its own endpoint
+// (only sent when actually changed), then we reload. Name/username are fixed and
+// full-profile edits live in the registration flow, not here.
+
+export async function updateAppUser(
+  id: number,
+  changes: { role?: Role; password?: string },
+) {
+  try {
+    if (changes.role) {
+      await updateUserRole(id, ROLE_TO_USER_TYPE[changes.role]);
+    }
+    if (changes.password && changes.password.trim() !== "") {
+      await updateUserPassword(id, changes.password);
+    }
+    await reloadAppUsers();
+  } catch (err) {
+    console.error("Failed to update user", err);
+  }
 }
-export function toggleAppUserStatus(id: number, by: string) {
-  _users = _users.map((u) =>
-    u.id === id
-      ? {
-          ...u,
-          status: u.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : u,
-  );
-  notify();
+
+export async function toggleAppUserStatus(id: number, current: UserStatus) {
+  try {
+    await inactUserData(id, current === "Active" ? "N" : "Y");
+    await reloadAppUsers();
+  } catch (err) {
+    console.error("Failed to change user status", err);
+  }
 }

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
+import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
@@ -21,7 +22,7 @@ import {
   getMaxSchedulePeriodId,
   addSchedulePeriods,
   updateSchedulePeriod,
-  toggleSchedulePeriodStatus,
+  deleteSchedulePeriod,
   type SchedulePeriod,
 } from "../_shared/schedule-periods";
 
@@ -73,6 +74,7 @@ export default function MasterSchedulePeriodClient() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SchedulePeriod | null>(null);
   const [confirming, setConfirming] = useState<SchedulePeriod | null>(null);
+  const [actionError, setActionError] = useState("");
   const [dojangFilter, setDojangFilter] = useState("All");
 
   // pagination states
@@ -136,9 +138,17 @@ export default function MasterSchedulePeriodClient() {
     setEditing(null);
   };
 
-  const handleToggleStatus = () => {
+  const handleDelete = async () => {
     if (!confirming) return;
-    toggleSchedulePeriodStatus(confirming.id, currentUserName);
+    const target = confirming;
+    setConfirming(null);
+    try {
+      await deleteSchedulePeriod(target.id);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to delete period",
+      );
+    }
   };
 
   return (
@@ -254,14 +264,9 @@ export default function MasterSchedulePeriodClient() {
                           </button>
                           <button
                             onClick={() => setConfirming(p)}
-                            className={cn(
-                              "text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm transition",
-                              isActive
-                                ? "bg-brand text-brand-foreground hover:bg-brand-hover"
-                                : "bg-ink text-paper hover:bg-ink-soft",
-                            )}
+                            className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
                           >
-                            {isActive ? "Disable" : "Enable"}
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -302,20 +307,30 @@ export default function MasterSchedulePeriodClient() {
       <ConfirmDialog
         open={confirming !== null}
         onClose={() => setConfirming(null)}
-        onConfirm={handleToggleStatus}
-        title={
-          confirming?.status === "Inactive" ? "Enable Period" : "Disable Period"
-        }
+        onConfirm={handleDelete}
+        title="Delete Period"
         description={
           confirming
-            ? confirming.status === "Inactive"
-              ? `Enable "${confirming.periodName}"? It will return to active status.`
-              : `Disable "${confirming.periodName}"? Existing schedules under this period are not affected.`
+            ? `Delete "${confirming.periodName}"? This cannot be undone. Periods already used by a schedule cannot be deleted.`
             : ""
         }
-        confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}
-        variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
+        confirmLabel="Delete"
+        variant="destructive"
       />
+
+      <Modal
+        open={actionError !== ""}
+        onClose={() => setActionError("")}
+        title="Cannot Delete Period"
+        size="sm"
+      >
+        <p className="text-sm text-ink/80">{actionError}</p>
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setActionError("")}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

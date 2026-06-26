@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/master/dojang/DojangFormModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -9,7 +9,7 @@ import type { Dojang } from "../_shared/dojangs";
 
 export type DojangFormValues = {
   dojangName: string;
-  image: string;
+  imageFile: File | null;
 };
 
 interface DojangFormModalProps {
@@ -54,7 +54,8 @@ function DojangFormBody({
   onSubmit: (values: DojangFormValues) => void;
 }) {
   const [dojangName, setDojangName] = useState(initial?.dojangName ?? "");
-  const [image, setImage] = useState(initial?.image ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<{ dojangName?: string }>({});
 
   const isEditing = initial !== null;
@@ -66,7 +67,7 @@ function DojangFormBody({
       setErrors(next);
       return;
     }
-    onSubmit({ dojangName: dojangName.trim(), image: image.trim() });
+    onSubmit({ dojangName: dojangName.trim(), imageFile });
   };
 
   return (
@@ -79,12 +80,34 @@ function DojangFormBody({
           onChange={(e) => setDojangName(e.target.value)}
           error={errors.dojangName}
         />
-        <Input
-          label="Image"
-          placeholder="e.g. /images/location-kedoya.jpg"
-          value={image}
-          onChange={(e) => setImage(e.target.value)}
-        />
+        <div className="flex flex-col gap-2">
+          <label className="font-display text-[11px] font-bold uppercase tracking-widest text-ink">
+            Image
+          </label>
+          {isEditing && initial?.image && !imageFile && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={initial.image}
+              alt={initial.dojangName}
+              className="h-20 w-32 rounded-sm border border-ink/10 object-cover"
+            />
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            className="text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-ink/15 file:bg-paper-soft file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:tracking-widest file:text-ink hover:file:bg-paper"
+          />
+          {imageFile && (
+            <p className="text-xs text-muted">Selected: {imageFile.name}</p>
+          )}
+          {isEditing && (
+            <p className="text-xs text-muted">
+              Leave empty to keep the current image.
+            </p>
+          )}
+        </div>
       </div>
       <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-ink/10">
         <Button variant="outline" size="sm" onClick={onCancel}>

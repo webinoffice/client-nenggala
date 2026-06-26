@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/master/sub-program/MasterSubProgramClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
@@ -18,7 +17,6 @@ import { getPrograms, subscribePrograms } from "../_shared/programs";
 import {
   getSubPrograms,
   subscribeSubPrograms,
-  getNextSubProgramId,
   addSubProgram,
   updateSubProgram,
   toggleSubProgramStatus,
@@ -37,8 +35,6 @@ function formatDate(iso: string) {
 }
 
 export default function MasterSubProgramClient() {
-  const currentUserName = getCurrentUsername();
-
   const subPrograms = useSyncExternalStore(
     subscribeSubPrograms,
     getSubPrograms,
@@ -130,23 +126,15 @@ export default function MasterSubProgramClient() {
   };
 
   const handleSubmit = (values: SubProgramFormValues) => {
-    const now = new Date().toISOString();
     if (editing) {
-      updateSubProgram(editing.subProgramId, {
-        programId: values.programId,
-        subProgramName: values.subProgramName,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      updateSubProgram(
+        editing.subProgramId,
+        values.programId,
+        values.subProgramName,
+        values.imageFile,
+      );
     } else {
-      addSubProgram({
-        programId: values.programId,
-        subProgramId: getNextSubProgramId(),
-        subProgramName: values.subProgramName,
-        status: "Active",
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      addSubProgram(values.programId, values.subProgramName, values.imageFile);
     }
     setFormOpen(false);
     setEditing(null);
@@ -154,7 +142,7 @@ export default function MasterSubProgramClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleSubProgramStatus(confirming.subProgramId, currentUserName);
+    toggleSubProgramStatus(confirming.subProgramId, confirming.status);
   };
 
   return (

@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/master/program/MasterProgramClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
@@ -15,7 +14,6 @@ import ProgramFormModal, { type ProgramFormValues } from "./ProgramFormModal";
 import {
   getPrograms,
   subscribePrograms,
-  getNextProgramId,
   addProgram,
   updateProgram,
   toggleProgramStatus,
@@ -34,8 +32,6 @@ function formatDate(iso: string) {
 }
 
 export default function MasterProgramClient() {
-  const currentUserName = getCurrentUsername();
-
   const programs = useSyncExternalStore(
     subscribePrograms,
     getPrograms,
@@ -104,21 +100,10 @@ export default function MasterProgramClient() {
   };
 
   const handleSubmit = (values: ProgramFormValues) => {
-    const now = new Date().toISOString();
     if (editing) {
-      updateProgram(editing.id, {
-        programName: values.programName,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      updateProgram(editing.id, values.programName, values.imageFile);
     } else {
-      addProgram({
-        id: getNextProgramId(),
-        programName: values.programName,
-        status: "Active",
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
+      addProgram(values.programName, values.imageFile);
     }
     setFormOpen(false);
     setEditing(null);
@@ -126,7 +111,7 @@ export default function MasterProgramClient() {
 
   const handleToggleStatus = () => {
     if (!confirming) return;
-    toggleProgramStatus(confirming.id, currentUserName);
+    toggleProgramStatus(confirming.id, confirming.status);
   };
 
   return (

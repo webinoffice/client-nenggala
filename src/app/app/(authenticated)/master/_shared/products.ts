@@ -1,12 +1,13 @@
 // src/app/app/(authenticated)/master/_shared/products.ts
 import type { ProductType } from "./product-types";
-import { fetchProducts } from "@/lib/api/master";
+import { fetchProducts, saveProduct, deleteProduct } from "@/lib/api/master";
 import { fileUrl } from "@/lib/api/file-url";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
 export type Product = {
   id: number; // ProductId
-  type: ProductType; // ProductTypeName (cast; the master list is fixed-set in the UI)
+  typeId: number; // ProductTypeId
+  type: ProductType; // ProductTypeName
   productName: string;
   link: string;
   image: string;
@@ -15,7 +16,7 @@ export type Product = {
 };
 
 export const INITIAL_PRODUCTS: Product[] = [
-  { id: 1, type: "Taekwondo", productName: "Uniform", link: "www.tokopedia.com/13...", image: "/images/product-placeholder.jpg", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
+  { id: 1, typeId: 1, type: "Taekwondo", productName: "Uniform", link: "www.tokopedia.com/13...", image: "/images/product-placeholder.jpg", updatedBy: "Carolina", updateDate: "2025-12-28T19:41:32" },
 ];
 
 const PLACEHOLDER_IMAGE = "/images/product-placeholder.jpg";
@@ -37,20 +38,61 @@ export function subscribeProducts(listener: () => void) {
     listeners.delete(listener);
   };
 }
-export function getNextProductId(): number {
-  return Date.now(); // temporary client id; the real ProductId comes from the backend
+// ---- writes (save-product multipart + delete-product HARD delete) ----
+
+export type ProductWriteInput = {
+  typeId: number;
+  productName: string;
+  link: string;
+};
+
+export async function addProduct(
+  input: ProductWriteInput,
+  file: File | null,
+) {
+  try {
+    await saveProduct(
+      {
+        ProductId: 0,
+        ProductTypeId: input.typeId,
+        ProductName: input.productName,
+        ProductLink: input.link,
+        FgMode: "I",
+      },
+      file,
+    );
+    await reloadProducts();
+  } catch (err) {
+    console.error("Failed to add product", err);
+  }
 }
-export function addProduct(product: Product) {
-  _products = [product, ..._products];
-  notify();
+
+export async function updateProduct(
+  id: number,
+  input: ProductWriteInput,
+  file: File | null,
+) {
+  try {
+    await saveProduct(
+      {
+        ProductId: id,
+        ProductTypeId: input.typeId,
+        ProductName: input.productName,
+        ProductLink: input.link,
+        FgMode: "E",
+      },
+      file,
+    );
+    await reloadProducts();
+  } catch (err) {
+    console.error("Failed to update product", err);
+  }
 }
-export function updateProduct(id: number, patch: Partial<Product>) {
-  _products = _products.map((p) => (p.id === id ? { ...p, ...patch } : p));
-  notify();
-}
-export function removeProduct(id: number) {
-  _products = _products.filter((p) => p.id !== id);
-  notify();
+
+/** Hard delete. Throws so the consumer can surface the error in a Modal. */
+export async function removeProduct(id: number) {
+  await deleteProduct(id);
+  await reloadProducts();
 }
 
 // ---- hydration (read API) ----
@@ -61,6 +103,7 @@ async function loadProducts(): Promise<void> {
   const rows = (await fetchProducts()) ?? [];
   _products = rows.map((r) => ({
     id: r.ProductId,
+    typeId: r.ProductTypeId,
     type: r.ProductTypeName as ProductType,
     productName: r.ProductName,
     link: r.ProductLink ?? "",

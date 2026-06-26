@@ -1,13 +1,14 @@
 // src/app/app/(authenticated)/me/schedule/ScheduleClient.tsx
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentUsername } from "@/lib/current-user";
 import {
   getSchedules,
   subscribeSchedules,
+  getCurrentPeriod,
   DAYS_OF_WEEK,
   type Schedule,
 } from "../../coach/_shared/schedules";
@@ -19,11 +20,12 @@ import {
 } from "../../student/_shared/academic";
 import {
   getAttendance,
+  ensureStudentAtdLoaded,
+  subscribeAttendance,
+  getAttendanceVersion,
   MIN_ATTENDANCE,
 } from "../../student/_shared/attendance";
 import ExamRegistrationModal from "./ExamRegistrationModal";
-
-const CURRENT_PERIOD = "32";
 
 export default function ScheduleClient() {
   const username = getCurrentUsername();
@@ -39,26 +41,43 @@ export default function ScheduleClient() {
     getCoaches,
     getCoaches,
   );
+  // Re-render when a period's attendance lands in the cache.
+  useSyncExternalStore(
+    subscribeAttendance,
+    getAttendanceVersion,
+    getAttendanceVersion,
+  );
 
   const coachByUsername = useMemo(
     () => new Map(coaches.map((c) => [c.username, c])),
     [coaches],
   );
 
-  // Schedules this student is enrolled in.
-  // TODO(me-view-pass): scope to the student's current period via
-  // get-student-schedule; the store now spans all periods.
+  // Every class this student is enrolled in (the store spans all periods)…
+  const enrolled = useMemo(
+    () => schedules.filter((s) => s.studentUsernames.includes(username)),
+    [schedules, username],
+  );
+  // …scoped to the current period (derived from the enrolled classes' dates).
+  const currentPeriod = useMemo(() => getCurrentPeriod(enrolled), [enrolled]);
+  const periodId = currentPeriod?.id ?? 0;
+
   const mySchedules = useMemo(
     () =>
-      schedules
-        .filter((s) => s.studentUsernames.includes(username))
+      enrolled
+        .filter((s) => periodId !== 0 && s.schPeriodId === periodId)
         .sort(
           (a, b) =>
             DAYS_OF_WEEK.indexOf(a.dayOfWeek) -
             DAYS_OF_WEEK.indexOf(b.dayOfWeek),
         ),
-    [schedules, username],
+    [enrolled, periodId],
   );
+
+  // Self-scoped attendance for the current period (get-student-atd cache).
+  useEffect(() => {
+    if (periodId !== 0) ensureStudentAtdLoaded(periodId);
+  }, [periodId]);
 
   // Attendance summary grouped by program for this student
   const attendanceRows = useMemo(() => {
@@ -73,11 +92,11 @@ export default function ScheduleClient() {
       byProgram.set(key, {
         programId: s.programId,
         subProgramId: s.subProgramId,
-        count: getAttendance(username, CURRENT_PERIOD),
+        count: getAttendance(username, periodId),
       });
     });
     return Array.from(byProgram.values());
-  }, [mySchedules, username]);
+  }, [mySchedules, username, periodId]);
 
   const alertCount = attendanceRows.filter(
     (r) => r.count < MIN_ATTENDANCE,
@@ -94,7 +113,7 @@ export default function ScheduleClient() {
             Class Schedule
           </h1>
           <span className="text-[11px] uppercase tracking-widest font-bold text-muted">
-            Period {CURRENT_PERIOD}
+            {currentPeriod?.title ?? "—"}
           </span>
         </div>
 

@@ -4,10 +4,11 @@
 // access token from POST /auth/login (in objRes.accessToken) and keeps a
 // refresh token in an httpOnly cookie.
 //
-// TODO(auth, audit issue #4): LoginForm is currently a stub and never stores a
-// token. Once real login lands it must call setAccessToken() with the returned
-// accessToken; until then getAccessToken() returns null and authenticated
-// endpoints (the CMS reads/writes) will be rejected by the backend.
+// The token lives in localStorage so it survives a page refresh and is shared
+// across tabs (session.ts listens for the `storage` event). LoginForm →
+// session.login() calls setAccessToken() with the returned accessToken; logout
+// clears it. Note: there is no automatic access-token refresh yet — when the JWT
+// exp passes, session.parseToken() treats it as logged-out on the next refresh.
 "use client";
 
 const TOKEN_KEY = "nenggala.accessToken";
