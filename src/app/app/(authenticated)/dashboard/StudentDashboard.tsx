@@ -3,22 +3,25 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { Bell, ArrowUpRight } from "lucide-react";
-import { getCurrentUsername } from "@/lib/current-user";
+import { useSession } from "@/lib/session";
 import { useEvents, formatEventDate } from "@/lib/events";
 import { getStudents, subscribeStudents } from "../student/_shared/students";
+import { resultLabel } from "../student/_shared/scores";
 import {
-  getScores,
-  subscribeScores,
-  getPassingThreshold,
-} from "../student/_shared/scores";
+  getSchedules,
+  subscribeSchedules,
+  getCurrentPeriod,
+} from "../coach/_shared/schedules";
 import {
-  getPeriodById,
-  formatPeriod,
-  useAcademic,
-} from "../student/_shared/academic";
+  ensureExamLoaded,
+  getExamRegistrations,
+  getExamVersion,
+  subscribeExam,
+} from "../student/_shared/exam";
 import { cn } from "@/lib/utils";
+import StudentExamCard from "./StudentExamCard";
 
 function formatJoinedDate(iso: string) {
   if (!iso) return "-";
@@ -30,16 +33,42 @@ function formatJoinedDate(iso: string) {
 }
 
 export default function StudentDashboard() {
-  const username = getCurrentUsername();
-  useAcademic(); // subscribe so period labels re-render on master change/hydrate
+  const session = useSession();
+  const username = session?.noReg ?? "";
+  const userDataId = session?.userDataId ?? 0;
 
   const students = useSyncExternalStore(
     subscribeStudents,
     getStudents,
     getStudents,
   );
-  const scores = useSyncExternalStore(subscribeScores, getScores, getScores);
+  const schedules = useSyncExternalStore(
+    subscribeSchedules,
+    getSchedules,
+    getSchedules,
+  );
+  useSyncExternalStore(subscribeExam, getExamVersion, getExamVersion);
   const events = useEvents();
+
+  // Current period (from the student's own classes) → this period's exam score.
+  const enrolled = useMemo(
+    () => schedules.filter((s) => s.studentUsernames.includes(username)),
+    [schedules, username],
+  );
+  const currentPeriod = useMemo(() => getCurrentPeriod(enrolled), [enrolled]);
+  const periodId = currentPeriod?.id ?? 0;
+
+  useEffect(() => {
+    if (periodId !== 0 && userDataId !== 0) {
+      ensureExamLoaded(periodId, userDataId);
+    }
+  }, [periodId, userDataId]);
+
+  const registrations = getExamRegistrations(periodId);
+  const lastScore = registrations.find((r) => r.assessed) ?? null;
+  const lastResult = lastScore
+    ? resultLabel(lastScore.totalScore, lastScore.beltMasterId)
+    : "—";
 
   const student = students.find((s) => s.username === username);
 
@@ -52,16 +81,6 @@ export default function StudentDashboard() {
       </div>
     );
   }
-
-  // Latest submitted score for this student
-  const myScores = scores
-    .filter((s) => s.studentUsername === username)
-    .sort((a, b) => b.periodId.localeCompare(a.periodId));
-  const lastScore = myScores[0] ?? null;
-  const lastPeriod = lastScore ? getPeriodById(lastScore.periodId) : null;
-  const passThreshold = lastScore
-    ? getPassingThreshold(lastScore.sabukAtSubmit)
-    : 75;
 
   // Show the 4 most recent active events
   const recentEvents = events
@@ -122,25 +141,25 @@ export default function StudentDashboard() {
               {lastScore ? (
                 <>
                   <p className="font-display text-5xl font-bold text-ink mt-2 leading-none">
-                    {lastScore.total.toFixed(1)}
+                    {lastScore.totalScore.toFixed(1)}
                   </p>
                   <p className="text-[10px] uppercase tracking-widest text-muted mt-2">
-                    {lastPeriod
-                      ? formatPeriod(lastPeriod)
-                      : `Period ${lastScore.periodId}`}
+                    {currentPeriod?.title ?? "—"}
                   </p>
                   <p className="text-[10px] uppercase tracking-widest text-ink/70 mt-3 font-bold">
-                    {student.sabuk}
+                    {lastScore.beltName}
                   </p>
                   <p
                     className={cn(
                       "mt-3 inline-block text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-sm",
-                      lastScore.result === "Lulus"
+                      lastResult === "Lulus"
                         ? "bg-emerald-500/10 text-emerald-700"
-                        : "bg-brand/10 text-brand",
+                        : lastResult === "Tidak Lulus"
+                          ? "bg-brand/10 text-brand"
+                          : "bg-paper-soft text-muted",
                     )}
                   >
-                    {lastScore.result} · Min {passThreshold}
+                    {lastResult}
                   </p>
                 </>
               ) : (
@@ -152,6 +171,9 @@ export default function StudentDashboard() {
           </div>
         </div>
       </section>
+
+      {/* Exam registration (Ikut Ujian) */}
+      <StudentExamCard />
 
       {/* Events */}
       <section>

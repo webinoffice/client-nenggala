@@ -4,13 +4,12 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getCurrentUsername } from "@/lib/current-user";
+import { useSession } from "@/lib/session";
 import {
   getSchedules,
   subscribeSchedules,
   getCurrentPeriod,
   DAYS_OF_WEEK,
-  type Schedule,
 } from "../../coach/_shared/schedules";
 import { getCoaches, subscribeCoaches } from "../../coach/_shared/coaches";
 import {
@@ -25,10 +24,20 @@ import {
   getAttendanceVersion,
   MIN_ATTENDANCE,
 } from "../../student/_shared/attendance";
+import {
+  ensureExamLoaded,
+  getExamEligibility,
+  getExamRegistrations,
+  getExamVersion,
+  subscribeExam,
+  type ExamEligibility,
+} from "../../student/_shared/exam";
 import ExamRegistrationModal from "./ExamRegistrationModal";
 
 export default function ScheduleClient() {
-  const username = getCurrentUsername();
+  const session = useSession();
+  const username = session?.noReg ?? "";
+  const userDataId = session?.userDataId ?? 0;
   useAcademic(); // subscribe so program names re-render on master change/hydrate
 
   const schedules = useSyncExternalStore(
@@ -47,6 +56,8 @@ export default function ScheduleClient() {
     getAttendanceVersion,
     getAttendanceVersion,
   );
+  // Re-render when the period's exam eligibility/registration lands in the cache.
+  useSyncExternalStore(subscribeExam, getExamVersion, getExamVersion);
 
   const coachByUsername = useMemo(
     () => new Map(coaches.map((c) => [c.username, c])),
@@ -74,10 +85,16 @@ export default function ScheduleClient() {
     [enrolled, periodId],
   );
 
-  // Self-scoped attendance for the current period (get-student-atd cache).
+  // Self-scoped attendance + exam status for the current period.
   useEffect(() => {
     if (periodId !== 0) ensureStudentAtdLoaded(periodId);
-  }, [periodId]);
+    if (periodId !== 0 && userDataId !== 0) {
+      ensureExamLoaded(periodId, userDataId);
+    }
+  }, [periodId, userDataId]);
+
+  const eligibility = getExamEligibility(periodId);
+  const registrations = getExamRegistrations(periodId);
 
   // Attendance summary grouped by program for this student
   const attendanceRows = useMemo(() => {
@@ -102,7 +119,7 @@ export default function ScheduleClient() {
     (r) => r.count < MIN_ATTENDANCE,
   ).length;
 
-  const [registering, setRegistering] = useState<Schedule | null>(null);
+  const [registering, setRegistering] = useState<ExamEligibility | null>(null);
 
   return (
     <>
@@ -214,8 +231,11 @@ export default function ScheduleClient() {
                     const subProgram = getSubProgramById(row.subProgramId);
                     const pct = Math.round((row.count / MIN_ATTENDANCE) * 100);
                     const low = row.count < MIN_ATTENDANCE;
-                    const schedule = mySchedules.find(
-                      (s) => s.programId === row.programId,
+                    const elig = eligibility.find(
+                      (e) => e.programMsId === row.programId,
+                    );
+                    const reg = registrations.find(
+                      (r) => r.programMsId === row.programId,
                     );
                     return (
                       <tr
@@ -248,17 +268,21 @@ export default function ScheduleClient() {
                           {pct}%
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {!low && schedule ? (
+                          {elig ? (
                             <button
-                              onClick={() => setRegistering(schedule)}
+                              onClick={() => setRegistering(elig)}
                               className="inline-flex items-center gap-1.5 bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:brightness-95 transition"
                             >
                               <Award size={12} />
                               Ikut Ujian
                             </button>
+                          ) : reg ? (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-emerald-700 font-bold">
+                              Sudah Terdaftar
+                            </span>
                           ) : (
                             <span className="text-[10px] uppercase tracking-widest text-muted font-bold">
-                              Not Eligible
+                              —
                             </span>
                           )}
                         </td>
@@ -271,13 +295,15 @@ export default function ScheduleClient() {
           </div>
         </div>
         <p className="text-[11px] text-muted mt-2 italic">
-          The &ldquo;Ikut Ujian&rdquo; button appears for classes where you meet
-          the minimum attendance requirement.
+          The &ldquo;Ikut Ujian&rdquo; button registers you for this period&rsquo;s
+          grading exam. Low attendance does not block registration, but admin will
+          review it.
         </p>
       </section>
 
       <ExamRegistrationModal
-        schedule={registering}
+        eligibility={registering}
+        schPeriodId={periodId}
         onClose={() => setRegistering(null)}
       />
     </>

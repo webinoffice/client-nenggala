@@ -2,7 +2,7 @@
 "use client";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Pencil, Ban, Power } from "lucide-react";
+import { Plus, Search, Pencil, Ban, Power, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -11,6 +11,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
+import AdminExamRegisterModal from "./AdminExamRegisterModal";
 import {
   type Student,
   getStudents,
@@ -59,6 +60,7 @@ export default function StudentListClient() {
 
   const [page, setPage] = useState(1);
   const [confirming, setConfirming] = useState<Student | null>(null);
+  const [examTarget, setExamTarget] = useState<Student | null>(null);
   const [actionError, setActionError] = useState("");
 
   const filtered = useMemo(() => {
@@ -303,6 +305,16 @@ export default function StudentListClient() {
                           >
                             {isActive ? <Ban size={14} /> : <Power size={14} />}
                           </button>
+                          {isActive && (
+                            <button
+                              onClick={() => setExamTarget(s)}
+                              title="Daftar Ujian (Manual)"
+                              aria-label={`Register ${s.namaLengkap} for exam`}
+                              className="bg-ink text-paper p-1.5 rounded-sm hover:bg-ink-soft transition"
+                            >
+                              <Award size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
@@ -423,6 +435,11 @@ export default function StudentListClient() {
         }
         confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}
         variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
+      />
+
+      <AdminExamRegisterModal
+        student={examTarget}
+        onClose={() => setExamTarget(null)}
       />
 
       <Modal

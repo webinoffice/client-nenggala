@@ -17,6 +17,10 @@ export type Belt = {
   id: number;
   beltName: string;
   beltLevel: number;
+  /** Server-authoritative passing threshold (BeltMaster.BeltPassScore). Used by
+   *  the score view/list to derive Lulus/Tidak Lulus from the raw total. Absent
+   *  in the seed mock; populated on hydration. */
+  beltPassScore?: number | null;
   status: BeltStatus;
   updatedBy: string;
   updateDate: string;
@@ -71,6 +75,7 @@ async function loadBelts(): Promise<void> {
     id: r.BeltMasterId,
     beltName: r.BeltName,
     beltLevel: r.BeltLevel,
+    beltPassScore: r.BeltPassScore,
     status: r.FgStatus === "Y" ? "Active" : "Inactive",
     updatedBy: r.UpdatedBy ?? "",
     updateDate: dmyhmsToIso(r.UpdateDate),
@@ -112,6 +117,15 @@ export function getSabukRank(beltName: string): number {
 /** Resolve a belt name to its backend BeltMasterId (null when unknown). */
 export function getBeltIdByName(beltName: string): number | null {
   return _belts.find((b) => b.beltName === beltName)?.id ?? null;
+}
+
+/** Server-authoritative passing threshold for a belt (by BeltMasterId).
+ *  null when unknown or not loaded — callers should ensureBeltsLoaded() first. */
+export function getBeltPassScore(
+  beltMasterId: number | null | undefined,
+): number | null {
+  if (!beltMasterId) return null;
+  return _belts.find((b) => b.id === beltMasterId)?.beltPassScore ?? null;
 }
 
 // Belt-based passing thresholds:

@@ -1,46 +1,56 @@
-// src/app/app/(authenticated)/student/score/view/[username]/[periodId]/ScoreViewClient.tsx
+// src/app/app/(authenticated)/student/score/view/[studentId]/[programMsId]/[periodId]/ScoreViewClient.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/app/PageHeader";
+import { MIN_ATTENDANCE } from "../../../../../_shared/attendance";
 import {
-  formatPeriod,
-  getPeriodById,
-  useAcademic,
-} from "../../../../_shared/academic";
-import { getStudentByUsername } from "../../../../_shared/students";
-import { MIN_ATTENDANCE } from "../../../../_shared/attendance";
-import {
-  getScoreFor,
-  isCategoryApplicable,
-  SCORE_CATEGORIES,
-} from "../../../../_shared/scores";
+  ensureAssessListLoaded,
+  ensureAssessResultLoaded,
+  getAssessResultFor,
+  getAssessRow,
+  getScoresVersion,
+  resultLabel,
+  subscribeScores,
+} from "../../../../../_shared/scores";
 
 interface Props {
-  username: string;
-  periodId: string;
+  studentId: number;
+  programMsId: number;
+  periodId: number;
 }
 
-export default function ScoreViewClient({ username, periodId }: Props) {
+export default function ScoreViewClient({
+  studentId,
+  programMsId,
+  periodId,
+}: Props) {
   const router = useRouter();
-  useAcademic(); // subscribe so period labels re-render on master change/hydrate
-  const [student] = useState(() => getStudentByUsername(username));
-  const [record] = useState(() => getScoreFor(username, periodId));
-  const period = getPeriodById(periodId);
+  useSyncExternalStore(subscribeScores, getScoresVersion, getScoresVersion);
 
-  if (!student || !record) {
+  useEffect(() => {
+    ensureAssessListLoaded(periodId);
+    ensureAssessResultLoaded(studentId, programMsId, periodId);
+  }, [studentId, programMsId, periodId]);
+
+  const row = getAssessRow(periodId, studentId, programMsId);
+  const results = getAssessResultFor(studentId, programMsId, periodId);
+
+  if (!row || results.length === 0) {
     return (
       <>
-        <PageHeader title="Score Not Found" />
-        <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
+        <PageHeader title="Score Detail" />
+        <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center space-y-4">
           <p className="text-muted text-sm">
-            No score submitted for {username} (Period {periodId}).
+            {row
+              ? "Loading score… If this persists, no score has been submitted yet."
+              : "Loading…"}
           </p>
-          <div className="mt-6 flex justify-center">
+          <div className="flex justify-center">
             <Button variant="outline" onClick={() => router.back()}>
               <ArrowLeft size={16} /> Back
             </Button>
@@ -50,35 +60,26 @@ export default function ScoreViewClient({ username, periodId }: Props) {
     );
   }
 
-  const lowAttendance = record.attendance < MIN_ATTENDANCE;
+  const lowAttendance =
+    row.FgLackAtd === "Y" || row.TotalAtd < MIN_ATTENDANCE;
+  const result = resultLabel(row.TotalScore, row.BeltMasterId);
 
-  // Split categories into two visual columns (figma layout)
-  const half = Math.ceil(SCORE_CATEGORIES.length / 2);
-  const leftCol = SCORE_CATEGORIES.slice(0, half);
-  const rightCol = SCORE_CATEGORIES.slice(half);
+  // Two visual columns (figma layout).
+  const half = Math.ceil(results.length / 2);
+  const leftCol = results.slice(0, half);
+  const rightCol = results.slice(half);
 
-  const renderCategoryRow = (cat: (typeof SCORE_CATEGORIES)[number]) => {
-    const applicable = isCategoryApplicable(cat, student.sabuk);
-    const value = record[cat.key];
-    return (
-      <div
-        key={cat.key}
-        className="flex items-baseline justify-between py-2 border-b border-ink/5"
-      >
-        <div>
-          <div className="text-sm text-ink">{cat.label}</div>
-          {cat.conditionLabel && (
-            <div className="text-[10px] text-muted uppercase tracking-widest">
-              {cat.conditionLabel}
-            </div>
-          )}
-        </div>
-        <div className="font-display font-bold text-lg text-ink">
-          {applicable && value !== null ? value.toFixed(1) : "—"}
-        </div>
+  const renderItem = (it: (typeof results)[number]) => (
+    <div
+      key={it.AssessTempDtId}
+      className="flex items-baseline justify-between py-2 border-b border-ink/5"
+    >
+      <div className="text-sm text-ink">{it.AssessTitle}</div>
+      <div className="font-display font-bold text-lg text-ink">
+        {it.AssessScore.toFixed(1)}
       </div>
-    );
-  };
+    </div>
+  );
 
   return (
     <>
@@ -97,18 +98,12 @@ export default function ScoreViewClient({ username, periodId }: Props) {
             Informasi Siswa
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-            <InfoRow label="No" value={student.username} />
-            <InfoRow
-              label="Periode"
-              value={period ? formatPeriod(period) : periodId}
-            />
-            <InfoRow label="Nama Lengkap" value={student.namaLengkap} />
-            <InfoRow label="Dojang" value={student.dojang} />
-            <InfoRow label="Sabuk" value={record.sabukAtSubmit} />{" "}
-            <InfoRow
-              label="Submitted By"
-              value={`${record.submittedBy} · ${new Date(record.submitDate).toLocaleString()}`}
-            />
+            <InfoRow label="No" value={row.UserNoId ?? "-"} />
+            <InfoRow label="Periode" value={row.PeriodTitle ?? String(periodId)} />
+            <InfoRow label="Nama Lengkap" value={row.UserName ?? "-"} />
+            <InfoRow label="Dojang" value={row.DojangName ?? "-"} />
+            <InfoRow label="Program" value={row.ProgramName ?? "-"} />
+            <InfoRow label="Sabuk" value={row.BeltName ?? "-"} />
           </div>
         </section>
 
@@ -117,26 +112,25 @@ export default function ScoreViewClient({ username, periodId }: Props) {
             Subyek Penilaian
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10">
-            <div>{leftCol.map(renderCategoryRow)}</div>
-            <div>{rightCol.map(renderCategoryRow)}</div>
+            <div>{leftCol.map(renderItem)}</div>
+            <div>{rightCol.map(renderItem)}</div>
           </div>
 
-          {/* Absen + Total + Hasil */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 mt-2">
             <div className="flex items-baseline justify-between py-2 border-b border-ink/5">
               <div className="text-sm text-ink flex items-center gap-1.5">
                 Absen
-                {lowAttendance && record.reasonBelowAttendance && (
+                {lowAttendance && row.LackAtdDesc && (
                   <span
                     className="relative inline-flex group cursor-help"
-                    title={record.reasonBelowAttendance}
+                    title={row.LackAtdDesc}
                   >
                     <Info size={14} className="text-brand" />
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 hidden group-hover:block z-10 bg-ink text-paper text-xs rounded-sm px-3 py-2 whitespace-pre-line min-w-[200px] max-w-[320px] shadow-lg">
                       <span className="font-bold block mb-1 uppercase tracking-widest text-[10px] text-accent">
                         Reason
                       </span>
-                      {record.reasonBelowAttendance}
+                      {row.LackAtdDesc}
                     </span>
                   </span>
                 )}
@@ -147,13 +141,13 @@ export default function ScoreViewClient({ username, periodId }: Props) {
                   lowAttendance ? "text-brand" : "text-ink",
                 )}
               >
-                {record.attendance}
+                {row.TotalAtd}
               </div>
             </div>
             <div className="flex items-baseline justify-between py-2 border-b border-ink/5">
               <div className="text-sm text-ink">Total</div>
               <div className="font-display font-bold text-lg text-ink">
-                {record.total.toFixed(1)}
+                {row.TotalScore.toFixed(1)}
               </div>
             </div>
           </div>
@@ -165,10 +159,14 @@ export default function ScoreViewClient({ username, periodId }: Props) {
             <div
               className={cn(
                 "font-display text-xl font-bold uppercase tracking-widest",
-                record.result === "Lulus" ? "text-emerald-600" : "text-brand",
+                result === "Lulus"
+                  ? "text-emerald-600"
+                  : result === "Tidak Lulus"
+                    ? "text-brand"
+                    : "text-muted",
               )}
             >
-              {record.result}
+              {result}
             </div>
           </div>
         </section>

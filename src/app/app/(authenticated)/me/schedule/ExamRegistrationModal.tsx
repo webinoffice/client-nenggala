@@ -5,49 +5,72 @@ import { useRef, useState } from "react";
 import { Upload, FileCheck2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import { ApiError } from "@/lib/api/client";
 import {
-  getProgramById,
-  getSubProgramById,
-  useAcademic,
-} from "../../student/_shared/academic";
-import type { Schedule } from "../../coach/_shared/schedules";
+  registerExam,
+  type ExamEligibility,
+} from "../../student/_shared/exam";
 
 interface Props {
-  schedule: Schedule | null;
+  /** The eligible main-program registration to submit, or null when closed. */
+  eligibility: ExamEligibility | null;
+  schPeriodId: number;
   onClose: () => void;
 }
 
-export default function ExamRegistrationModal({ schedule, onClose }: Props) {
+export default function ExamRegistrationModal({
+  eligibility,
+  schPeriodId,
+  onClose,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // Subscribe so program/sub-program names re-render on master change/hydrate.
-  useAcademic();
-
-  const program = schedule ? getProgramById(schedule.programId) : null;
-  const subProgram = schedule ? getSubProgramById(schedule.subProgramId) : null;
+  const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setFile(null);
+    setSubmitting(false);
     setSubmitted(false);
+    setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleClose = () => {
+    if (submitting) return;
     reset();
     onClose();
   };
 
-  const handleSubmit = () => {
-    if (!file) return;
-    // Mock: in production this would upload to a server, create a registration record,
-    // and notify admin for verification.
-    setSubmitted(true);
+  const handleSubmit = async () => {
+    if (!file || !eligibility) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await registerExam(
+        {
+          schPeriodId,
+          studentId: eligibility.studentId,
+          programMsId: eligibility.programMsId,
+        },
+        file,
+      );
+      setSubmitted(true);
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : "Gagal mendaftar ujian. Silakan coba lagi.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <Modal
-      open={schedule !== null}
+      open={eligibility !== null}
       onClose={handleClose}
       title={submitted ? "Registration Submitted" : "Register for Exam"}
       size="md"
@@ -58,22 +81,27 @@ export default function ExamRegistrationModal({ schedule, onClose }: Props) {
           </Button>
         ) : (
           <>
-            <Button variant="outline" size="sm" onClick={handleClose}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClose}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button
               variant="primary"
               size="sm"
               onClick={handleSubmit}
-              disabled={!file}
+              disabled={!file || submitting}
             >
-              Submit Registration
+              {submitting ? "Submitting…" : "Submit Registration"}
             </Button>
           </>
         )
       }
     >
-      {!schedule ? null : submitted ? (
+      {!eligibility ? null : submitted ? (
         <div className="text-center py-4">
           <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
             <FileCheck2 size={24} className="text-emerald-600" />
@@ -89,16 +117,9 @@ export default function ExamRegistrationModal({ schedule, onClose }: Props) {
       ) : (
         <div className="space-y-5">
           <div className="bg-paper-soft rounded-sm border border-ink/10 p-4 space-y-2">
-            <InfoRow
-              label="Class"
-              value={`${program?.name ?? schedule.programId} · ${subProgram?.name ?? schedule.subProgramId}`}
-            />
-            <InfoRow label="Day" value={schedule.dayOfWeek} />
-            <InfoRow
-              label="Time"
-              value={`${schedule.startTime} – ${schedule.endTime}`}
-            />
-            <InfoRow label="Period" value={schedule.periodTitle} />
+            <InfoRow label="Program" value={eligibility.programName} />
+            <InfoRow label="Belt" value={eligibility.beltName} />
+            <InfoRow label="Period" value={eligibility.periodTitle} />
           </div>
 
           <div className="bg-accent/10 border border-accent/30 rounded-sm p-3 text-xs text-ink/80 leading-relaxed">
@@ -137,6 +158,12 @@ export default function ExamRegistrationModal({ schedule, onClose }: Props) {
               )}
             </button>
           </div>
+
+          {error && (
+            <div className="bg-brand/10 border border-brand/30 rounded-sm p-3 text-sm text-brand font-medium">
+              {error}
+            </div>
+          )}
         </div>
       )}
     </Modal>
