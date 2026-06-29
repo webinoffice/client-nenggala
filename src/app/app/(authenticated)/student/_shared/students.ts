@@ -5,7 +5,8 @@
 // issue #2): belts/dojang derive from the master stores, the rest from
 // @/lib/reference.
 import type { BloodType } from "@/lib/reference";
-import { fetchUserData, mapUserRow } from "@/lib/api/users";
+import { fetchUserData, mapUserRow, inactUserData } from "@/lib/api/users";
+import { createUser, editUser } from "../../_shared/user-write";
 // Re-exported so Student.golDarah consumers can keep importing it from here.
 export type { BloodType };
 
@@ -17,6 +18,10 @@ export type Student = {
   userDataId?: number;       // UserData PK — the StudentId used by schedule/attendance/score joins
   namaLengkap: string;
   panggilan: string;
+  email?: string;            // populated on hydration / collected on the form
+  gender?: string;
+  photo?: string;            // UserPhoto path (display on edit); "" when none
+  noHandphone1?: string;
   dojang: string;
   sabuk: string;
   tanggalLahir: string;
@@ -299,26 +304,29 @@ export function getNextStudentUsername(): string {
   }, 0);
   return `U${String(max + 1).padStart(4, "0")}`;
 }
-export function addStudent(s: Student) {
-  _students = [s, ..._students];
-  notify();
+/** Create a student (save-user-data, UserTypeCode "S"), then reload. */
+export async function addStudent(
+  s: Student,
+  password: string,
+  photo: File | null,
+) {
+  await createUser(s, "S", password, photo);
+  await reloadStudents();
 }
-export function updateStudent(username: string, patch: Partial<Student>) {
-  _students = _students.map((s) =>
-    s.username === username ? { ...s, ...patch } : s,
-  );
-  notify();
+/** Edit a student's profile (save-user-data edit), then reload. */
+export async function updateStudent(
+  username: string,
+  s: Student,
+  photo: File | null,
+) {
+  await editUser({ ...s, username }, "S", photo);
+  await reloadStudents();
 }
-export function toggleStudentStatus(username: string, by: string) {
-  _students = _students.map((s) =>
-    s.username === username
-      ? {
-          ...s,
-          status: s.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : s,
-  );
-  notify();
+/** Enable/disable via inact-user-data (User.FgStatus), then reload. Throws so
+ *  the consumer can surface the error. */
+export async function toggleStudentStatus(username: string) {
+  const s = getStudentByUsername(username);
+  if (!s?.userId) throw new Error("User id not loaded for " + username);
+  await inactUserData(s.userId, s.status === "Active" ? "N" : "Y");
+  await reloadStudents();
 }

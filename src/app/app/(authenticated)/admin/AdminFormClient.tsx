@@ -17,7 +17,12 @@ import {
   getNextUsername,
   updateAdmin,
 } from "./_shared/admins";
-import { GOL_DARAH_OPTIONS, WARGA_NEGARA_OPTIONS } from "@/lib/reference";
+import {
+  GENDER_OPTIONS,
+  GOL_DARAH_OPTIONS,
+  WARGA_NEGARA_OPTIONS,
+} from "@/lib/reference";
+import { fileUrl } from "@/lib/api/file-url";
 import { useDojangOptions } from "../master/_shared/dojangs";
 import { useSabukOptions } from "../master/_shared/belts";
 
@@ -28,9 +33,13 @@ type FormState = {
   username: string;
   namaLengkap: string;
   panggilan: string;
+  email: string;
+  gender: string;
+  password: string;
   dojang: string;
   sabuk: string;
   tanggalLahir: string;
+  noHandphone1: string;
   noHandphone2: string;
   warganegara: string;
   nikKtpPaspor: string;
@@ -74,9 +83,13 @@ export default function AdminFormClient({
     username: initialUsername,
     namaLengkap: editingAdmin?.namaLengkap ?? "",
     panggilan: editingAdmin?.panggilan ?? "",
+    email: editingAdmin?.email ?? "",
+    gender: editingAdmin?.gender ?? "",
+    password: "",
     dojang: editingAdmin?.dojang ?? "",
     sabuk: editingAdmin?.sabuk ?? "-",
     tanggalLahir: editingAdmin?.tanggalLahir ?? "",
+    noHandphone1: editingAdmin?.noHandphone1 ?? "",
     noHandphone2: editingAdmin?.noHandphone2 ?? "",
     warganegara: editingAdmin?.warganegara ?? "Indonesia",
     nikKtpPaspor: editingAdmin?.nikKtpPaspor ?? "",
@@ -92,7 +105,10 @@ export default function AdminFormClient({
     mulaiLatihan: editingAdmin?.mulaiLatihan ?? "",
   }));
 
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Errors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Edit-mode not-found state (after hooks, per rules of hooks).
   if (isEditing && !editingAdmin) {
@@ -122,6 +138,12 @@ export default function AdminFormClient({
   const validate = (): boolean => {
     const next: Errors = {};
     if (!form.namaLengkap.trim()) next.namaLengkap = "Required";
+    if (!form.email.trim()) next.email = "Required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      next.email = "Invalid email";
+    if (!isEditing && !form.password) next.password = "Required";
+    else if (!isEditing && form.password.length < 6)
+      next.password = "Min 6 characters";
     if (!form.dojang) next.dojang = "Required";
     if (!form.tanggalLahir) next.tanggalLahir = "Required";
     if (!form.warganegara) next.warganegara = "Required";
@@ -147,13 +169,17 @@ export default function AdminFormClient({
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (!validate()) return;
+  const handleSubmit = async () => {
+    if (!validate() || submitting) return;
 
     const payload: Admin = {
       username: form.username,
+      userDataId: editingAdmin?.userDataId,
       namaLengkap: form.namaLengkap.trim(),
       panggilan: form.panggilan.trim(),
+      email: form.email.trim(),
+      gender: form.gender,
+      noHandphone1: form.noHandphone1.trim(),
       dojang: form.dojang,
       sabuk: form.sabuk,
       tanggalLahir: form.tanggalLahir,
@@ -175,12 +201,16 @@ export default function AdminFormClient({
       updateDate: new Date().toISOString(),
     };
 
-    if (isEditing) {
-      updateAdmin(form.username, payload);
-    } else {
-      addAdmin(payload);
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (isEditing) await updateAdmin(form.username, payload, photoFile);
+      else await addAdmin(payload, form.password, photoFile);
+      router.push("/app/admin");
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Failed to save admin");
+      setSubmitting(false);
     }
-    router.push("/app/admin");
   };
 
   const handleCancel = () => router.push("/app/admin");
@@ -205,7 +235,11 @@ export default function AdminFormClient({
       <div className="space-y-6 max-w-5xl">
         <FormSection title="Identitas">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <Input label="No. Reg" value={form.username} disabled />
+            <Input
+              label="No. Reg"
+              value={isEditing ? form.username : "Auto-generated on save"}
+              disabled
+            />
             <Input
               label="Nama Lengkap"
               value={form.namaLengkap}
@@ -219,6 +253,26 @@ export default function AdminFormClient({
               onChange={(e) => update("panggilan", e.target.value)}
               placeholder="e.g. Fathir"
             />
+            <Input
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => update("email", e.target.value)}
+              error={errors.email}
+              placeholder="e.g. nama@email.com"
+            />
+            <Select
+              label="Jenis Kelamin"
+              value={form.gender}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">Pilih Jenis Kelamin</option>
+              {GENDER_OPTIONS.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Tanggal Lahir"
               type="date"
@@ -286,6 +340,13 @@ export default function AdminFormClient({
 
         <FormSection title="Kontak & Alamat">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <Input
+              label="No Handphone 1"
+              type="tel"
+              value={form.noHandphone1}
+              onChange={(e) => update("noHandphone1", e.target.value)}
+              placeholder="e.g. 0878-5234-2342"
+            />
             <Input
               label="No Handphone 2"
               type="tel"
@@ -383,12 +444,57 @@ export default function AdminFormClient({
           </div>
         </FormSection>
 
+        <FormSection title="Akun & Foto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            {!isEditing && (
+              <Input
+                label="Password"
+                type="password"
+                value={form.password}
+                onChange={(e) => update("password", e.target.value)}
+                error={errors.password}
+                placeholder="Min. 6 characters"
+              />
+            )}
+            <div className="flex flex-col gap-2">
+              <label className="font-display text-[11px] font-bold uppercase tracking-widest text-ink">
+                Foto
+              </label>
+              {isEditing && editingAdmin?.photo && !photoFile && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fileUrl(editingAdmin.photo)}
+                  alt={form.namaLengkap}
+                  className="h-20 w-20 rounded-sm border border-ink/10 object-cover"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
+                className="text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-ink/15 file:bg-paper-soft file:px-3 file:py-1.5 file:text-xs file:font-bold file:uppercase file:tracking-widest file:text-ink hover:file:bg-paper"
+              />
+              {photoFile && (
+                <p className="text-xs text-muted">Selected: {photoFile.name}</p>
+              )}
+              {isEditing && (
+                <p className="text-xs text-muted">
+                  Leave empty to keep the current photo.
+                </p>
+              )}
+            </div>
+          </div>
+        </FormSection>
+
+        {submitError && (
+          <p className="text-sm text-brand text-right">{submitError}</p>
+        )}
         <div className="flex items-center justify-end gap-2 pt-2 pb-4">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={submitting}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {isEditing ? "Save Changes" : "Add Admin"}
+          <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Saving…" : isEditing ? "Save Changes" : "Add Admin"}
           </Button>
         </div>
       </div>

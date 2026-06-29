@@ -1,7 +1,8 @@
 // src/app/app/(authenticated)/coach/_shared/coaches.ts
 
 import type { BloodType } from "@/lib/reference";
-import { fetchUserData, mapUserRow } from "@/lib/api/users";
+import { fetchUserData, mapUserRow, inactUserData } from "@/lib/api/users";
+import { createUser, editUser } from "../../_shared/user-write";
 // Re-exported so Coach.golDarah consumers can keep importing it from here.
 export type { BloodType };
 
@@ -13,6 +14,10 @@ export type Coach = {
   userDataId?: number; // UserData PK — the CoachId used by schedule/attendance joins
   namaLengkap: string;
   panggilan: string;
+  email?: string;            // populated on hydration / collected on the form
+  gender?: string;
+  photo?: string;            // UserPhoto path (display on edit); "" when none
+  noHandphone1?: string;
   dojang: string;
   sabuk: string;
   tanggalLahir: string;
@@ -244,26 +249,29 @@ export function getNextCoachUsername(): string {
   }, 0);
   return `C${String(max + 1).padStart(4, "0")}`;
 }
-export function addCoach(c: Coach) {
-  _coaches = [c, ..._coaches];
-  notify();
+/** Create a coach (save-user-data, UserTypeCode "I"), then reload. */
+export async function addCoach(
+  c: Coach,
+  password: string,
+  photo: File | null,
+) {
+  await createUser(c, "I", password, photo);
+  await reloadCoaches();
 }
-export function updateCoach(username: string, patch: Partial<Coach>) {
-  _coaches = _coaches.map((c) =>
-    c.username === username ? { ...c, ...patch } : c,
-  );
-  notify();
+/** Edit a coach's profile (save-user-data edit), then reload. */
+export async function updateCoach(
+  username: string,
+  c: Coach,
+  photo: File | null,
+) {
+  await editUser({ ...c, username }, "I", photo);
+  await reloadCoaches();
 }
-export function toggleCoachStatus(username: string, by: string) {
-  _coaches = _coaches.map((c) =>
-    c.username === username
-      ? {
-          ...c,
-          status: c.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : c,
-  );
-  notify();
+/** Enable/disable via inact-user-data (User.FgStatus), then reload. Throws so
+ *  the consumer can surface the error. */
+export async function toggleCoachStatus(username: string) {
+  const c = getCoachByUsername(username);
+  if (!c?.userId) throw new Error("User id not loaded for " + username);
+  await inactUserData(c.userId, c.status === "Active" ? "N" : "Y");
+  await reloadCoaches();
 }

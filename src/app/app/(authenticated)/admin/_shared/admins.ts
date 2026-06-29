@@ -3,7 +3,8 @@
 // Reference dropdowns previously duplicated here were removed (audit issue #2):
 // belts/dojang derive from the master stores, the rest from @/lib/reference.
 import type { BloodType } from "@/lib/reference";
-import { fetchUserData, mapUserRow } from "@/lib/api/users";
+import { fetchUserData, mapUserRow, inactUserData } from "@/lib/api/users";
+import { createUser, editUser } from "../../_shared/user-write";
 // Re-exported so Admin.golDarah consumers can keep importing it from here.
 export type { BloodType };
 
@@ -15,6 +16,10 @@ export type Admin = {
   userDataId?: number;       // UserData PK (populated on hydration; for operational joins)
   namaLengkap: string;
   panggilan: string;
+  email?: string;            // populated on hydration / collected on the form
+  gender?: string;
+  photo?: string;            // UserPhoto path (display on edit); "" when none
+  noHandphone1?: string;
   dojang: string;
   sabuk: string;             // "-" if unranked
   tanggalLahir: string;      // YYYY-MM-DD
@@ -401,28 +406,31 @@ export function getNextUsername(): string {
   return `NA${String(max + 1).padStart(4, "0")}`;
 }
 
-export function addAdmin(admin: Admin) {
-  _admins = [admin, ..._admins];
-  notify();
+/** Create an admin (save-user-data, UserTypeCode "A"), then reload. */
+export async function addAdmin(
+  admin: Admin,
+  password: string,
+  photo: File | null,
+) {
+  await createUser(admin, "A", password, photo);
+  await reloadAdmins();
 }
 
-export function updateAdmin(username: string, patch: Partial<Admin>) {
-  _admins = _admins.map((a) =>
-    a.username === username ? { ...a, ...patch } : a,
-  );
-  notify();
+/** Edit an admin's profile (save-user-data edit), then reload. */
+export async function updateAdmin(
+  username: string,
+  admin: Admin,
+  photo: File | null,
+) {
+  await editUser({ ...admin, username }, "A", photo);
+  await reloadAdmins();
 }
 
-export function toggleAdminStatus(username: string, by: string) {
-  _admins = _admins.map((a) =>
-    a.username === username
-      ? {
-          ...a,
-          status: a.status === "Active" ? "Inactive" : "Active",
-          updatedBy: by,
-          updateDate: new Date().toISOString(),
-        }
-      : a,
-  );
-  notify();
+/** Enable/disable via inact-user-data (User.FgStatus), then reload. Throws so
+ *  the consumer can surface the error. */
+export async function toggleAdminStatus(username: string) {
+  const a = getAdminByUsername(username);
+  if (!a?.userId) throw new Error("User id not loaded for " + username);
+  await inactUserData(a.userId, a.status === "Active" ? "N" : "Y");
+  await reloadAdmins();
 }

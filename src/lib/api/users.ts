@@ -10,7 +10,7 @@
 // The list returns UserId (the User-table PK, used by inact-user-data) and
 // UserDataId (the UserData PK that the schedule/attendance/score endpoints join
 // on as StudentId/CoachId).
-import { apiPost } from "./client";
+import { apiPost, apiPostForm } from "./client";
 import { dmyToIso, dmyhmsToIso } from "./dates";
 import type { BloodType } from "@/lib/reference";
 
@@ -134,6 +134,87 @@ export function updateUserRole(
   );
 }
 
+/**
+ * Common shape the Student/Coach/Admin stores hand to {@link saveUserData}. The
+ * stores resolve the dojang/belt NAMES they hold to ids (belt is null for
+ * unranked users — the backend now allows that). `password` is insert-only;
+ * `userDataId` + `username` are required on edit (the backend fetches the old
+ * row by UserNoId to carry the existing photo through).
+ */
+export interface UserWriteInput {
+  fgMode: "I" | "E";
+  userTypeCode: "S" | "I" | "A";
+  userDataId?: number;
+  username?: string; // UserNoId (edit)
+  namaLengkap: string;
+  panggilan: string;
+  email: string;
+  gender: string;
+  warganegara: string;
+  nikKtpPaspor: string;
+  alamatLengkap: string;
+  noHandphone1: string;
+  noHandphone2: string;
+  kodePos: string;
+  tanggalLahir: string; // "YYYY-MM-DD"
+  tinggiBadan: number;
+  beratBadan: number;
+  ukuranSepatu: number;
+  namaAyah: string;
+  namaIbu: string;
+  golDarah: string;
+  alergi: string;
+  mulaiLatihan: string; // "YYYY-MM-DD"
+  dojangId: number | null;
+  beltMasterId: number | null;
+  password?: string; // insert
+}
+
+/** save-user-data — multipart insert/update of a user profile. The photo rides
+ *  as field "UserPhoto"; objParam is a JSON string (standard multipart convention).
+ *  On edit with no new photo the backend keeps the existing one. */
+export function saveUserData(
+  input: UserWriteInput,
+  photo: File | null,
+): Promise<void> {
+  const params: Record<string, unknown> = {
+    FgMode: input.fgMode,
+    UserName: input.namaLengkap,
+    UserNickname: input.panggilan,
+    UserEmailAddress: input.email,
+    UserGender: input.gender,
+    UserNationality: input.warganegara,
+    UserNIK: input.nikKtpPaspor,
+    UserAddress: input.alamatLengkap,
+    UserPhoneNumber1: input.noHandphone1,
+    UserPhoneNumber2: input.noHandphone2,
+    UserPosCode: input.kodePos,
+    UserBirthDate: input.tanggalLahir,
+    UserHeight: input.tinggiBadan,
+    UserWeight: input.beratBadan,
+    UserShoesSize: input.ukuranSepatu,
+    UserFatherName: input.namaAyah,
+    UserMotherName: input.namaIbu,
+    UserBloodType: input.golDarah,
+    UserAlergic: input.alergi,
+    UserJoinDate: input.mulaiLatihan,
+    DojangId: input.dojangId,
+    BeltMasterId: input.beltMasterId,
+  };
+  if (input.fgMode === "I") {
+    params.UserTypeCode = input.userTypeCode;
+    params.UserPassword = input.password ?? "";
+  } else {
+    params.UserDataId = input.userDataId ?? 0;
+    params.UserNoId = input.username ?? "";
+  }
+
+  const form = new FormData();
+  form.append("objParam", JSON.stringify(params));
+  if (photo) form.append("UserPhoto", photo);
+  return apiPostForm<void>("/user/save-user-data", form, { auth: true });
+}
+
 export function mapUserRow(r: UserDataRow) {
   return {
     username: r.UserNoId,
@@ -141,9 +222,13 @@ export function mapUserRow(r: UserDataRow) {
     userDataId: r.UserDataId,
     namaLengkap: r.UserName ?? "",
     panggilan: r.UserNickname ?? "",
+    email: r.UserEmailAddress ?? "",
+    gender: r.UserGender ?? "",
+    photo: r.UserPhoto ?? "",
     dojang: r.DojangName ?? "",
     sabuk: r.BeltName ?? "-",
     tanggalLahir: dmyToIso(r.UserBirthDate),
+    noHandphone1: r.UserPhoneNumber1 ?? "",
     noHandphone2: r.UserPhoneNumber2 ?? "",
     warganegara: r.UserNationality ?? "",
     nikKtpPaspor: r.UserNIK ?? "",

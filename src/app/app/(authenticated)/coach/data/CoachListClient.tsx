@@ -1,6 +1,5 @@
 // src/app/app/(authenticated)/coach/data/CoachListClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Pencil, Ban, Power } from "lucide-react";
@@ -9,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import {
@@ -56,6 +56,19 @@ export default function CoachListClient() {
   });
   const [page, setPage] = useState(1);
   const [confirming, setConfirming] = useState<Coach | null>(null);
+  const [actionError, setActionError] = useState("");
+  const handleToggleStatus = async () => {
+    if (!confirming) return;
+    const target = confirming;
+    setConfirming(null);
+    try {
+      await toggleCoachStatus(target.username);
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : "Failed to update status",
+      );
+    }
+  };
 
   const filtered = useMemo(
     () =>
@@ -359,9 +372,7 @@ export default function CoachListClient() {
       <ConfirmDialog
         open={confirming !== null}
         onClose={() => setConfirming(null)}
-        onConfirm={() => {
-          if (confirming) toggleCoachStatus(confirming.username, getCurrentUsername());
-        }}
+        onConfirm={handleToggleStatus}
         title={
           confirming?.status === "Inactive" ? "Enable Coach" : "Disable Coach"
         }
@@ -375,6 +386,20 @@ export default function CoachListClient() {
         confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}
         variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
       />
+
+      <Modal
+        open={actionError !== ""}
+        onClose={() => setActionError("")}
+        title="Cannot Update Status"
+        size="sm"
+      >
+        <p className="text-sm text-ink/80">{actionError}</p>
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setActionError("")}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

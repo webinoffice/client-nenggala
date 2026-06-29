@@ -1,7 +1,5 @@
 // src/app/app/(authenticated)/admin/AdminListClient.tsx
 "use client";
-import { getCurrentUsername } from "@/lib/current-user";
-
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Pencil, Ban, Power } from "lucide-react";
@@ -10,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
 import {
@@ -54,6 +53,7 @@ export default function AdminListClient() {
 
   const [page, setPage] = useState(1);
   const [confirming, setConfirming] = useState<Admin | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const filtered = useMemo(() => {
     return admins.filter((a) => {
@@ -90,9 +90,17 @@ export default function AdminListClient() {
   const handleAdd = () => router.push("/app/admin/new");
   const handleEdit = (a: Admin) => router.push(`/app/admin/${a.username}/edit`);
 
-  const handleToggleStatus = () => {
+  const handleToggleStatus = async () => {
     if (!confirming) return;
-    toggleAdminStatus(confirming.username, getCurrentUsername());
+    const target = confirming;
+    setConfirming(null);
+    try {
+      await toggleAdminStatus(target.username);
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : "Failed to update status",
+      );
+    }
   };
 
   return (
@@ -380,6 +388,20 @@ export default function AdminListClient() {
         confirmLabel={confirming?.status === "Inactive" ? "Enable" : "Disable"}
         variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
       />
+
+      <Modal
+        open={actionError !== ""}
+        onClose={() => setActionError("")}
+        title="Cannot Update Status"
+        size="sm"
+      >
+        <p className="text-sm text-ink/80">{actionError}</p>
+        <div className="flex justify-end mt-6">
+          <Button variant="outline" onClick={() => setActionError("")}>
+            Close
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

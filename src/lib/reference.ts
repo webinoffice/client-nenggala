@@ -15,3 +15,7 @@ export const WARGA_NEGARA_OPTIONS = [
 ];
 
 export const GOL_DARAH_OPTIONS: BloodType[] = ["-", "A", "B", "AB", "O"];
+
+// UserGender is free text in the backend; these are the standard choices the
+// forms offer (existing records also carry values like "Laki-laki").
+export const GENDER_OPTIONS = ["Laki-laki", "Perempuan"];
