@@ -22,6 +22,9 @@ export interface UserDataRow {
   UserId: number;
   UserDataId: number;
   UserNoId: string;
+  /** Plaintext password mirror (login still verifies the bcrypt hash). Null for
+   *  legacy users created before the plaintext column existed. */
+  UserPasswordPlain: string | null;
   UserNIK: string | null;
   UserName: string | null;
   UserNickname: string | null;
@@ -47,8 +50,13 @@ export interface UserDataRow {
   UserBirthDate: string | null;
   /** "dd/mm/yyyy" */
   UserJoinDate: string | null;
+  /** UserData (profile) audit fields — used by the Student/Coach/Admin screens. */
   UpdateDate: string | null;
   UpdatedBy: string | null;
+  /** User (account) audit fields — used by the roles screen, where the writes
+   *  (role/password/status) stamp the User table, not UserData. */
+  UserUpdateDate: string | null;
+  UserUpdatedBy: string | null;
   BeltMasterId: number | null;
   BeltName: string | null;
   UserPhoto: string | null;

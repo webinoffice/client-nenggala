@@ -17,18 +17,18 @@ export type SchedulePeriod = {
   id: number;
   periodName: string;
   dojang: string;
-  periodStart: string; // YYYY-MM
-  periodEnd: string; // YYYY-MM
+  periodStart: string; // YYYY-MM-DD
+  periodEnd: string; // YYYY-MM-DD
   status: SchedulePeriodStatus;
   updatedBy: string;
   updateDate: string;
 };
 
 export const INITIAL_PERIODS: SchedulePeriod[] = [
-  { id: 1, periodName: "Period 32", dojang: "Kedoya Sport Club", periodStart: "2026-01", periodEnd: "2026-06", status: "Active", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
-  { id: 2, periodName: "Period 33", dojang: "Kedoya Sport Club", periodStart: "2026-07", periodEnd: "2026-12", status: "Active", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
-  { id: 3, periodName: "Period 31", dojang: "Senayan Dojang", periodStart: "2025-07", periodEnd: "2025-12", status: "Active", updatedBy: "Carolina", updateDate: "2025-06-15T10:00:00" },
-  { id: 4, periodName: "Period 30", dojang: "Bintaro Dojang", periodStart: "2025-01", periodEnd: "2025-06", status: "Inactive", updatedBy: "Carolina", updateDate: "2024-12-20T11:00:00" },
+  { id: 1, periodName: "Period 32", dojang: "Kedoya Sport Club", periodStart: "2026-01-01", periodEnd: "2026-06-30", status: "Active", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
+  { id: 2, periodName: "Period 33", dojang: "Kedoya Sport Club", periodStart: "2026-07-01", periodEnd: "2026-12-31", status: "Active", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
+  { id: 3, periodName: "Period 31", dojang: "Senayan Dojang", periodStart: "2025-07-01", periodEnd: "2025-12-31", status: "Active", updatedBy: "Carolina", updateDate: "2025-06-15T10:00:00" },
+  { id: 4, periodName: "Period 30", dojang: "Bintaro Dojang", periodStart: "2025-01-01", periodEnd: "2025-06-30", status: "Inactive", updatedBy: "Carolina", updateDate: "2024-12-20T11:00:00" },
 ];
 
 // ---- mutable store ----
@@ -52,17 +52,19 @@ export function subscribeSchedulePeriods(listener: () => void) {
 // ---- hydration (read API) ----
 // get-schperiod (IsEntry "N"). The backend returns DojangId (not a name) and
 // dates as "dd MMMM yyyy", and has no status column — so the dojang name is
-// resolved via the dojang store, dates are normalised to "YYYY-MM", and every
-// period is treated as Active (the status toggle stays client-only).
+// resolved via the dojang store, dates are normalised to "YYYY-MM-DD" (the
+// SchPeriod.PeriodStart/PeriodEnd columns are full DATEs), and every period is
+// treated as Active (the status toggle stays client-only).
 let _loaded = false;
 let _loadPromise: Promise<void> | null = null;
 
-/** "05 January 2026" → "2026-01". */
-function toYearMonth(value: string | null): string {
+/** "05 January 2026" → "2026-01-05" (local date components). */
+function toIsoDate(value: string | null): string {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 async function loadSchedulePeriods(): Promise<void> {
@@ -74,8 +76,8 @@ async function loadSchedulePeriods(): Promise<void> {
     periodName: r.PeriodTitle,
     dojang:
       (r.DojangId != null ? getDojangById(r.DojangId)?.dojangName : "") ?? "",
-    periodStart: toYearMonth(r.PeriodStart),
-    periodEnd: toYearMonth(r.PeriodEnd),
+    periodStart: toIsoDate(r.PeriodStart),
+    periodEnd: toIsoDate(r.PeriodEnd),
     status: "Active",
     updatedBy: r.UpdatedBy ?? "",
     updateDate: dmyhmsToIso(r.UpdateDate),
@@ -114,18 +116,8 @@ export function getMaxSchedulePeriodId(): number {
 // column and no inact endpoint, so "disable" is a hard delete (guarded against
 // in-use periods server-side). On insert the backend auto-assigns PeriodCount
 // (the "Period N" name) per dojang, so the form's periodName is informational.
-
-/** "2026-01" → "2026-01-01" (first of month). */
-function startOfMonth(ym: string): string {
-  return ym ? `${ym}-01` : "";
-}
-/** "2026-06" → "2026-06-30" (last of month) — keeps CURDATE-in-period checks right. */
-function endOfMonth(ym: string): string {
-  if (!ym) return "";
-  const [y, m] = ym.split("-").map(Number);
-  const last = new Date(y, m, 0).getDate();
-  return `${ym}-${String(last).padStart(2, "0")}`;
-}
+// Dates are day-level ("YYYY-MM-DD") and passed straight through to the DATE
+// columns — both start and end are editable.
 
 function resolveDojangId(name: string): number | null {
   return getDojangs().find((d) => d.dojangName === name)?.id ?? null;
@@ -146,8 +138,8 @@ export async function addSchedulePeriods(created: SchedulePeriod[]) {
       await saveSchPeriod({
         SchPeriodId: 0,
         DojangId: dojangId,
-        PeriodStart: startOfMonth(p.periodStart),
-        PeriodEnd: endOfMonth(p.periodEnd),
+        PeriodStart: p.periodStart,
+        PeriodEnd: p.periodEnd,
         PeriodTitle: p.periodName,
         FgMode: "I",
       });
@@ -158,33 +150,29 @@ export async function addSchedulePeriods(created: SchedulePeriod[]) {
   }
 }
 
-/** Edit a period. The backend edit path only persists PeriodEnd (the start and
- *  the auto-generated name are immutable); DojangId + the existing start are
- *  resent for the overlap/edit validations. */
+/** Edit a period. The backend edit path persists PeriodStart + PeriodEnd (the
+ *  auto-generated "Period N" name is immutable); DojangId + dates are resent for
+ *  the overlap/edit validations. Throws the server's error (e.g. "end is before
+ *  an existing schedule") so the caller can surface it. */
 export async function updateSchedulePeriod(
   id: number,
   patch: Partial<SchedulePeriod>,
 ) {
-  try {
-    const existing = _periods.find((p) => p.id === id);
-    if (!existing) return;
-    const dojangId = resolveDojangId(existing.dojang);
-    if (dojangId == null) {
-      console.error(`Unknown dojang "${existing.dojang}" — skipping period edit`);
-      return;
-    }
-    await saveSchPeriod({
-      SchPeriodId: id,
-      DojangId: dojangId,
-      PeriodStart: startOfMonth(existing.periodStart),
-      PeriodEnd: endOfMonth(patch.periodEnd ?? existing.periodEnd),
-      PeriodTitle: patch.periodName ?? existing.periodName,
-      FgMode: "E",
-    });
-    await reloadSchedulePeriods();
-  } catch (err) {
-    console.error("Failed to update schedule period", err);
+  const existing = _periods.find((p) => p.id === id);
+  if (!existing) return;
+  const dojangId = resolveDojangId(existing.dojang);
+  if (dojangId == null) {
+    throw new Error(`Unknown dojang "${existing.dojang}"`);
   }
+  await saveSchPeriod({
+    SchPeriodId: id,
+    DojangId: dojangId,
+    PeriodStart: patch.periodStart ?? existing.periodStart,
+    PeriodEnd: patch.periodEnd ?? existing.periodEnd,
+    PeriodTitle: existing.periodName,
+    FgMode: "E",
+  });
+  await reloadSchedulePeriods();
 }
 
 /** Hard delete (the backend has no status). Throws the server's "already used"

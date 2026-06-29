@@ -9,8 +9,8 @@ import type { SchedulePeriod } from "../_shared/schedule-periods";
 
 export type SchedulePeriodFormValues = {
   periodName: string;
-  periodStart: string; // YYYY-MM
-  periodEnd: string; // YYYY-MM
+  periodStart: string; // YYYY-MM-DD
+  periodEnd: string; // YYYY-MM-DD
   dojangs: string[]; // one record is created per dojang (add mode)
 };
 
@@ -134,18 +134,19 @@ function SchedulePeriodFormBody({
           value={periodName}
           onChange={(e) => setPeriodName(e.target.value)}
           error={errors.periodName}
-        />
-        <Input
-          label="Period Start"
-          type="month"
-          value={periodStart}
-          onChange={(e) => setPeriodStart(e.target.value)}
-          error={errors.periodStart}
+          // The name is the auto-assigned "Period N" (PeriodCount) — immutable on edit.
           disabled={isEditing}
         />
         <Input
+          label="Period Start"
+          type="date"
+          value={periodStart}
+          onChange={(e) => setPeriodStart(e.target.value)}
+          error={errors.periodStart}
+        />
+        <Input
           label="Period End"
-          type="month"
+          type="date"
           value={periodEnd}
           onChange={(e) => setPeriodEnd(e.target.value)}
           error={errors.periodEnd}

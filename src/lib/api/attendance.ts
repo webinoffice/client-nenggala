@@ -140,6 +140,10 @@ export interface CoachAtdDetailRow {
 export function fetchCoachAtdDetail(p: {
   monthPeriod: string;
   programMsId: number;
+  /** The coach whose sessions to list. REQUIRED: the backend filters
+   *  Attendance.UserDataId by this — without it the detail isn't coach-scoped
+   *  and a session taught by two coaches (PIC + assistant) shows duplicate rows. */
+  coachId: number;
 }): Promise<CoachAtdDetailRow[]> {
   return apiPost<CoachAtdDetailRow[]>(
     "/attendance/get-coach-atd-detail",
@@ -148,6 +152,7 @@ export function fetchCoachAtdDetail(p: {
         ObjSearch: NO_SEARCH,
         MonthPeriod: p.monthPeriod,
         ProgramMsId: p.programMsId,
+        UserDataId: p.coachId,
       },
     },
     { auth: true },

@@ -1,9 +1,9 @@
 // src/app/app/(authenticated)/me/ebook/EbookClient.tsx
 "use client";
 
-import { useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Download } from "lucide-react";
-import { INITIAL_EBOOKS } from "../../master/_shared/ebooks";
+import { getEbooks, subscribeEbooks } from "../../master/_shared/ebooks";
 
 function fmtDate(iso: string) {
   if (!iso) return "-";
@@ -13,19 +13,24 @@ function fmtDate(iso: string) {
 }
 
 export default function EbookClient() {
+  const allEbooks = useSyncExternalStore(subscribeEbooks, getEbooks, getEbooks);
+
   // Active e-books only, sorted by sabuk then title
-  const [ebooks] = useState(() =>
-    INITIAL_EBOOKS.filter((e) => e.status === "Active").sort((a, b) => {
-      if (a.sabuk !== b.sabuk) return a.sabuk.localeCompare(b.sabuk);
-      return a.title.localeCompare(b.title);
-    }),
+  const ebooks = useMemo(
+    () =>
+      allEbooks
+        .filter((e) => e.status === "Active")
+        .sort((a, b) => {
+          if (a.sabuk !== b.sabuk) return a.sabuk.localeCompare(b.sabuk);
+          return a.title.localeCompare(b.title);
+        }),
+    [allEbooks],
   );
 
   const handleDownload = (pdfFile: string) => {
-    // Mock: in production this opens the actual PDF URL
-    alert(
-      `📕 Opening: ${pdfFile}\n\nIn production this would open the PDF in a new tab.`,
-    );
+    // pdfFile is already an absolute URL (store maps EBookFile through fileUrl).
+    if (!pdfFile) return;
+    window.open(pdfFile, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -71,7 +76,9 @@ export default function EbookClient() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => handleDownload(e.pdfFile)}
-                        className="inline-flex items-center gap-1.5 bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
+                        disabled={!e.pdfFile}
+                        className="inline-flex items-center gap-1.5 bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={e.pdfFile ? undefined : "No file uploaded"}
                       >
                         <Download size={12} />
                         Download

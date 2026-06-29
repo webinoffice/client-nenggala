@@ -58,7 +58,11 @@ export default function CoachAttendanceClient() {
   const openDetail = (row: CoachAtdRow) => {
     setDetail(row);
     setDetailRows([]);
-    fetchCoachAtdDetail({ monthPeriod: applied.month, programMsId: row.ProgramMsId })
+    fetchCoachAtdDetail({
+      monthPeriod: applied.month,
+      programMsId: row.ProgramMsId,
+      coachId: row.UserDataId,
+    })
       .then((r) => setDetailRows(r ?? []))
       .catch(() => setDetailRows([]));
   };

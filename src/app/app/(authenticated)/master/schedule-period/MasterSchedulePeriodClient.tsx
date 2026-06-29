@@ -44,12 +44,13 @@ const MONTH_NAMES_ID = [
   "Desember",
 ];
 
-export function formatMonth(yearMonth: string): string {
-  if (!yearMonth) return "";
-  const [year, month] = yearMonth.split("-");
+/** "2026-01-15" → "15 Januari 2026". */
+export function formatDay(isoDate: string): string {
+  if (!isoDate) return "";
+  const [year, month, day] = isoDate.split("-");
   const idx = parseInt(month, 10) - 1;
-  if (idx < 0 || idx > 11) return yearMonth;
-  return `${MONTH_NAMES_ID[idx]} ${year}`;
+  if (idx < 0 || idx > 11) return isoDate;
+  return `${parseInt(day, 10)} ${MONTH_NAMES_ID[idx]} ${year}`;
 }
 
 function formatDate(iso: string) {
@@ -75,6 +76,7 @@ export default function MasterSchedulePeriodClient() {
   const [editing, setEditing] = useState<SchedulePeriod | null>(null);
   const [confirming, setConfirming] = useState<SchedulePeriod | null>(null);
   const [actionError, setActionError] = useState("");
+  const [errorTitle, setErrorTitle] = useState("Action Failed");
   const [dojangFilter, setDojangFilter] = useState("All");
 
   // pagination states
@@ -109,31 +111,43 @@ export default function MasterSchedulePeriodClient() {
     setFormOpen(true);
   };
 
-  const handleSubmit = (values: SchedulePeriodFormValues) => {
+  const handleSubmit = async (values: SchedulePeriodFormValues) => {
     const now = new Date().toISOString();
     if (editing) {
-      // Only the name and period end may change.
-      updateSchedulePeriod(editing.id, {
-        periodName: values.periodName,
-        periodEnd: values.periodEnd,
-        updatedBy: currentUserName,
-        updateDate: now,
-      });
-    } else {
-      // One record per selected dojang (admin: always own dojang).
-      const baseId = getMaxSchedulePeriodId();
-      const created: SchedulePeriod[] = values.dojangs.map((dojang, i) => ({
-        id: baseId + 1 + i,
-        periodName: values.periodName,
-        dojang,
-        periodStart: values.periodStart,
-        periodEnd: values.periodEnd,
-        status: "Active",
-        updatedBy: currentUserName,
-        updateDate: now,
-      }));
-      addSchedulePeriods(created);
+      // Start + end are editable; the auto-assigned "Period N" name is immutable.
+      // The backend rejects an end earlier than an existing schedule's DateEnd —
+      // surface that error instead of silently swallowing it.
+      const target = editing;
+      try {
+        await updateSchedulePeriod(target.id, {
+          periodStart: values.periodStart,
+          periodEnd: values.periodEnd,
+          updatedBy: currentUserName,
+          updateDate: now,
+        });
+        setFormOpen(false);
+        setEditing(null);
+      } catch (err) {
+        setErrorTitle("Cannot Update Period");
+        setActionError(
+          err instanceof Error ? err.message : "Failed to update period",
+        );
+      }
+      return;
     }
+    // One record per selected dojang (admin: always own dojang).
+    const baseId = getMaxSchedulePeriodId();
+    const created: SchedulePeriod[] = values.dojangs.map((dojang, i) => ({
+      id: baseId + 1 + i,
+      periodName: values.periodName,
+      dojang,
+      periodStart: values.periodStart,
+      periodEnd: values.periodEnd,
+      status: "Active",
+      updatedBy: currentUserName,
+      updateDate: now,
+    }));
+    addSchedulePeriods(created);
     setFormOpen(false);
     setEditing(null);
   };
@@ -145,6 +159,7 @@ export default function MasterSchedulePeriodClient() {
     try {
       await deleteSchedulePeriod(target.id);
     } catch (err) {
+      setErrorTitle("Cannot Delete Period");
       setActionError(
         err instanceof Error ? err.message : "Failed to delete period",
       );
@@ -228,10 +243,10 @@ export default function MasterSchedulePeriodClient() {
                         <td className="px-4 py-3 text-ink/80">{p.dojang}</td>
                       )}
                       <td className="px-4 py-3 text-ink/80">
-                        {formatMonth(p.periodStart)}
+                        {formatDay(p.periodStart)}
                       </td>
                       <td className="px-4 py-3 text-ink/80">
-                        {formatMonth(p.periodEnd)}
+                        {formatDay(p.periodEnd)}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-2 text-xs font-semibold">
@@ -321,7 +336,7 @@ export default function MasterSchedulePeriodClient() {
       <Modal
         open={actionError !== ""}
         onClose={() => setActionError("")}
-        title="Cannot Delete Period"
+        title={errorTitle}
         size="sm"
       >
         <p className="text-sm text-ink/80">{actionError}</p>

@@ -54,8 +54,10 @@ export function subscribeAppUsers(listener: () => void) {
 
 // ---- hydration (read API) ----
 // The roles master spans every user type, so it fans out get-user-data across
-// X/A/I/S and merges. `id` is the User-table PK (for the status-toggle write);
-// the backend never returns passwords, so `password` stays blank here.
+// X/A/I/S and merges. `id` is the User-table PK (for the status-toggle write).
+// `password` is the plaintext mirror the backend stores alongside the bcrypt
+// hash (UserPasswordPlain); it is blank for users created/changed before that
+// column existed, since a bcrypt hash can't be reversed.
 let _loaded = false;
 let _loadPromise: Promise<void> | null = null;
 
@@ -65,11 +67,13 @@ async function loadAppUsers(): Promise<void> {
     id: r.UserId,
     name: r.UserName ?? "",
     username: r.UserNoId,
-    password: "",
+    password: r.UserPasswordPlain ?? "",
     role: roleFromUserTypeCode(r.UserTypeCode),
     status: r.FgStatus === "Y" ? "Active" : "Inactive",
-    updatedBy: r.UpdatedBy ?? "",
-    updateDate: dmyhmsToIso(r.UpdateDate),
+    // Account (User-table) audit, not the profile (UserData) audit: the roles
+    // screen's writes (role/password/status) stamp User.UpdatedBy/UpdateDate.
+    updatedBy: r.UserUpdatedBy ?? "",
+    updateDate: dmyhmsToIso(r.UserUpdateDate),
   }));
   notify();
 }
