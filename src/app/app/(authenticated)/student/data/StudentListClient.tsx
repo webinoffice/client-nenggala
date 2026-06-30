@@ -2,7 +2,7 @@
 "use client";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Pencil, Ban, Power, Award } from "lucide-react";
+import { Plus, Search, Pencil, Ban, Power, Award, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -17,6 +17,7 @@ import {
   getStudents,
   subscribeStudents,
   toggleStudentStatus,
+  toggleStudentAssistant,
 } from "../_shared/students";
 import { useDojangOptions } from "../../master/_shared/dojangs";
 import { useSabukOptions } from "../../master/_shared/belts";
@@ -60,8 +61,10 @@ export default function StudentListClient() {
 
   const [page, setPage] = useState(1);
   const [confirming, setConfirming] = useState<Student | null>(null);
+  const [assistTarget, setAssistTarget] = useState<Student | null>(null);
   const [examTarget, setExamTarget] = useState<Student | null>(null);
   const [actionError, setActionError] = useState("");
+  const [errorTitle, setErrorTitle] = useState("Cannot Update Status");
 
   const filtered = useMemo(() => {
     return students.filter((s) => {
@@ -118,8 +121,22 @@ export default function StudentListClient() {
     try {
       await toggleStudentStatus(target.username);
     } catch (e) {
+      setErrorTitle("Cannot Update Status");
       setActionError(
         e instanceof Error ? e.message : "Failed to update status",
+      );
+    }
+  };
+  const handleToggleAssistant = async () => {
+    if (!assistTarget) return;
+    const target = assistTarget;
+    setAssistTarget(null);
+    try {
+      await toggleStudentAssistant(target.username);
+    } catch (e) {
+      setErrorTitle("Cannot Update Assistant");
+      setActionError(
+        e instanceof Error ? e.message : "Failed to update assistant flag",
       );
     }
   };
@@ -315,6 +332,25 @@ export default function StudentListClient() {
                               <Award size={14} />
                             </button>
                           )}
+                          {isActive && (
+                            <button
+                              onClick={() => setAssistTarget(s)}
+                              title={
+                                s.fgAssist
+                                  ? "Remove assistant flag"
+                                  : "Flag as assistant"
+                              }
+                              aria-label={`${s.fgAssist ? "Remove assistant flag from" : "Flag as assistant"} ${s.namaLengkap}`}
+                              className={cn(
+                                "p-1.5 rounded-sm transition",
+                                s.fgAssist
+                                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                  : "bg-paper-soft text-ink/60 border border-ink/15 hover:bg-ink/5",
+                              )}
+                            >
+                              <UserCheck size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink font-medium whitespace-nowrap">
@@ -322,6 +358,12 @@ export default function StudentListClient() {
                       </td>
                       <td className="px-4 py-3 text-ink whitespace-nowrap">
                         {s.namaLengkap}
+                        {s.fgAssist && (
+                          <span className="ml-2 inline-flex items-center gap-1 rounded-sm bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider align-middle">
+                            <UserCheck size={10} />
+                            Asisten
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-ink whitespace-nowrap">
                         {s.panggilan || "-"}
@@ -437,6 +479,24 @@ export default function StudentListClient() {
         variant={confirming?.status === "Inactive" ? "primary" : "destructive"}
       />
 
+      <ConfirmDialog
+        open={assistTarget !== null}
+        onClose={() => setAssistTarget(null)}
+        onConfirm={handleToggleAssistant}
+        title={
+          assistTarget?.fgAssist ? "Remove Assistant" : "Flag as Assistant"
+        }
+        description={
+          assistTarget
+            ? assistTarget.fgAssist
+              ? `Remove the assistant flag from ${assistTarget.namaLengkap} (${assistTarget.username})? They will no longer be selectable as an assistant coach on schedules.`
+              : `Flag ${assistTarget.namaLengkap} (${assistTarget.username}) as an assistant? They can then be assigned as an assistant coach on schedules.`
+            : ""
+        }
+        confirmLabel={assistTarget?.fgAssist ? "Remove" : "Flag"}
+        variant={assistTarget?.fgAssist ? "destructive" : "primary"}
+      />
+
       <AdminExamRegisterModal
         student={examTarget}
         onClose={() => setExamTarget(null)}
@@ -445,7 +505,7 @@ export default function StudentListClient() {
       <Modal
         open={actionError !== ""}
         onClose={() => setActionError("")}
-        title="Cannot Update Status"
+        title={errorTitle}
         size="sm"
       >
         <p className="text-sm text-ink/80">{actionError}</p>

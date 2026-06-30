@@ -11,6 +11,7 @@ import {
   Trophy,
   Award,
   MessageCircle,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/lib/roles";
@@ -160,6 +161,12 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: Award,
     href: "/app/certificate",
     roles: ADMIN_PLUS,
+  },
+  {
+    label: "Latihan Gabungan",
+    icon: Users,
+    href: "/app/joint-training",
+    roles: SUPER,
   },
   {
     label: "Admin Management",

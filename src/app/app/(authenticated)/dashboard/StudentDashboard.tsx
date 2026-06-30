@@ -22,6 +22,8 @@ import {
 } from "../student/_shared/exam";
 import { cn } from "@/lib/utils";
 import StudentExamCard from "./StudentExamCard";
+import JointTrainingHighlight from "../joint-training/_shared/JointTrainingHighlight";
+import UploadedImage from "@/components/app/UploadedImage";
 
 function formatJoinedDate(iso: string) {
   if (!iso) return "-";
@@ -191,12 +193,10 @@ export default function StudentDashboard() {
               className="bg-paper rounded-sm border border-ink/10 p-4 grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4 hover:border-ink/30 transition-colors"
             >
               <div className="relative aspect-[4/3] sm:aspect-auto overflow-hidden rounded-sm bg-ink">
-                <Image
+                <UploadedImage
                   src={event.image}
                   alt={event.title}
-                  fill
-                  className="object-cover"
-                  sizes="160px"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               </div>
               <div className="min-w-0">
@@ -231,6 +231,8 @@ export default function StudentDashboard() {
           ))}
         </div>
       </section>
+
+      <JointTrainingHighlight />
     </div>
   );
 }

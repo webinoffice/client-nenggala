@@ -142,6 +142,21 @@ export function updateUserRole(
   );
 }
 
+/** update-inst-assistant — flag/unflag a STUDENT as an assistant instructor
+ *  (UserData.FgAssist). Keyed on UserDataId (not UserId). The backend rejects
+ *  any non-student (UserTypeCode != "S") with "this user is not an instructor".
+ *  An assistant student is then picked up by the schedule coach-roles logic. */
+export function updateInstAssistant(
+  userDataId: number,
+  fgAssist: "Y" | "N",
+): Promise<void> {
+  return apiPost<void>(
+    "/user/update-inst-assistant",
+    { objParam: { UserDataId: userDataId, FgAssist: fgAssist } },
+    { auth: true },
+  );
+}
+
 /**
  * Common shape the Student/Coach/Admin stores hand to {@link saveUserData}. The
  * stores resolve the dojang/belt NAMES they hold to ids (belt is null for
@@ -250,6 +265,7 @@ export function mapUserRow(r: UserDataRow) {
     golDarah: (r.UserBloodType ?? "O") as BloodType,
     alergi: r.UserAlergic ?? "-",
     mulaiLatihan: dmyToIso(r.UserJoinDate),
+    fgAssist: r.FgAssist === "Y",
     updatedBy: r.UpdatedBy ?? "",
     updateDate: dmyhmsToIso(r.UpdateDate),
   };

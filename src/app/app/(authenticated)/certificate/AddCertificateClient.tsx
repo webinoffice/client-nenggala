@@ -2,11 +2,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, X, Award, Trash2 } from "lucide-react";
+import { Check, X, Award, Trash2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import PageHeader from "@/components/app/PageHeader";
+import Pagination from "@/components/app/Pagination";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   fetchCertif,
@@ -19,9 +21,12 @@ import {
 } from "@/lib/api/certifications";
 
 const MAX_RESULTS = 8;
+const PAGE_SIZE = 10;
 
 type RecipientType = "student" | "coach";
 const TYPE_CODE: Record<RecipientType, string> = { student: "S", coach: "I" };
+
+type ListTypeFilter = "All" | "S" | "I";
 
 export default function AddCertificateClient() {
   const [entries, setEntries] = useState<UserCertifEntryRow[]>([]);
@@ -45,6 +50,15 @@ export default function AddCertificateClient() {
   const [done, setDone] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [deleting, setDeleting] = useState<CertifRow | null>(null);
+
+  // ---- existing-certificates list: search + pagination ----
+  const [listNameInput, setListNameInput] = useState("");
+  const [listTypeInput, setListTypeInput] = useState<ListTypeFilter>("All");
+  const [listApplied, setListApplied] = useState<{
+    name: string;
+    type: ListTypeFilter;
+  }>({ name: "", type: "All" });
+  const [listPage, setListPage] = useState(1);
 
   const reloadCertifications = () => {
     setListLoading(true);
@@ -91,6 +105,43 @@ export default function AddCertificateClient() {
       )
       .slice(0, MAX_RESULTS);
   }, [query, recipientType, entries]);
+
+  const filteredCertifs = useMemo(() => {
+    const q = listApplied.name.trim().toLowerCase();
+    return certifications.filter((c) => {
+      const matchType =
+        listApplied.type === "All" || c.UserTypeCode === listApplied.type;
+      const matchName =
+        q === "" ||
+        (c.UserName ?? "").toLowerCase().includes(q) ||
+        (c.UserNoId ?? "").toLowerCase().includes(q);
+      return matchType && matchName;
+    });
+  }, [certifications, listApplied]);
+
+  const listTotalPages = Math.max(
+    1,
+    Math.ceil(filteredCertifs.length / PAGE_SIZE),
+  );
+  const listSafePage = Math.min(listPage, listTotalPages);
+  const paginatedCertifs = useMemo(() => {
+    const start = (listSafePage - 1) * PAGE_SIZE;
+    return filteredCertifs.slice(start, start + PAGE_SIZE);
+  }, [filteredCertifs, listSafePage]);
+
+  const hasListFilter =
+    listApplied.name !== "" || listApplied.type !== "All";
+
+  const handleListSearch = () => {
+    setListApplied({ name: listNameInput, type: listTypeInput });
+    setListPage(1);
+  };
+  const handleListReset = () => {
+    setListNameInput("");
+    setListTypeInput("All");
+    setListApplied({ name: "", type: "All" });
+    setListPage(1);
+  };
 
   const switchType = (t: RecipientType) => {
     setRecipientType(t);
@@ -308,6 +359,41 @@ export default function AddCertificateClient() {
           <div className="px-6 py-4 bg-paper-soft border-b border-ink/10 font-display text-sm font-bold uppercase tracking-widest text-ink">
             Existing Certificates
           </div>
+
+          {/* Filter bar */}
+          <div className="px-6 py-4 border-b border-ink/10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <Input
+                label="Nama / No. Reg"
+                value={listNameInput}
+                onChange={(e) => setListNameInput(e.target.value)}
+                placeholder="e.g. Nando atau NS00001"
+              />
+              <Select
+                label="Type"
+                value={listTypeInput}
+                onChange={(e) =>
+                  setListTypeInput(e.target.value as ListTypeFilter)
+                }
+              >
+                <option value="All">All</option>
+                <option value="S">Student</option>
+                <option value="I">Coach</option>
+              </Select>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-4">
+              {hasListFilter && (
+                <Button variant="ghost" size="sm" onClick={handleListReset}>
+                  Reset
+                </Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={handleListSearch}>
+                <Search size={16} />
+                Search
+              </Button>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -329,17 +415,19 @@ export default function AddCertificateClient() {
                       Loading…
                     </td>
                   </tr>
-                ) : certifications.length === 0 ? (
+                ) : paginatedCertifs.length === 0 ? (
                   <tr>
                     <td
                       colSpan={5}
                       className="text-center px-4 py-10 text-muted uppercase tracking-widest text-xs font-bold"
                     >
-                      No certificates yet
+                      {hasListFilter
+                        ? "No certificates match your filter"
+                        : "No certificates yet"}
                     </td>
                   </tr>
                 ) : (
-                  certifications.map((c) => (
+                  paginatedCertifs.map((c) => (
                     <tr
                       key={c.CertifId}
                       className="border-b border-ink/5 last:border-b-0"
@@ -376,6 +464,17 @@ export default function AddCertificateClient() {
               </tbody>
             </table>
           </div>
+          {!listLoading && filteredCertifs.length > 0 && (
+            <div className="border-t border-ink/10 px-4 py-3 bg-paper-soft">
+              <Pagination
+                currentPage={listSafePage}
+                totalPages={listTotalPages}
+                totalItems={filteredCertifs.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setListPage}
+              />
+            </div>
+          )}
         </section>
       </div>
 

@@ -2,8 +2,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import { Plus, Search } from "lucide-react";
+import UploadedImage from "@/components/app/UploadedImage";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -293,13 +293,10 @@ export default function EventsClient() {
           <div className="space-y-4">
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-sm bg-paper-soft border border-ink/10">
               {viewing.image ? (
-                <Image
+                <UploadedImage
                   src={viewing.image}
                   alt={viewing.title}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, 480px"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-muted uppercase tracking-widest text-xs font-bold">

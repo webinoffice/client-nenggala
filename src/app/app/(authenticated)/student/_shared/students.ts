@@ -5,7 +5,12 @@
 // issue #2): belts/dojang derive from the master stores, the rest from
 // @/lib/reference.
 import type { BloodType } from "@/lib/reference";
-import { fetchUserData, mapUserRow, inactUserData } from "@/lib/api/users";
+import {
+  fetchUserData,
+  mapUserRow,
+  inactUserData,
+  updateInstAssistant,
+} from "@/lib/api/users";
 import { createUser, editUser } from "../../_shared/user-write";
 // Re-exported so Student.golDarah consumers can keep importing it from here.
 export type { BloodType };
@@ -38,6 +43,7 @@ export type Student = {
   golDarah: BloodType;
   alergi: string;
   mulaiLatihan: string;
+  fgAssist?: boolean;        // flagged as an assistant instructor (UserData.FgAssist)
   status: StudentStatus;
   updatedBy: string;
   updateDate: string;
@@ -328,5 +334,15 @@ export async function toggleStudentStatus(username: string) {
   const s = getStudentByUsername(username);
   if (!s?.userId) throw new Error("User id not loaded for " + username);
   await inactUserData(s.userId, s.status === "Active" ? "N" : "Y");
+  await reloadStudents();
+}
+
+/** Flag/unflag a student as an assistant instructor (update-inst-assistant →
+ *  UserData.FgAssist), then reload. Keyed on the numeric UserDataId. Throws so
+ *  the consumer can surface the error. */
+export async function toggleStudentAssistant(username: string) {
+  const s = getStudentByUsername(username);
+  if (!s?.userDataId) throw new Error("User id not loaded for " + username);
+  await updateInstAssistant(s.userDataId, s.fgAssist ? "N" : "Y");
   await reloadStudents();
 }

@@ -2,8 +2,8 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
 import { Plus, Search, ExternalLink } from "lucide-react";
+import UploadedImage from "@/components/app/UploadedImage";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -284,12 +284,10 @@ export default function MasterProductClient() {
       >
         {viewingImage && (
           <div className="relative aspect-square w-full overflow-hidden rounded-sm bg-paper-soft border border-ink/10">
-            <Image
+            <UploadedImage
               src={viewingImage.image}
               alt={viewingImage.productName}
-              fill
-              className="object-contain"
-              sizes="(max-width: 640px) 100vw, 480px"
+              className="absolute inset-0 h-full w-full object-contain"
             />
           </div>
         )}

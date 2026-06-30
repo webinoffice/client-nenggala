@@ -11,6 +11,7 @@ import {
   getNewMemberTimeline,
   getBeltDistribution,
 } from "./_shared/admin-metrics";
+import JointTrainingHighlight from "../joint-training/_shared/JointTrainingHighlight";
 
 export default function AdminDashboard() {
   const displayName = getCurrentDisplayName();
@@ -107,6 +108,8 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      <JointTrainingHighlight />
     </div>
   );
 }
