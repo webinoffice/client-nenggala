@@ -2,16 +2,21 @@
 //
 // xlsx helpers for the admin Score Management bulk flow (Step 3d §5).
 //
-// Template = one row per NOT-yet-assessed student (from get-student-import-assess-
-// list), with the fixed identity columns + one score column per applicable
-// assessment item ("N/A" where the item is above the student's belt level). The
-// admin fills the score cells and re-imports; save-student-assess-bulk matches
-// each row by (UserNoId, UserName, ProgramName, PeriodTitle, BeltName, DojangName)
-// and each score by AssessTitle, so those columns must round-trip unchanged.
+// A SINGLE export doubles as the fillable template AND the current snapshot: one
+// row per registered student (from get-student-assess-list), the fixed identity
+// columns + one score column per assessment item. A cell is "N/A" where the item
+// is above the student's belt level, PRE-FILLED with the saved score for students
+// already assessed, or blank for students still awaiting a score. The admin fills
+// the blanks and re-imports; save-student-assess-bulk matches each row by
+// (UserNoId, UserName, ProgramName, PeriodTitle, BeltName, DojangName) and each
+// score by AssessTitle, so those columns must round-trip unchanged. Import is
+// fill-only: rows for already-assessed students are skipped by the caller (the
+// backend rejects them), so their pre-filled scores are effectively read-only.
 import * as XLSX from "xlsx";
 import type {
+  AssessEntryRow,
   BulkImportRow,
-  StudentImportAssessRow,
+  StudentAssessListRow,
 } from "@/lib/api/assessment";
 
 /** Fixed (non-score) leading columns. Score-item columns follow. */
@@ -28,48 +33,42 @@ export const FIXED_HEADERS = [
 
 const FIXED_SET = new Set<string>(FIXED_HEADERS);
 
-/** Distinct assessment titles across the import rows, ordered by AssessTempDtId. */
-function distinctTitles(rows: StudentImportAssessRow[]): string[] {
-  const byId = new Map<number, string>();
-  rows.forEach((r) => {
-    if (r.AssessTitle) byId.set(r.AssessTempDtId, r.AssessTitle);
-  });
-  return [...byId.entries()].sort((a, b) => a[0] - b[0]).map((e) => e[1]);
+/** One registered student plus their saved per-item scores (AssessTempDtId →
+ *  AssessScore), empty when not yet assessed. */
+export interface ScoreExportStudent {
+  meta: StudentAssessListRow;
+  scores: Map<number, number>;
 }
 
-/** Build the score-template sheet (one row per student). */
-export function buildScoreTemplate(
-  rows: StudentImportAssessRow[],
+/** Build the score sheet: one row per student, columns = the given assessment
+ *  items (ordered by AssessTempDtId). Cells are "N/A" for items above a student's
+ *  belt level, the saved score where present, otherwise blank (to be filled). */
+export function buildScoreExport(
+  students: ScoreExportStudent[],
+  items: AssessEntryRow[],
 ): (string | number)[][] {
-  const titles = distinctTitles(rows);
-
-  const byStudent = new Map<
-    number,
-    { meta: StudentImportAssessRow; applicable: Set<string> }
-  >();
-  rows.forEach((r) => {
-    let g = byStudent.get(r.UserDataId);
-    if (!g) {
-      g = { meta: r, applicable: new Set<string>() };
-      byStudent.set(r.UserDataId, g);
-    }
-    if (r.AssessTitle) g.applicable.add(r.AssessTitle);
-  });
+  const sorted = [...items].sort((a, b) => a.AssessTempDtId - b.AssessTempDtId);
+  const titles = sorted.map((i) => i.AssessTitle ?? "");
 
   const header: (string | number)[] = [...FIXED_HEADERS, ...titles];
   const aoa: (string | number)[][] = [header];
-  for (const g of byStudent.values()) {
-    const m = g.meta;
+  for (const s of students) {
+    const m = s.meta;
+    const beltLevel = m.BeltLevel ?? 0;
     aoa.push([
       m.UserNoId ?? "",
       m.UserName ?? "",
       m.ProgramName ?? "",
-      m.PeriodTitleStr ?? "",
+      m.PeriodTitle ?? "", // display only — import forces the canonical value
       m.BeltName ?? "",
       m.DojangName ?? "",
       m.TotalAtd,
-      "", // Alasan Kurang Absen — admin fills if attendance is low
-      ...titles.map((t) => (g.applicable.has(t) ? "" : "N/A")),
+      m.LackAtdDesc ?? "",
+      ...sorted.map((it) => {
+        if ((it.ScoreLevel ?? 0) > beltLevel) return "N/A";
+        const v = s.scores.get(it.AssessTempDtId);
+        return v == null ? "" : v;
+      }),
     ]);
   }
   return aoa;

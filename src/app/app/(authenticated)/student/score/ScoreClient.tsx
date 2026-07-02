@@ -3,21 +3,19 @@
 // Admin "Score Management" = the exam/score table (Step 3d). Rows come from
 // get-student-assess-list — i.e. only students REGISTERED for the period's exam
 // (via the student self-service or admin cash flow). The period is required; the
-// dojang acts as a client-side filter. The Excel bulk toolbar downloads a
-// score-entry template (get-student-import-assess-list), exports the summary, and
-// imports filled templates (save-student-assess-bulk).
+// dojang acts as a client-side filter. The Excel toolbar has two actions:
+//   • Export — one sheet that IS the fillable template and also carries every
+//     saved score (get-student-assess-list for the rows, get-assess-entry for the
+//     columns, get-assess-result to pre-fill). N/A marks items above a belt level.
+//   • Import — parses a filled sheet and saves via save-student-assess-bulk.
+//     Fill-only: rows for already-assessed students are skipped client-side (the
+//     backend only accepts not-yet-assessed students), so pre-filled scores are
+//     effectively read-only and correcting a score is done via the on-screen form.
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertCircle,
-  Download,
-  Eye,
-  FileSpreadsheet,
-  FileText,
-  Upload,
-} from "lucide-react";
+import { AlertCircle, Download, Eye, FileText, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -25,6 +23,8 @@ import PageHeader from "@/components/app/PageHeader";
 import { fileUrl } from "@/lib/api/file-url";
 import { ApiError } from "@/lib/api/client";
 import {
+  fetchAssessEntry,
+  fetchAssessResult,
   fetchStudentImportAssessList,
   saveStudentAssessBulk,
   type BulkImportResult,
@@ -40,13 +40,13 @@ import {
   getScoresVersion,
   isAssessed,
   reloadAssessList,
-  resultLabel,
   subscribeScores,
 } from "../_shared/scores";
 import {
-  buildScoreTemplate,
+  buildScoreExport,
   downloadAoa,
   parseScoreImport,
+  type ScoreExportStudent,
 } from "../_shared/score-import";
 
 export default function ScoreClient() {
@@ -59,9 +59,10 @@ export default function ScoreClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
-  const [importResult, setImportResult] = useState<BulkImportResult | null>(
-    null,
-  );
+  // BulkImportResult + a UI-only count of rows skipped for being already assessed.
+  const [importResult, setImportResult] = useState<
+    (BulkImportResult & { skipped?: number }) | null
+  >(null);
 
   const periodId = selection.periodId ? Number(selection.periodId) : 0;
 
@@ -75,58 +76,55 @@ export default function ScoreClient() {
     ? all.filter((r) => r.DojangName === selection.dojang)
     : all;
 
-  const handleDownloadTemplate = async () => {
+  const handleExport = async () => {
     if (!ready) return;
     setBusy(true);
     setInfo(null);
     try {
-      const importRows = await fetchStudentImportAssessList({
-        schPeriodId: periodId,
-      });
-      if (importRows.length === 0) {
-        setInfo(
-          "Tidak ada siswa yang perlu diinput nilainya untuk period ini (semua sudah dinilai atau belum ada peserta).",
-        );
+      if (rows.length === 0) {
+        setInfo("Tidak ada peserta ujian untuk period ini.");
         return;
       }
+      // Columns = every assessment item up to the highest belt level present
+      // (items are cumulative by ScoreLevel, so the top belt's set is a superset).
+      const maxBeltLevel = rows.reduce(
+        (m, r) => Math.max(m, r.BeltLevel ?? 0),
+        0,
+      );
+      const items = await fetchAssessEntry(maxBeltLevel);
+
+      // Pre-fill saved scores — only assessed students have any.
+      const assessed = rows.filter((r) => isAssessed(r.TotalScore));
+      const results = await Promise.all(
+        assessed.map((r) =>
+          fetchAssessResult({
+            studentId: r.UserDataId,
+            programMsId: r.ProgramMsId,
+            schPeriodId: periodId,
+          }).then((res) => ({ id: r.UserDataId, res })),
+        ),
+      );
+      const scoresByStudent = new Map<number, Map<number, number>>();
+      for (const { id, res } of results) {
+        const m = new Map<number, number>();
+        res.forEach((x) => m.set(x.AssessTempDtId, x.AssessScore));
+        scoresByStudent.set(id, m);
+      }
+
+      const students: ScoreExportStudent[] = rows.map((r) => ({
+        meta: r,
+        scores: scoresByStudent.get(r.UserDataId) ?? new Map<number, number>(),
+      }));
       downloadAoa(
-        `score-template_P${periodId}.xlsx`,
-        buildScoreTemplate(importRows),
-        "Template",
+        `scores_P${periodId}.xlsx`,
+        buildScoreExport(students, items),
+        "Scores",
       );
     } catch (e) {
-      setInfo(e instanceof ApiError ? e.message : "Gagal membuat template.");
+      setInfo(e instanceof ApiError ? e.message : "Gagal mengekspor nilai.");
     } finally {
       setBusy(false);
     }
-  };
-
-  const handleExport = () => {
-    if (!ready) return;
-    const header = [
-      "No. Reg",
-      "Nama Lengkap",
-      "Dojang",
-      "Sabuk",
-      "Total Absen",
-      "Total Score",
-      "Hasil",
-    ];
-    const aoa: (string | number)[][] = [
-      header,
-      ...rows.map((r) => [
-        r.UserNoId ?? "",
-        r.UserName ?? "",
-        r.DojangName ?? "",
-        r.BeltName ?? "",
-        r.TotalAtd,
-        isAssessed(r.TotalScore) ? r.TotalScore : "",
-        isAssessed(r.TotalScore)
-          ? resultLabel(r.TotalScore, r.BeltMasterId)
-          : "",
-      ]),
-    ];
-    downloadAoa(`scores_P${periodId}.xlsx`, aoa, "Scores");
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,11 +152,28 @@ export default function ScoreClient() {
         setInfo("File tidak berisi baris data yang valid.");
         return;
       }
+      // Fill-only: drop rows for students already assessed (the backend rejects
+      // them). Their pre-filled scores in the export are read-only.
+      const assessedNoIds = new Set(
+        getAssessList(periodId)
+          .filter((r) => isAssessed(r.TotalScore))
+          .map((r) => (r.UserNoId ?? "").trim()),
+      );
+      const toSend = list.filter((r) => !assessedNoIds.has(r.UserNoId.trim()));
+      const skipped = list.length - toSend.length;
+      if (toSend.length === 0) {
+        setInfo(
+          skipped > 0
+            ? `Semua ${skipped} baris pada file sudah dinilai — tidak ada nilai baru untuk diimpor.`
+            : "File tidak berisi baris data yang valid.",
+        );
+        return;
+      }
       const result = await saveStudentAssessBulk({
         SchPeriodId: periodId,
-        ListDataImport: list,
+        ListDataImport: toSend,
       });
-      setImportResult(result);
+      setImportResult({ ...result, skipped });
       if (result.ok || result.errors.length > 0) {
         await reloadAssessList(periodId);
       }
@@ -191,18 +206,10 @@ export default function ScoreClient() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownloadTemplate}
-            disabled={busy}
-          >
-            <FileSpreadsheet size={14} /> Download Template
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={handleExport}
             disabled={busy}
           >
-            <Download size={14} /> Export Scores
+            <Download size={14} /> {busy ? "Working…" : "Export Scores"}
           </Button>
           <Button
             variant="outline"
@@ -398,6 +405,12 @@ export default function ScoreClient() {
       >
         {importResult && (
           <div className="space-y-4">
+            {importResult.skipped ? (
+              <p className="text-xs text-muted">
+                {importResult.skipped} baris dilewati karena siswanya sudah
+                dinilai (nilai lama tidak diubah).
+              </p>
+            ) : null}
             {importResult.nothingToImport ? (
               <p className="text-sm text-ink/80">
                 Tidak ada siswa yang bisa diimpor untuk period ini (semua sudah

@@ -109,9 +109,9 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: FileText,
     roles: SUPER,
     children: [
-      { label: "Homepage", href: "/app/content/homepage", roles: ADMIN_PLUS },
-      { label: "About", href: "/app/content/about", roles: ADMIN_PLUS },
-      { label: "Events", href: "/app/content/events", roles: ADMIN_PLUS },
+      { label: "Homepage", href: "/app/content/homepage", roles: SUPER },
+      { label: "About", href: "/app/content/about", roles: SUPER },
+      { label: "Events", href: "/app/content/events", roles: SUPER },
     ],
   },
   {

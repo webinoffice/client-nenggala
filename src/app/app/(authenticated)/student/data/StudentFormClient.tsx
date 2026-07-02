@@ -1,6 +1,7 @@
 // src/app/app/(authenticated)/student/data/StudentFormClient.tsx
 "use client";
 import { getCurrentUsername } from "@/lib/current-user";
+import { useSession } from "@/lib/session";
 
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,7 @@ import {
   WARGA_NEGARA_OPTIONS,
 } from "@/lib/reference";
 import { fileUrl } from "@/lib/api/file-url";
-import { useDojangOptions } from "../../master/_shared/dojangs";
+import { useDojangOptions, getDojangById } from "../../master/_shared/dojangs";
 import { useSabukOptions } from "../../master/_shared/belts";
 
 
@@ -94,6 +95,13 @@ export default function StudentFormClient({ mode, username }: Props) {
   const isEditing = mode === "edit";
   const dojangOptions = useDojangOptions();
   const sabukOptions = useSabukOptions();
+  const session = useSession();
+  // A dojang admin (session carries a DojangId) may only manage students in
+  // their own dojang, so the dojang is locked to it. Super-admin (null) chooses.
+  const isDojangLocked = session?.dojangId != null;
+  const lockedDojang = isDojangLocked
+    ? (getDojangById(session!.dojangId!)?.dojangName ?? "")
+    : "";
 
   // Subscribe to the store so the edit form works on a direct load / refresh:
   // the record isn't necessarily hydrated at mount, so derive it live and seed
@@ -179,7 +187,7 @@ export default function StudentFormClient({ mode, username }: Props) {
     if (!isEditing && !form.password) next.password = "Required";
     else if (!isEditing && form.password.length < 6)
       next.password = "Min 6 characters";
-    if (!form.dojang) next.dojang = "Required";
+    if (!(isDojangLocked ? lockedDojang : form.dojang)) next.dojang = "Required";
     if (!form.tanggalLahir) next.tanggalLahir = "Required";
     if (!form.warganegara) next.warganegara = "Required";
     if (!form.nikKtpPaspor.trim()) next.nikKtpPaspor = "Required";
@@ -204,6 +212,8 @@ export default function StudentFormClient({ mode, username }: Props) {
 
   const handleSubmit = async () => {
     if (!validate() || submitting) return;
+    // An admin's dojang is fixed to their own regardless of the form value.
+    const effectiveDojang = isDojangLocked ? lockedDojang : form.dojang;
     const payload: Student = {
       username: form.username,
       userDataId: editingStudent?.userDataId,
@@ -212,7 +222,7 @@ export default function StudentFormClient({ mode, username }: Props) {
       email: form.email.trim(),
       gender: form.gender,
       noHandphone1: form.noHandphone1.trim(),
-      dojang: form.dojang,
+      dojang: effectiveDojang,
       sabuk: form.sabuk,
       tanggalLahir: form.tanggalLahir,
       noHandphone2: form.noHandphone2.trim(),
@@ -334,19 +344,24 @@ export default function StudentFormClient({ mode, username }: Props) {
 
         <FormSection title="Dojang & Sabuk">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <Select
-              label="Dojang"
-              value={form.dojang}
-              onChange={(e) => update("dojang", e.target.value)}
-              error={errors.dojang}
-            >
-              <option value="">Pilih Dojang</option>
-              {dojangOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </Select>
+            {isDojangLocked ? (
+              // Admins are bound to their own dojang — show it read-only.
+              <Input label="Dojang" value={lockedDojang} disabled />
+            ) : (
+              <Select
+                label="Dojang"
+                value={form.dojang}
+                onChange={(e) => update("dojang", e.target.value)}
+                error={errors.dojang}
+              >
+                <option value="">Pilih Dojang</option>
+                {dojangOptions.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </Select>
+            )}
             <Select
               label="Sabuk"
               value={form.sabuk}
