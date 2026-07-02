@@ -1,47 +1,52 @@
 // src/app/app/(authenticated)/dashboard/AdminDashboard.tsx
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Users, GraduationCap, CalendarCheck } from "lucide-react";
 import { getCurrentDisplayName } from "@/lib/current-user";
-import { getStudents, subscribeStudents } from "../student/_shared/students";
-import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
-import { getSchedules, subscribeSchedules } from "../coach/_shared/schedules";
 import {
-  getNewMemberTimeline,
-  getBeltDistribution,
-} from "./_shared/admin-metrics";
+  fetchAdminDashboard,
+  type AdminDashboardData,
+} from "@/lib/api/dashboard";
 import JointTrainingHighlight from "../joint-training/_shared/JointTrainingHighlight";
 
 export default function AdminDashboard() {
   const displayName = getCurrentDisplayName();
 
-  const students = useSyncExternalStore(
-    subscribeStudents,
-    getStudents,
-    getStudents,
-  );
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
-  const schedules = useSyncExternalStore(
-    subscribeSchedules,
-    getSchedules,
-    getSchedules,
-  );
+  // Metrics come straight from the dedicated super-admin dashboard endpoint so
+  // the numbers match the backend's definitions (rather than re-deriving them
+  // from the operational stores).
+  const [data, setData] = useState<AdminDashboardData | null>(null);
 
-  // Derived metrics
-  const totalStudents = students.length; // Students = all records
-  const activeCoaches = coaches.filter((c) => c.status === "Active").length;
-  const activeSchedules = schedules.filter((s) => s.status === "Active").length;
+  useEffect(() => {
+    let alive = true;
+    fetchAdminDashboard()
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch((err) => console.error("Failed to load dashboard", err));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const totalStudents = data?.ObjStudentTotal?.[0]?.Total ?? 0;
+  const activeCoaches = data?.ObjCoachTotal?.[0]?.Total ?? 0;
+  const activeSchedules = data?.ObjActiveSchedule?.[0]?.Total ?? 0;
 
   const newStudentTimeline = useMemo(
-    () => getNewMemberTimeline(students, 7),
-    [students],
+    () =>
+      (data?.ObjNewMember ?? []).map((m) => ({ label: m.Month, count: m.Total })),
+    [data],
   );
-  const beltDist = useMemo(() => getBeltDistribution(students), [students]);
+  const beltDist = useMemo(
+    () =>
+      (data?.ObjBeltDistribution ?? []).map((b) => ({
+        sabuk: b.BeltName,
+        count: b.Total,
+      })),
+    [data],
+  );
 
   return (
     <div className="space-y-6">
@@ -88,10 +93,14 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-4 flex-1 flex items-center">
             <div className="w-full">
-              <Sparkline
-                data={newStudentTimeline.map((b) => b.count)}
-                labels={newStudentTimeline.map((b) => b.label)}
-              />
+              {newStudentTimeline.length > 0 ? (
+                <Sparkline
+                  data={newStudentTimeline.map((b) => b.count)}
+                  labels={newStudentTimeline.map((b) => b.label)}
+                />
+              ) : (
+                <p className="text-sm text-muted">No data</p>
+              )}
             </div>
           </div>
         </div>

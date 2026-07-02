@@ -23,7 +23,7 @@ export interface MarketingSubProgram {
 }
 
 const programsStore = createListStore<MarketingProgram>(async () => {
-  const data = await fetchContentPage("Program");
+  const data = await fetchContentPage("Program", { forcePublic: true });
   return (data.ObjProgram ?? []).map((p) => ({
     id: String(p.MsIndex),
     name: p.ProgramName,
@@ -32,7 +32,7 @@ const programsStore = createListStore<MarketingProgram>(async () => {
 });
 
 const subProgramsStore = createListStore<MarketingSubProgram>(async () => {
-  const data = await fetchContentPage("Program");
+  const data = await fetchContentPage("Program", { forcePublic: true });
   return (data.ObjSubProgram ?? []).map((s, i) => ({
     id: `${s.MsIndex}-${i}`,
     programId: String(s.MsIndex),

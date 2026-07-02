@@ -18,7 +18,7 @@ export interface MarketingDojang {
 }
 
 const dojangStore = createListStore<MarketingDojang>(async () => {
-  const data = await fetchContentPage("HomePage");
+  const data = await fetchContentPage("HomePage", { forcePublic: true });
   return (data.ObjDojang ?? []).map((d, i) => ({
     id: `${i}-${d.DojangName}`,
     name: d.DojangName,

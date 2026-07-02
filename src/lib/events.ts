@@ -16,6 +16,7 @@ import {
   fetchContentPage,
   saveContent,
   deleteContent,
+  toggleContentStatus,
   parseContentDate,
   CONTENT_TYPE,
   type ContentRow,
@@ -130,7 +131,7 @@ function rowToEvent(row: ContentRow, fallbackId: string): EventItem {
     description: row.ContentDesc ?? "",
     image: fileUrl(row.ContentFile),
     registerUrl: normalizeRegisterUrl(row.ContentLink),
-    status: "Active",
+    status: row.FgActive === "N" ? "Inactive" : "Active",
     updatedBy: "",
     updateDate: "",
   };
@@ -223,23 +224,35 @@ export async function removeEvent(id: string): Promise<void> {
 }
 
 /**
- * Local-only status toggle. The backend Content model has no status column, so
- * this does NOT persist — a reload resets every event to Active.
- * TODO(#status): add a visibility/status column server-side if events must be
- * disable-able from the marketing site.
+ * Enable/disable an event (persisted via the content FgActive flag). Disabled
+ * events are hidden from the public marketing site. Applies optimistically then
+ * re-hydrates from the server (reverting on failure).
  */
-export function toggleEventStatus(id: string, by: string) {
+export async function toggleEventStatus(id: string, by: string): Promise<void> {
+  const ev = _events.find((e) => e.id === id);
+  const contentId = contentIdFromEventId(id);
+  if (!ev || !contentId) return;
+
+  const nextActive = ev.status !== "Active";
   _events = _events.map((e) =>
     e.id === id
       ? {
           ...e,
-          status: e.status === "Active" ? "Inactive" : "Active",
+          status: nextActive ? "Active" : "Inactive",
           updatedBy: by,
           updateDate: new Date().toISOString(),
         }
       : e,
   );
   notify();
+
+  try {
+    await toggleContentStatus(contentId, nextActive);
+    await reloadEvents();
+  } catch (err) {
+    console.error("Failed to toggle event status", err);
+    await reloadEvents();
+  }
 }
 
 /** React hook — subscribe a client component to the events list. */

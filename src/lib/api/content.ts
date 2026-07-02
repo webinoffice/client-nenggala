@@ -36,6 +36,10 @@ export interface ContentRow {
   ContentTypeCode: string;
   ContentTypeName: string;
   FgEdit: string;
+  /** Explicit display order (gallery/carousel reorder). Null = unordered. */
+  ContentSeq?: number | null;
+  /** "Y"/"N" active flag (event enable/disable). Present on the authed read. */
+  FgActive?: string | null;
 }
 
 // ---- public master-derived bundles (Sections 4 & 5) ----
@@ -88,13 +92,20 @@ export type ContentPageName =
  * Fetch a content-page bundle. Uses the authenticated /content endpoint when a
  * token is present (rows include ContentId/ContentTypeId, which the CMS needs),
  * otherwise the public endpoint used by the marketing site.
+ *
+ * IMPORTANT: pass `forcePublic` for marketing reads. The authenticated endpoint
+ * responds with isPublic="N" and OMITS the public master-derived bundles
+ * (ObjProgram / ObjSubProgram / ObjDojang / ObjCoach / ObjProduct[Type]). Since
+ * a CMS super-admin browsing the public site still has a token in localStorage,
+ * those marketing sections would silently come back empty without this flag.
  */
 const _inflight = new Map<string, Promise<ContentPageResponse>>();
 
 export async function fetchContentPage(
   page: ContentPageName,
+  opts: { forcePublic?: boolean } = {},
 ): Promise<ContentPageResponse> {
-  const authed = !!getAccessToken();
+  const authed = !opts.forcePublic && !!getAccessToken();
   const path = authed
     ? "/content/get-content-perpage"
     : "/public/get-content-perpage";
@@ -147,6 +158,29 @@ export async function saveContent(
   form.append("objParam", JSON.stringify(params));
   if (file) form.append("ContentFile", file);
   await apiPostForm<void>("/content/save-content", form, { auth: true });
+}
+
+/** Persist a new display order for content rows (gallery reorder). */
+export async function saveContentOrder(
+  items: { ContentId: number; ContentSeq: number }[],
+): Promise<void> {
+  await apiPost<void>(
+    "/content/save-content-order",
+    { objParam: { Items: items } },
+    { auth: true },
+  );
+}
+
+/** Enable/disable a content row (event status). */
+export async function toggleContentStatus(
+  contentId: number,
+  active: boolean,
+): Promise<void> {
+  await apiPost<void>(
+    "/content/toggle-content-status",
+    { objParam: { ContentId: contentId, FgActive: active ? "Y" : "N" } },
+    { auth: true },
+  );
 }
 
 export async function deleteContent(contentId: number): Promise<void> {

@@ -106,13 +106,11 @@ export async function reloadBelts(): Promise<void> {
   await ensureBeltsLoaded();
 }
 
-// ---- belt business logic (moved from students.ts SABUK_RANK + scores.ts) ----
-
-/** Belt rank used to gate score categories + thresholds (the belt's beltLevel). */
-export function getSabukRank(beltName: string): number {
-  const belt = _belts.find((b) => b.beltName === beltName);
-  return belt ? belt.beltLevel : 0;
-}
+// ---- belt business logic ----
+// Passing thresholds are server-authoritative (BeltMaster.BeltPassScore). The
+// old beltLevel-derived getPassingThreshold/getSabukRank helpers were removed:
+// the DB BeltLevel does not encode the 0–10 rank scale they assumed, so they
+// always resolved to the low threshold and nothing consumed them.
 
 /** Resolve a belt name to its backend BeltMasterId (null when unknown). */
 export function getBeltIdByName(beltName: string): number | null {
@@ -126,19 +124,6 @@ export function getBeltPassScore(
 ): number | null {
   if (!beltMasterId) return null;
   return _belts.find((b) => b.id === beltMasterId)?.beltPassScore ?? null;
-}
-
-// Belt-based passing thresholds:
-//   rank 0–6 (Putih → ...):  75
-//   rank 7+  (Merah → ...):  85
-export const PASS_THRESHOLD_LOW_BELT = 75;
-export const PASS_THRESHOLD_HIGH_BELT = 85;
-export const HIGH_BELT_MIN_RANK = 7;
-
-export function getPassingThreshold(beltName: string): number {
-  return getSabukRank(beltName) >= HIGH_BELT_MIN_RANK
-    ? PASS_THRESHOLD_HIGH_BELT
-    : PASS_THRESHOLD_LOW_BELT;
 }
 
 // ---- derived dropdown options (cached so useSyncExternalStore snapshots stay stable) ----

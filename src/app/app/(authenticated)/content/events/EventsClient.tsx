@@ -18,6 +18,7 @@ import {
   saveEvent,
   toggleEventStatus,
   formatEventDate,
+  HIGHLIGHT_EVENT_ID,
   type EventItem,
   type EventStatus,
 } from "@/lib/events";
@@ -54,6 +55,9 @@ export default function EventsClient() {
 
   const filtered = useMemo(() => {
     return events.filter((e) => {
+      // The synthetic highlight row isn't an editable event — it's managed from
+      // the Homepage "Event Highlight" editor — so keep it out of this table.
+      if (e.id === HIGHLIGHT_EVENT_ID) return false;
       const matchTitle =
         applied.title === "" ||
         e.title.toLowerCase().includes(applied.title.toLowerCase());
@@ -122,9 +126,9 @@ export default function EventsClient() {
     }
   };
 
-  const handleToggleStatus = () => {
+  const handleToggleStatus = async () => {
     if (!confirming) return;
-    toggleEventStatus(confirming.id, currentUserName);
+    await toggleEventStatus(confirming.id, currentUserName);
   };
 
   return (

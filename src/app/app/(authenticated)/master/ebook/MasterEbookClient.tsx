@@ -3,7 +3,6 @@
 
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -18,11 +17,8 @@ import {
   addEbook,
   removeEbook,
   type Ebook,
-  type EbookStatus,
 } from "../_shared/ebooks";
 import { useSabukOptions, getBeltIdByName } from "../_shared/belts";
-
-type StatusFilter = "All" | EbookStatus;
 
 function fmtDate(iso: string) {
   const d = new Date(iso);
@@ -38,11 +34,9 @@ export default function MasterEbookClient() {
 
   const [sabukInput, setSabukInput] = useState("All");
   const [titleInput, setTitleInput] = useState("");
-  const [statusInput, setStatusInput] = useState<StatusFilter>("All");
   const [applied, setApplied] = useState({
     sabuk: "All",
     title: "",
-    status: "All" as StatusFilter,
   });
 
   const [formOpen, setFormOpen] = useState(false);
@@ -58,9 +52,7 @@ export default function MasterEbookClient() {
       const matchTitle =
         applied.title === "" ||
         e.title.toLowerCase().includes(applied.title.toLowerCase().trim());
-      const matchStatus =
-        applied.status === "All" || e.status === applied.status;
-      return matchSabuk && matchTitle && matchStatus;
+      return matchSabuk && matchTitle;
     });
   }, [ebooks, applied]);
 
@@ -73,14 +65,12 @@ export default function MasterEbookClient() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, safePage, pageSize]);
 
-  const hasFilter =
-    applied.sabuk !== "All" || applied.title !== "" || applied.status !== "All";
+  const hasFilter = applied.sabuk !== "All" || applied.title !== "";
 
   const handleSearch = () => {
     setApplied({
       sabuk: sabukInput,
       title: titleInput,
-      status: statusInput,
     });
     setCurrentPage(1);
   };
@@ -88,8 +78,7 @@ export default function MasterEbookClient() {
   const handleReset = () => {
     setSabukInput("All");
     setTitleInput("");
-    setStatusInput("All");
-    setApplied({ sabuk: "All", title: "", status: "All" });
+    setApplied({ sabuk: "All", title: "" });
     setCurrentPage(1);
   };
 
@@ -133,7 +122,7 @@ export default function MasterEbookClient() {
       />
 
       <div className="bg-paper rounded-sm border border-ink/10 p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <Select
             label="Sabuk"
             value={sabukInput}
@@ -152,15 +141,6 @@ export default function MasterEbookClient() {
             onChange={(e) => setTitleInput(e.target.value)}
             placeholder="e.g. Cara Menendang"
           />
-          <Select
-            label="Status"
-            value={statusInput}
-            onChange={(e) => setStatusInput(e.target.value as StatusFilter)}
-          >
-            <option value="All">All</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </Select>
         </div>
         <div className="flex items-center justify-end gap-2 mt-6">
           {hasFilter && (
@@ -183,7 +163,6 @@ export default function MasterEbookClient() {
                 <th className="text-left px-4 py-3.5">Sabuk</th>
                 <th className="text-left px-4 py-3.5">Title</th>
                 <th className="text-left px-4 py-3.5">PDF File</th>
-                <th className="text-left px-4 py-3.5">Status</th>
                 <th className="text-left px-4 py-3.5">Updated By</th>
                 <th className="text-left px-4 py-3.5">Update Date</th>
                 <th className="text-right px-4 py-3.5">Action</th>
@@ -193,70 +172,50 @@ export default function MasterEbookClient() {
               {paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={6}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No e-books found
                   </td>
                 </tr>
               ) : (
-                paginated.map((e) => {
-                  const isActive = e.status === "Active";
-                  return (
-                    <tr
-                      key={e.id}
-                      className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
-                    >
-                      <td className="px-4 py-3 text-ink">{e.sabuk}</td>
-                      <td className="px-4 py-3 text-ink">{e.title}</td>
-                      <td className="px-4 py-3">
-                        {e.pdfFile ? (
-                          <a
-                            href={e.pdfFile}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand hover:text-brand-hover underline underline-offset-4 font-mono text-xs"
-                          >
-                            View PDF
-                          </a>
-                        ) : (
-                          <span className="text-muted text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                          <span
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full",
-                              isActive
-                                ? "bg-emerald-500"
-                                : "bg-muted-foreground",
-                            )}
-                          />
-                          <span
-                            className={isActive ? "text-ink" : "text-muted"}
-                          >
-                            {e.status}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-ink/70">{e.updatedBy}</td>
-                      <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
-                        {fmtDate(e.updateDate)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setConfirming(e)}
-                            className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                paginated.map((e) => (
+                  <tr
+                    key={e.id}
+                    className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-ink">{e.sabuk}</td>
+                    <td className="px-4 py-3 text-ink">{e.title}</td>
+                    <td className="px-4 py-3">
+                      {e.pdfFile ? (
+                        <a
+                          href={e.pdfFile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand hover:text-brand-hover underline underline-offset-4 font-mono text-xs"
+                        >
+                          View PDF
+                        </a>
+                      ) : (
+                        <span className="text-muted text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-ink/70">{e.updatedBy}</td>
+                    <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
+                      {fmtDate(e.updateDate)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setConfirming(e)}
+                          className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

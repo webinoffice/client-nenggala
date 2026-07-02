@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Image from "next/image";
+import MarketingImage from "./MarketingImage";
 import { useDojang } from "@/lib/marketing/dojang";
 
 const GAP = 24; // px — matches Tailwind gap-6 (1.5rem)
@@ -124,10 +124,9 @@ export default function Locations() {
                   }}
                 >
                   <div className="relative aspect-4/3 overflow-hidden">
-                    <Image
+                    <MarketingImage
                       src={loc.image}
                       alt={loc.name}
-                      fill
                       draggable={false}
                       className="select-none object-cover"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

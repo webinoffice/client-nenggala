@@ -14,6 +14,7 @@ import { useSyncExternalStore } from "react";
 import {
   fetchContentPage,
   saveContent,
+  saveContentOrder,
   deleteContent,
   CONTENT_TYPE,
 } from "@/lib/api/content";
@@ -130,11 +131,7 @@ export async function removeGalleryImage(id: string): Promise<boolean> {
   return true;
 }
 
-/**
- * Local-only alt-text edit. The backend deletes the stored file on every edit
- * and requires a fresh upload, so alt cannot be patched on its own — this stays
- * client-only. TODO(#alt): allow updating alt without re-uploading server-side.
- */
+/** Optimistic local patch (used while the alt field is being typed). */
 export function updateGalleryImage(
   id: string,
   patch: Partial<Omit<GalleryImage, "id">>,
@@ -144,10 +141,36 @@ export function updateGalleryImage(
 }
 
 /**
- * Local-only reorder. The backend has no ordering column for gallery rows, so
- * this does not persist. TODO(#order): add a sort/order column server-side.
+ * Persist an alt-text edit. Uses the keep-image save path (no file → the backend
+ * carries the existing image through), so alt can be updated on its own.
  */
-export function moveGalleryImage(id: string, direction: -1 | 1) {
+export async function saveGalleryAlt(id: string, alt: string): Promise<void> {
+  const contentId = contentIdFromGalleryId(id);
+  if (!contentId) return;
+  await saveContent(
+    {
+      ContentId: contentId,
+      ContentTitle: alt,
+      ContentDesc: "",
+      ContentLink: "",
+      ContentTypeId: CONTENT_TYPE.GALLERY,
+      ContentDate: null,
+      FgHighlight: "N",
+      FgMode: "E",
+    },
+    null,
+  );
+}
+
+/**
+ * Reorder two adjacent images and persist the whole sequence. Applies the swap
+ * optimistically, then writes ContentSeq for every row; on failure re-hydrates
+ * to fall back to the server order.
+ */
+export async function moveGalleryImage(
+  id: string,
+  direction: -1 | 1,
+): Promise<void> {
   const idx = _gallery.findIndex((g) => g.id === id);
   if (idx === -1) return;
   const target = idx + direction;
@@ -156,6 +179,17 @@ export function moveGalleryImage(id: string, direction: -1 | 1) {
   [next[idx], next[target]] = [next[target], next[idx]];
   _gallery = next;
   notify();
+
+  const items = _gallery.map((g, i) => ({
+    ContentId: contentIdFromGalleryId(g.id),
+    ContentSeq: i + 1,
+  }));
+  try {
+    await saveContentOrder(items);
+  } catch (err) {
+    console.error("Failed to save gallery order", err);
+    await reloadGallery();
+  }
 }
 
 /** React hook — subscribe a client component to the gallery. */

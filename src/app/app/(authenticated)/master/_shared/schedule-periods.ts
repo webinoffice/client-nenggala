@@ -11,24 +11,21 @@ import {
   getDojangs,
 } from "./dojangs";
 
-export type SchedulePeriodStatus = "Active" | "Inactive";
-
 export type SchedulePeriod = {
   id: number;
   periodName: string;
   dojang: string;
   periodStart: string; // YYYY-MM-DD
   periodEnd: string; // YYYY-MM-DD
-  status: SchedulePeriodStatus;
   updatedBy: string;
   updateDate: string;
 };
 
 export const INITIAL_PERIODS: SchedulePeriod[] = [
-  { id: 1, periodName: "Period 32", dojang: "Kedoya Sport Club", periodStart: "2026-01-01", periodEnd: "2026-06-30", status: "Active", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
-  { id: 2, periodName: "Period 33", dojang: "Kedoya Sport Club", periodStart: "2026-07-01", periodEnd: "2026-12-31", status: "Active", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
-  { id: 3, periodName: "Period 31", dojang: "Senayan Dojang", periodStart: "2025-07-01", periodEnd: "2025-12-31", status: "Active", updatedBy: "Carolina", updateDate: "2025-06-15T10:00:00" },
-  { id: 4, periodName: "Period 30", dojang: "Bintaro Dojang", periodStart: "2025-01-01", periodEnd: "2025-06-30", status: "Inactive", updatedBy: "Carolina", updateDate: "2024-12-20T11:00:00" },
+  { id: 1, periodName: "Period 32", dojang: "Kedoya Sport Club", periodStart: "2026-01-01", periodEnd: "2026-06-30", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
+  { id: 2, periodName: "Period 33", dojang: "Kedoya Sport Club", periodStart: "2026-07-01", periodEnd: "2026-12-31", updatedBy: "Jordan Kusuma", updateDate: "2026-01-01T14:30:00" },
+  { id: 3, periodName: "Period 31", dojang: "Senayan Dojang", periodStart: "2025-07-01", periodEnd: "2025-12-31", updatedBy: "Carolina", updateDate: "2025-06-15T10:00:00" },
+  { id: 4, periodName: "Period 30", dojang: "Bintaro Dojang", periodStart: "2025-01-01", periodEnd: "2025-06-30", updatedBy: "Carolina", updateDate: "2024-12-20T11:00:00" },
 ];
 
 // ---- mutable store ----
@@ -51,10 +48,9 @@ export function subscribeSchedulePeriods(listener: () => void) {
 
 // ---- hydration (read API) ----
 // get-schperiod (IsEntry "N"). The backend returns DojangId (not a name) and
-// dates as "dd MMMM yyyy", and has no status column — so the dojang name is
-// resolved via the dojang store, dates are normalised to "YYYY-MM-DD" (the
-// SchPeriod.PeriodStart/PeriodEnd columns are full DATEs), and every period is
-// treated as Active (the status toggle stays client-only).
+// dates as "dd MMMM yyyy" — so the dojang name is resolved via the dojang store
+// and dates are normalised to "YYYY-MM-DD" (the SchPeriod.PeriodStart/PeriodEnd
+// columns are full DATEs). The table has no status column.
 let _loaded = false;
 let _loadPromise: Promise<void> | null = null;
 
@@ -78,7 +74,6 @@ async function loadSchedulePeriods(): Promise<void> {
       (r.DojangId != null ? getDojangById(r.DojangId)?.dojangName : "") ?? "",
     periodStart: toIsoDate(r.PeriodStart),
     periodEnd: toIsoDate(r.PeriodEnd),
-    status: "Active",
     updatedBy: r.UpdatedBy ?? "",
     updateDate: dmyhmsToIso(r.UpdateDate),
   }));

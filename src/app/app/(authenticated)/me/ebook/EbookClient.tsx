@@ -15,15 +15,13 @@ function fmtDate(iso: string) {
 export default function EbookClient() {
   const allEbooks = useSyncExternalStore(subscribeEbooks, getEbooks, getEbooks);
 
-  // Active e-books only, sorted by sabuk then title
+  // Sorted by sabuk then title (the backend ebook table has no status column).
   const ebooks = useMemo(
     () =>
-      allEbooks
-        .filter((e) => e.status === "Active")
-        .sort((a, b) => {
-          if (a.sabuk !== b.sabuk) return a.sabuk.localeCompare(b.sabuk);
-          return a.title.localeCompare(b.title);
-        }),
+      allEbooks.slice().sort((a, b) => {
+        if (a.sabuk !== b.sabuk) return a.sabuk.localeCompare(b.sabuk);
+        return a.title.localeCompare(b.title);
+      }),
     [allEbooks],
   );
 

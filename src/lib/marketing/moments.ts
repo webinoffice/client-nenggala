@@ -21,7 +21,7 @@ export interface MarketingMoment {
 }
 
 const momentsStore = createListStore<MarketingMoment>(async () => {
-  const data = await fetchContentPage("Galery");
+  const data = await fetchContentPage("Galery", { forcePublic: true });
   return (data.ObjOurMoment ?? []).map((m, i) => ({
     id: `moment-${i}`,
     title: m.ContentTitle ?? "",

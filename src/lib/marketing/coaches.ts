@@ -18,7 +18,7 @@ export interface MarketingCoach {
 }
 
 const coachesStore = createListStore<MarketingCoach>(async () => {
-  const data = await fetchContentPage("AboutUs");
+  const data = await fetchContentPage("AboutUs", { forcePublic: true });
   return (data.ObjCoach ?? []).map((c, i) => ({
     id: `coach-${i}`,
     name: c.UserName,

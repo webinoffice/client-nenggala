@@ -1,10 +1,10 @@
 // src/app/app/(authenticated)/master/schedule-period/MasterSchedulePeriodClient.tsx
 "use client";
 import { getCurrentUsername } from "@/lib/current-user";
+import { useSession } from "@/lib/session";
 
 import { useState, useMemo, useSyncExternalStore } from "react";
 import { Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useRole } from "@/lib/role-context";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
@@ -12,7 +12,7 @@ import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PageHeader from "@/components/app/PageHeader";
 import Pagination from "@/components/app/Pagination";
-import { useDojangOptions } from "../_shared/dojangs";
+import { useDojangOptions, getDojangById } from "../_shared/dojangs";
 import SchedulePeriodFormModal, {
   type SchedulePeriodFormValues,
 } from "./SchedulePeriodFormModal";
@@ -25,9 +25,6 @@ import {
   deleteSchedulePeriod,
   type SchedulePeriod,
 } from "../_shared/schedule-periods";
-
-// The logged-in admin's own dojang (real value comes from the session later).
-const ADMIN_DOJANG = "Kedoya Sport Club";
 
 const MONTH_NAMES_ID = [
   "Januari",
@@ -65,7 +62,14 @@ export default function MasterSchedulePeriodClient() {
   const { role } = useRole();
   const isSuper = role === "super-admin";
   const currentUserName = getCurrentUsername();
+  const session = useSession();
   const dojangOptions = useDojangOptions();
+  // The logged-in admin's own dojang, resolved from the session's DojangId
+  // (null for super-admin, who sees every dojang).
+  const adminDojang =
+    session?.dojangId != null
+      ? getDojangById(session.dojangId)?.dojangName ?? ""
+      : "";
 
   const periods = useSyncExternalStore(
     subscribeSchedulePeriods,
@@ -85,10 +89,10 @@ export default function MasterSchedulePeriodClient() {
 
   // Super-admin sees all (with an optional dojang filter); admin only sees own dojang.
   const visible = useMemo(() => {
-    if (!isSuper) return periods.filter((p) => p.dojang === ADMIN_DOJANG);
+    if (!isSuper) return periods.filter((p) => p.dojang === adminDojang);
     if (dojangFilter === "All") return periods;
     return periods.filter((p) => p.dojang === dojangFilter);
-  }, [periods, isSuper, dojangFilter]);
+  }, [periods, isSuper, dojangFilter, adminDojang]);
 
   const totalItems = visible.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -99,7 +103,7 @@ export default function MasterSchedulePeriodClient() {
     return visible.slice(start, start + pageSize);
   }, [visible, safePage, pageSize]);
 
-  const colCount = isSuper ? 8 : 7;
+  const colCount = isSuper ? 7 : 6;
 
   const handleAdd = () => {
     setEditing(null);
@@ -143,7 +147,6 @@ export default function MasterSchedulePeriodClient() {
       dojang,
       periodStart: values.periodStart,
       periodEnd: values.periodEnd,
-      status: "Active",
       updatedBy: currentUserName,
       updateDate: now,
     }));
@@ -212,7 +215,6 @@ export default function MasterSchedulePeriodClient() {
                 )}
                 <th className="text-left px-4 py-3.5">Period Start</th>
                 <th className="text-left px-4 py-3.5">Period End</th>
-                <th className="text-left px-4 py-3.5">Status</th>
                 <th className="text-left px-4 py-3.5">Updated By</th>
                 <th className="text-left px-4 py-3.5">Update Date</th>
                 <th className="text-right px-4 py-3.5">Action</th>
@@ -229,65 +231,45 @@ export default function MasterSchedulePeriodClient() {
                   </td>
                 </tr>
               ) : (
-                paginatedPeriods.map((p) => {
-                  const isActive = p.status === "Active";
-                  return (
-                    <tr
-                      key={p.id}
-                      className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
-                    >
-                      <td className="px-4 py-3 text-ink font-medium">
-                        {p.periodName}
-                      </td>
-                      {isSuper && (
-                        <td className="px-4 py-3 text-ink/80">{p.dojang}</td>
-                      )}
-                      <td className="px-4 py-3 text-ink/80">
-                        {formatDay(p.periodStart)}
-                      </td>
-                      <td className="px-4 py-3 text-ink/80">
-                        {formatDay(p.periodEnd)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-2 text-xs font-semibold">
-                          <span
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full",
-                              isActive
-                                ? "bg-emerald-500"
-                                : "bg-muted-foreground",
-                            )}
-                          />
-                          <span
-                            className={isActive ? "text-ink" : "text-muted"}
-                          >
-                            {p.status}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-ink/70">{p.updatedBy}</td>
-                      <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
-                        {formatDate(p.updateDate)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleEdit(p)}
-                            className="bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:brightness-95 transition"
-                          >
-                            Update
-                          </button>
-                          <button
-                            onClick={() => setConfirming(p)}
-                            className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                paginatedPeriods.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b border-ink/5 hover:bg-paper-soft/50 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-ink font-medium">
+                      {p.periodName}
+                    </td>
+                    {isSuper && (
+                      <td className="px-4 py-3 text-ink/80">{p.dojang}</td>
+                    )}
+                    <td className="px-4 py-3 text-ink/80">
+                      {formatDay(p.periodStart)}
+                    </td>
+                    <td className="px-4 py-3 text-ink/80">
+                      {formatDay(p.periodEnd)}
+                    </td>
+                    <td className="px-4 py-3 text-ink/70">{p.updatedBy}</td>
+                    <td className="px-4 py-3 text-ink/70 whitespace-nowrap text-xs">
+                      {formatDate(p.updateDate)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:brightness-95 transition"
+                        >
+                          Update
+                        </button>
+                        <button
+                          onClick={() => setConfirming(p)}
+                          className="bg-brand text-brand-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-sm hover:bg-brand-hover transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -314,7 +296,7 @@ export default function MasterSchedulePeriodClient() {
         }}
         initial={editing}
         isSuper={isSuper}
-        adminDojang={ADMIN_DOJANG}
+        adminDojang={adminDojang}
         dojangOptions={dojangOptions}
         onSubmit={handleSubmit}
       />

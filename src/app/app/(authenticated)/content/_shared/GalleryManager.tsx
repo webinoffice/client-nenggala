@@ -10,6 +10,7 @@ import {
   useGallery,
   addGalleryImage,
   updateGalleryImage,
+  saveGalleryAlt,
   removeGalleryImage,
   moveGalleryImage,
   GALLERY_MIN,
@@ -92,6 +93,11 @@ export default function GalleryManager() {
                 onChange={(e) =>
                   updateGalleryImage(img.id, { alt: e.target.value })
                 }
+                onBlur={(e) => {
+                  void saveGalleryAlt(img.id, e.target.value).catch((err) =>
+                    console.error("Failed to save alt text", err),
+                  );
+                }}
                 placeholder="Describe the image"
               />
               <div className="flex items-center justify-between">

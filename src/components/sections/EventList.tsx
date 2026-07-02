@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEvents, formatEventDate } from "@/lib/events";
+import { useEvents, formatEventDate, HIGHLIGHT_EVENT_ID } from "@/lib/events";
 
 const PER_PAGE = 10;
 
@@ -13,9 +13,13 @@ export default function EventList() {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  // Only Active events are public.
+  // Only Active events are public. Exclude the synthetic highlight row (it is
+  // featured separately in EventBanner, so it must not duplicate in the list).
   const events = useMemo(
-    () => allEvents.filter((e) => e.status === "Active"),
+    () =>
+      allEvents.filter(
+        (e) => e.status === "Active" && e.id !== HIGHLIGHT_EVENT_ID,
+      ),
     [allEvents],
   );
 

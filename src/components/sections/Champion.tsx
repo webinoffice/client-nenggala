@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Image from "next/image";
+import MarketingImage from "./MarketingImage";
 import Button from "@/components/ui/Button";
 import { usePrograms } from "@/lib/marketing/programs";
 
@@ -131,10 +131,9 @@ export default function Champion() {
                   }}
                 >
                   <div className="relative aspect-4/5 overflow-hidden rounded-sm bg-ink">
-                    <Image
+                    <MarketingImage
                       src={p.image}
                       alt={p.name}
-                      fill
                       draggable={false}
                       className="select-none object-cover transition-transform duration-500 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"

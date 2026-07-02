@@ -3,15 +3,12 @@ import { fetchEbooks, saveEBook, deleteEBook } from "@/lib/api/master";
 import { fileUrl } from "@/lib/api/file-url";
 import { dmyhmsToIso } from "@/lib/api/dates";
 
-export type EbookStatus = "Active" | "Inactive";
-
 export type Ebook = {
   id: number;
   sabuk: string;
   volume?: string; // legacy field — no longer shown/edited
   title: string;
   pdfFile: string; // filename, e.g. "putih-cara-menendang.pdf"
-  status: EbookStatus;
   updatedBy: string;
   updateDate: string;
 };
@@ -22,9 +19,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Putih",
     volume: "1.1",
     title: "Cara Menendang",
-    pdfFile: "putih-cara-menendang.pdf",
-    status: "Active",
-    updatedBy: "Carolina",
+    pdfFile: "putih-cara-menendang.pdf",    updatedBy: "Carolina",
     updateDate: "2026-02-19T10:00:00",
   },
   {
@@ -32,9 +27,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Putih",
     volume: "1.2",
     title: "Sikap Dasar & Salam",
-    pdfFile: "putih-sikap-dasar.pdf",
-    status: "Active",
-    updatedBy: "Carolina",
+    pdfFile: "putih-sikap-dasar.pdf",    updatedBy: "Carolina",
     updateDate: "2026-02-19T10:05:00",
   },
   {
@@ -42,9 +35,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Kuning",
     volume: "2.1",
     title: "Pomsae Taegeuk Il Jang",
-    pdfFile: "kuning-taegeuk-1.pdf",
-    status: "Active",
-    updatedBy: "Carolina",
+    pdfFile: "kuning-taegeuk-1.pdf",    updatedBy: "Carolina",
     updateDate: "2026-01-15T09:00:00",
   },
   {
@@ -52,9 +43,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Hijau",
     volume: "3.1",
     title: "Pomsae Taegeuk Sam Jang",
-    pdfFile: "hijau-taegeuk-3.pdf",
-    status: "Active",
-    updatedBy: "Andre",
+    pdfFile: "hijau-taegeuk-3.pdf",    updatedBy: "Andre",
     updateDate: "2025-12-20T14:00:00",
   },
   {
@@ -62,9 +51,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Biru",
     volume: "4.1",
     title: "Teknik Tendangan Lanjutan",
-    pdfFile: "biru-tendangan-lanjutan.pdf",
-    status: "Active",
-    updatedBy: "Andre",
+    pdfFile: "biru-tendangan-lanjutan.pdf",    updatedBy: "Andre",
     updateDate: "2025-11-10T11:30:00",
   },
   {
@@ -72,9 +59,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Merah",
     volume: "5.1",
     title: "Kyorugi Strategi Bertanding",
-    pdfFile: "merah-kyorugi-strategi.pdf",
-    status: "Active",
-    updatedBy: "Carolina",
+    pdfFile: "merah-kyorugi-strategi.pdf",    updatedBy: "Carolina",
     updateDate: "2025-10-05T16:00:00",
   },
   {
@@ -82,9 +67,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Hitam DAN-1",
     volume: "6.1",
     title: "14 Basic Movements Hyungs",
-    pdfFile: "hitam-14-basic.pdf",
-    status: "Active",
-    updatedBy: "Carolina",
+    pdfFile: "hitam-14-basic.pdf",    updatedBy: "Carolina",
     updateDate: "2025-09-01T08:00:00",
   },
   {
@@ -92,9 +75,7 @@ export const INITIAL_EBOOKS: Ebook[] = [
     sabuk: "Kuning",
     volume: "2.2",
     title: "Sikap Kuda-Kuda",
-    pdfFile: "kuning-kuda-kuda.pdf",
-    status: "Inactive",
-    updatedBy: "Andre",
+    pdfFile: "kuning-kuda-kuda.pdf",    updatedBy: "Andre",
     updateDate: "2025-08-15T13:00:00",
   },
 ];
@@ -131,9 +112,7 @@ async function loadEbooks(): Promise<void> {
     sabuk: r.BeltName ?? "",
     volume: r.Vol ?? undefined,
     title: r.Title ?? "",
-    pdfFile: r.EBookFile ? fileUrl(r.EBookFile) : "",
-    status: "Active",
-    updatedBy: r.UpdatedBy ?? "",
+    pdfFile: r.EBookFile ? fileUrl(r.EBookFile) : "",    updatedBy: r.UpdatedBy ?? "",
     updateDate: dmyhmsToIso(r.UpdateDate),
   }));
   notify();
