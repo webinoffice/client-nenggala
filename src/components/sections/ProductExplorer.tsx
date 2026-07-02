@@ -4,158 +4,34 @@ import Image from "next/image";
 import { useState } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  useMarketingProducts,
+  useMarketingProductTypes,
+} from "@/lib/marketing/products";
 
-type Category = "all" | "taekwondo" | "nunchaku" | "gymnastic" | "accessories";
-
-interface Product {
-  id: string;
-  name: string;
-  category: Exclude<Category, "all">;
-  image: string;
-}
-
-const TABS: { value: Category; label: string }[] = [
-  { value: "all", label: "All Products" },
-  { value: "taekwondo", label: "Taekwondo" },
-  { value: "nunchaku", label: "Nunchaku" },
-  { value: "gymnastic", label: "Gymnastic" },
-  { value: "accessories", label: "Accesories" }, // preserving typo from design
-];
-
-const PLACEHOLDER = "/images/product-placeholder.jpg";
-
-const PRODUCTS: Product[] = [
-  // Taekwondo
-  {
-    id: "tk-1",
-    name: "Seragam Taekwondo",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-2",
-    name: "Seragam Taekwondo",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-3",
-    name: "Seragam Taekwondo",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-4",
-    name: "Seragam Taekwondo",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-5",
-    name: "Seragam Taekwondo Premium",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-6",
-    name: "Seragam Taekwondo Premium",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-7",
-    name: "Sabuk Taekwondo",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "tk-8",
-    name: "Pelindung Taekwondo",
-    category: "taekwondo",
-    image: PLACEHOLDER,
-  },
-  // Nunchaku
-  {
-    id: "nc-1",
-    name: "Nunchaku Standar",
-    category: "nunchaku",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "nc-2",
-    name: "Nunchaku Latihan",
-    category: "nunchaku",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "nc-3",
-    name: "Nunchaku Premium",
-    category: "nunchaku",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "nc-4",
-    name: "Nunchaku Pro",
-    category: "nunchaku",
-    image: PLACEHOLDER,
-  },
-  // Gymnastic
-  {
-    id: "gm-1",
-    name: "Matras Gymnastic",
-    category: "gymnastic",
-    image: PLACEHOLDER,
-  },
-  { id: "gm-2", name: "Hand Grip", category: "gymnastic", image: PLACEHOLDER },
-  {
-    id: "gm-3",
-    name: "Balance Bar",
-    category: "gymnastic",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "gm-4",
-    name: "Chalk Powder",
-    category: "gymnastic",
-    image: PLACEHOLDER,
-  },
-  // Accessories
-  {
-    id: "ac-1",
-    name: "Tas Latihan",
-    category: "accessories",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "ac-2",
-    name: "Handuk Atlet",
-    category: "accessories",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "ac-3",
-    name: "Botol Minum",
-    category: "accessories",
-    image: PLACEHOLDER,
-  },
-  {
-    id: "ac-4",
-    name: "Pelindung Tubuh",
-    category: "accessories",
-    image: PLACEHOLDER,
-  },
-];
+// "all" is the synthetic All-Products tab; every other value is a real
+// ProductTypeId (as a string).
+const ALL = "all";
 
 const PER_PAGE = 12;
 
 export default function ProductExplorer() {
-  const [activeCategory, setActiveCategory] = useState<Category>("all");
+  const products = useMarketingProducts();
+  const productTypes = useMarketingProductTypes();
+  const [activeCategory, setActiveCategory] = useState<string>(ALL);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  // Filter by category, then by search query. Both narrow the result set.
-  const filtered = PRODUCTS.filter((p) => {
-    if (activeCategory !== "all" && p.category !== activeCategory) return false;
+  // Category tabs come from the DB (ProductType). "All Products" is prepended.
+  const tabs = [
+    { value: ALL, label: "All Products" },
+    ...productTypes.map((t) => ({ value: String(t.id), label: t.name })),
+  ];
+
+  // Filter by category (real ProductTypeId), then by search query.
+  const filtered = products.filter((p) => {
+    if (activeCategory !== ALL && String(p.typeId) !== activeCategory)
+      return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return p.name.toLowerCase().includes(q);
@@ -203,7 +79,7 @@ export default function ProductExplorer() {
 
         {/* Filter tabs */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 md:justify-around">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = activeCategory === tab.value;
             return (
               <button

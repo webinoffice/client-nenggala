@@ -1,7 +1,7 @@
 // src/app/app/(authenticated)/coach/data/CoachFormClient.tsx
 "use client";
 import { getCurrentUsername } from "@/lib/current-user";
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -12,8 +12,9 @@ import {
   type Coach,
   type BloodType,
   addCoach,
-  getCoachByUsername,
-  getNextCoachUsername,
+  getCoaches,
+  hasLoadedCoaches,
+  subscribeCoaches,
   updateCoach,
 } from "../_shared/coaches";
 import {
@@ -59,48 +60,87 @@ interface Props {
   username?: string;
 }
 
+function buildForm(c: Coach | null): FormState {
+  return {
+    username: c?.username ?? "",
+    namaLengkap: c?.namaLengkap ?? "",
+    panggilan: c?.panggilan ?? "",
+    email: c?.email ?? "",
+    gender: c?.gender ?? "",
+    password: "",
+    dojang: c?.dojang ?? "",
+    sabuk: c?.sabuk ?? "-",
+    tanggalLahir: c?.tanggalLahir ?? "",
+    noHandphone1: c?.noHandphone1 ?? "",
+    noHandphone2: c?.noHandphone2 ?? "",
+    warganegara: c?.warganegara ?? "Indonesia",
+    nikKtpPaspor: c?.nikKtpPaspor ?? "",
+    alamatLengkap: c?.alamatLengkap ?? "",
+    kodePos: c?.kodePos ?? "",
+    tinggiBadan: c ? String(c.tinggiBadan) : "",
+    beratBadan: c ? String(c.beratBadan) : "",
+    ukuranSepatu: c ? String(c.ukuranSepatu) : "",
+    namaAyah: c?.namaAyah ?? "",
+    namaIbu: c?.namaIbu ?? "",
+    golDarah: c?.golDarah ?? "-",
+    alergi: c?.alergi ?? "",
+    mulaiLatihan: c?.mulaiLatihan ?? "",
+  };
+}
+
 export default function CoachFormClient({ mode, username }: Props) {
   const router = useRouter();
   const isEditing = mode === "edit";
   const dojangOptions = useDojangOptions();
   const sabukOptions = useSabukOptions();
 
-  const [editing] = useState<Coach | null>(() =>
-    isEditing && username ? getCoachByUsername(username) : null,
+  // Subscribe so the edit form works on a direct load / refresh: the record
+  // isn't necessarily hydrated at mount, so derive it live and seed the form
+  // once it arrives (instead of a one-shot read that finds nothing).
+  const coaches = useSyncExternalStore(
+    subscribeCoaches,
+    getCoaches,
+    getCoaches,
   );
-  const [initialUsername] = useState<string>(
-    () => editing?.username ?? getNextCoachUsername(),
+  const loaded = useSyncExternalStore(
+    subscribeCoaches,
+    hasLoadedCoaches,
+    hasLoadedCoaches,
   );
+  const editing =
+    isEditing && username
+      ? (coaches.find((c) => c.username === username) ?? null)
+      : null;
 
-  const [form, setForm] = useState<FormState>(() => ({
-    username: initialUsername,
-    namaLengkap: editing?.namaLengkap ?? "",
-    panggilan: editing?.panggilan ?? "",
-    email: editing?.email ?? "",
-    gender: editing?.gender ?? "",
-    password: "",
-    dojang: editing?.dojang ?? "",
-    sabuk: editing?.sabuk ?? "-",
-    tanggalLahir: editing?.tanggalLahir ?? "",
-    noHandphone1: editing?.noHandphone1 ?? "",
-    noHandphone2: editing?.noHandphone2 ?? "",
-    warganegara: editing?.warganegara ?? "Indonesia",
-    nikKtpPaspor: editing?.nikKtpPaspor ?? "",
-    alamatLengkap: editing?.alamatLengkap ?? "",
-    kodePos: editing?.kodePos ?? "",
-    tinggiBadan: editing ? String(editing.tinggiBadan) : "",
-    beratBadan: editing ? String(editing.beratBadan) : "",
-    ukuranSepatu: editing ? String(editing.ukuranSepatu) : "",
-    namaAyah: editing?.namaAyah ?? "",
-    namaIbu: editing?.namaIbu ?? "",
-    golDarah: editing?.golDarah ?? "-",
-    alergi: editing?.alergi ?? "",
-    mulaiLatihan: editing?.mulaiLatihan ?? "",
-  }));
+  const [form, setForm] = useState<FormState>(() => buildForm(editing));
+  // Seed the form once the record hydrates. Adjusting state during render (the
+  // React-recommended alternative to a setState-in-effect) keyed on the loaded
+  // username: if the record was already present at mount, no re-seed happens.
+  const [seededUsername, setSeededUsername] = useState<string | null>(() =>
+    isEditing ? (editing?.username ?? null) : null,
+  );
+  if (isEditing && editing && seededUsername !== editing.username) {
+    setForm(buildForm(editing));
+    setSeededUsername(editing.username);
+  }
+
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  if (isEditing && !editing && !loaded) {
+    return (
+      <>
+        <PageHeader title="Update Coach" />
+        <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
+          <p className="text-muted uppercase tracking-widest text-xs font-bold">
+            Loading…
+          </p>
+        </div>
+      </>
+    );
+  }
 
   if (isEditing && !editing) {
     return (
@@ -208,7 +248,7 @@ export default function CoachFormClient({ mode, username }: Props) {
         description={
           isEditing
             ? `Editing ${editing?.namaLengkap} (${form.username})`
-            : `New coach profile · ${form.username}`
+            : "New coach profile · No. Reg auto-generated on save"
         }
         actions={
           <Button

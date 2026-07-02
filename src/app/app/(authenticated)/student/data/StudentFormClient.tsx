@@ -2,7 +2,7 @@
 "use client";
 import { getCurrentUsername } from "@/lib/current-user";
 
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -13,8 +13,9 @@ import {
   type Student,
   type BloodType,
   addStudent,
-  getStudentByUsername,
-  getNextStudentUsername,
+  getStudents,
+  hasLoadedStudents,
+  subscribeStudents,
   updateStudent,
 } from "../_shared/students";
 import {
@@ -60,49 +61,88 @@ interface Props {
   username?: string;
 }
 
+function buildForm(s: Student | null): FormState {
+  return {
+    username: s?.username ?? "",
+    namaLengkap: s?.namaLengkap ?? "",
+    panggilan: s?.panggilan ?? "",
+    email: s?.email ?? "",
+    gender: s?.gender ?? "",
+    password: "",
+    dojang: s?.dojang ?? "",
+    sabuk: s?.sabuk ?? "-",
+    tanggalLahir: s?.tanggalLahir ?? "",
+    noHandphone1: s?.noHandphone1 ?? "",
+    noHandphone2: s?.noHandphone2 ?? "",
+    warganegara: s?.warganegara ?? "Indonesia",
+    nikKtpPaspor: s?.nikKtpPaspor ?? "",
+    alamatLengkap: s?.alamatLengkap ?? "",
+    kodePos: s?.kodePos ?? "",
+    tinggiBadan: s ? String(s.tinggiBadan) : "",
+    beratBadan: s ? String(s.beratBadan) : "",
+    ukuranSepatu: s ? String(s.ukuranSepatu) : "",
+    namaAyah: s?.namaAyah ?? "",
+    namaIbu: s?.namaIbu ?? "",
+    golDarah: s?.golDarah ?? "-",
+    alergi: s?.alergi ?? "",
+    mulaiLatihan: s?.mulaiLatihan ?? "",
+  };
+}
+
 export default function StudentFormClient({ mode, username }: Props) {
   const router = useRouter();
   const isEditing = mode === "edit";
   const dojangOptions = useDojangOptions();
   const sabukOptions = useSabukOptions();
 
-  const [editingStudent] = useState<Student | null>(() =>
-    isEditing && username ? getStudentByUsername(username) : null,
+  // Subscribe to the store so the edit form works on a direct load / refresh:
+  // the record isn't necessarily hydrated at mount, so derive it live and seed
+  // the form once it arrives (instead of a one-shot read that finds nothing).
+  const students = useSyncExternalStore(
+    subscribeStudents,
+    getStudents,
+    getStudents,
   );
-  const [initialUsername] = useState<string>(
-    () => editingStudent?.username ?? getNextStudentUsername(),
+  const loaded = useSyncExternalStore(
+    subscribeStudents,
+    hasLoadedStudents,
+    hasLoadedStudents,
   );
+  const editingStudent =
+    isEditing && username
+      ? (students.find((s) => s.username === username) ?? null)
+      : null;
 
-  const [form, setForm] = useState<FormState>(() => ({
-    username: initialUsername,
-    namaLengkap: editingStudent?.namaLengkap ?? "",
-    panggilan: editingStudent?.panggilan ?? "",
-    email: editingStudent?.email ?? "",
-    gender: editingStudent?.gender ?? "",
-    password: "",
-    dojang: editingStudent?.dojang ?? "",
-    sabuk: editingStudent?.sabuk ?? "-",
-    tanggalLahir: editingStudent?.tanggalLahir ?? "",
-    noHandphone1: editingStudent?.noHandphone1 ?? "",
-    noHandphone2: editingStudent?.noHandphone2 ?? "",
-    warganegara: editingStudent?.warganegara ?? "Indonesia",
-    nikKtpPaspor: editingStudent?.nikKtpPaspor ?? "",
-    alamatLengkap: editingStudent?.alamatLengkap ?? "",
-    kodePos: editingStudent?.kodePos ?? "",
-    tinggiBadan: editingStudent ? String(editingStudent.tinggiBadan) : "",
-    beratBadan: editingStudent ? String(editingStudent.beratBadan) : "",
-    ukuranSepatu: editingStudent ? String(editingStudent.ukuranSepatu) : "",
-    namaAyah: editingStudent?.namaAyah ?? "",
-    namaIbu: editingStudent?.namaIbu ?? "",
-    golDarah: editingStudent?.golDarah ?? "-",
-    alergi: editingStudent?.alergi ?? "",
-    mulaiLatihan: editingStudent?.mulaiLatihan ?? "",
-  }));
+  const [form, setForm] = useState<FormState>(() => buildForm(editingStudent));
+  // Seed the form once the record hydrates. Adjusting state during render (the
+  // React-recommended alternative to a setState-in-effect) keyed on the loaded
+  // username: if the record was already present at mount, no re-seed happens.
+  const [seededUsername, setSeededUsername] = useState<string | null>(() =>
+    isEditing ? (editingStudent?.username ?? null) : null,
+  );
+  if (isEditing && editingStudent && seededUsername !== editingStudent.username) {
+    setForm(buildForm(editingStudent));
+    setSeededUsername(editingStudent.username);
+  }
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Wait for hydration before deciding a record is missing.
+  if (isEditing && !editingStudent && !loaded) {
+    return (
+      <>
+        <PageHeader title="Update Student" />
+        <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
+          <p className="text-muted uppercase tracking-widest text-xs font-bold">
+            Loading…
+          </p>
+        </div>
+      </>
+    );
+  }
 
   if (isEditing && !editingStudent) {
     return (
@@ -213,7 +253,7 @@ export default function StudentFormClient({ mode, username }: Props) {
         description={
           isEditing
             ? `Editing ${editingStudent?.namaLengkap} (${form.username})`
-            : `New student profile · ${form.username}`
+            : "New student profile · No. Reg auto-generated on save"
         }
         actions={
           <Button variant="outline" onClick={handleCancel}>

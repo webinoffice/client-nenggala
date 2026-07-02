@@ -368,7 +368,14 @@ async function loadAdmins(): Promise<void> {
     ...mapUserRow(r),
     status: r.FgStatus === "Y" ? "Active" : "Inactive",
   }));
+  _loaded = true; // set before notify so subscribers see the loaded state
   notify();
+}
+
+/** Whether the admin list has hydrated at least once (lets the edit screen tell
+ *  "still loading" apart from "genuinely not found"). */
+export function hasLoadedAdmins(): boolean {
+  return _loaded;
 }
 
 /** One-time hydration of the admin list from the backend. */
@@ -396,14 +403,6 @@ export async function reloadAdmins(): Promise<void> {
 
 export function getAdminByUsername(username: string): Admin | null {
   return _admins.find((a) => a.username === username) ?? null;
-}
-
-export function getNextUsername(): string {
-  const max = _admins.reduce((m, a) => {
-    const num = parseInt(a.username.replace(/^NA/, ""), 10);
-    return Number.isFinite(num) && num > m ? num : m;
-  }, 0);
-  return `NA${String(max + 1).padStart(4, "0")}`;
 }
 
 /** Create an admin (save-user-data, UserTypeCode "A"), then reload. */

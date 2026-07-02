@@ -214,7 +214,14 @@ async function loadCoaches(): Promise<void> {
     ...mapUserRow(r),
     status: r.FgStatus === "Y" ? "Active" : "Inactive",
   }));
+  _loaded = true; // set before notify so subscribers see the loaded state
   notify();
+}
+
+/** Whether the coach list has hydrated at least once (lets the edit screen tell
+ *  "still loading" apart from "genuinely not found"). */
+export function hasLoadedCoaches(): boolean {
+  return _loaded;
 }
 
 /** One-time hydration of the coach list from the backend. */
@@ -241,13 +248,6 @@ export async function reloadCoaches(): Promise<void> {
 }
 export function getCoachByUsername(username: string) {
   return _coaches.find((c) => c.username === username) ?? null;
-}
-export function getNextCoachUsername(): string {
-  const max = _coaches.reduce((m, c) => {
-    const n = parseInt(c.username.replace(/^C/, ""), 10);
-    return Number.isFinite(n) && n > m ? n : m;
-  }, 0);
-  return `C${String(max + 1).padStart(4, "0")}`;
 }
 /** Create a coach (save-user-data, UserTypeCode "I"), then reload. */
 export async function addCoach(

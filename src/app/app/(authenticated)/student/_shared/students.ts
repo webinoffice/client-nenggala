@@ -49,203 +49,10 @@ export type Student = {
   updateDate: string;
 };
 
-const INITIAL_STUDENTS: Student[] = [
-  {
-    username: "U0001",
-    namaLengkap: "Putri Lestari",
-    panggilan: "Putri",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Putih",
-    tanggalLahir: "2018-04-12",
-    noHandphone2: "0878-1234-5678",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175041204180001",
-    alamatLengkap: "Jl. Anggrek No. 3, Kebon Jeruk, Jakarta Barat",
-    kodePos: "11530",
-    tinggiBadan: 130,
-    beratBadan: 30,
-    ukuranSepatu: 33,
-    namaAyah: "Andri Lestari",
-    namaIbu: "Maya Sari",
-    golDarah: "O",
-    alergi: "-",
-    mulaiLatihan: "2024-02-01",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-10-12T09:15:30Z",
-  },
-  {
-    username: "U0002",
-    namaLengkap: "Aditya Saputra",
-    panggilan: "Adit",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Kuning",
-    tanggalLahir: "2016-09-08",
-    noHandphone2: "0813-2233-4455",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175090816080002",
-    alamatLengkap: "Jl. Mangga Besar VIII No. 5, Jakarta Pusat",
-    kodePos: "10730",
-    tinggiBadan: 140,
-    beratBadan: 38,
-    ukuranSepatu: 35,
-    namaAyah: "Saputra Hadi",
-    namaIbu: "Lina Permata",
-    golDarah: "A",
-    alergi: "Susu",
-    mulaiLatihan: "2022-06-15",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-11-05T14:22:18Z",
-  },
-  {
-    username: "U0003",
-    namaLengkap: "Rian Pratama",
-    panggilan: "Rian",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Hijau",
-    tanggalLahir: "2014-11-22",
-    noHandphone2: "0821-7788-9900",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175112214110003",
-    alamatLengkap: "Jl. Daan Mogot No. 22, Jakarta Barat",
-    kodePos: "11460",
-    tinggiBadan: 152,
-    beratBadan: 46,
-    ukuranSepatu: 38,
-    namaAyah: "Pratama Wijaya",
-    namaIbu: "Ratna Dewi",
-    golDarah: "B",
-    alergi: "-",
-    mulaiLatihan: "2019-09-10",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-09-20T11:30:00Z",
-  },
-  {
-    username: "U0004",
-    namaLengkap: "Sari Kusuma",
-    panggilan: "Sari",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Hijau Strip Biru",
-    tanggalLahir: "2013-03-05",
-    noHandphone2: "0856-1122-3344",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175030513030004",
-    alamatLengkap: "Jl. Tomang Raya No. 14, Jakarta Barat",
-    kodePos: "11440",
-    tinggiBadan: 158,
-    beratBadan: 50,
-    ukuranSepatu: 39,
-    namaAyah: "Kusuma Atmojo",
-    namaIbu: "Wati Anggraini",
-    golDarah: "O",
-    alergi: "Seafood",
-    mulaiLatihan: "2018-04-08",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-01T08:45:22Z",
-  },
-  {
-    username: "U0005",
-    namaLengkap: "Bayu Setiawan",
-    panggilan: "Bayu",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Biru",
-    tanggalLahir: "2012-07-19",
-    noHandphone2: "0878-9988-7766",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175071912070005",
-    alamatLengkap: "Jl. Slipi No. 8, Jakarta Barat",
-    kodePos: "11410",
-    tinggiBadan: 165,
-    beratBadan: 55,
-    ukuranSepatu: 40,
-    namaAyah: "Setiawan Budi",
-    namaIbu: "Yuli Astuti",
-    golDarah: "A",
-    alergi: "-",
-    mulaiLatihan: "2016-08-22",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-11-18T16:00:00Z",
-  },
-  {
-    username: "U0006",
-    namaLengkap: "Devaloka Gangga Avara",
-    panggilan: "Devaloka",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Merah Strip Hitam",
-    tanggalLahir: "2010-05-10",
-    noHandphone2: "0878-1111-2222",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175051005100006",
-    alamatLengkap: "Jl. Devaloka No. 6, Kebon Jeruk, Jakarta Barat",
-    kodePos: "11530",
-    tinggiBadan: 168,
-    beratBadan: 56,
-    ukuranSepatu: 40,
-    namaAyah: "Gangga Saputra",
-    namaIbu: "Avara Lestari",
-    golDarah: "O",
-    alergi: "-",
-    mulaiLatihan: "2014-03-14",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-28T19:41:32Z",
-  },
-  {
-    username: "U0007",
-    namaLengkap: "Maya Sari Anggraini",
-    panggilan: "Maya",
-    dojang: "Kedoya Sport Club",
-    sabuk: "Merah",
-    tanggalLahir: "2011-01-30",
-    noHandphone2: "0813-5566-7788",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3175013011010007",
-    alamatLengkap: "Jl. Greenville No. 11, Jakarta Barat",
-    kodePos: "11510",
-    tinggiBadan: 162,
-    beratBadan: 52,
-    ukuranSepatu: 39,
-    namaAyah: "Sari Hidayat",
-    namaIbu: "Anggraini Putri",
-    golDarah: "B",
-    alergi: "Telur",
-    mulaiLatihan: "2015-02-18",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-10-30T13:20:45Z",
-  },
-  {
-    username: "U0008",
-    namaLengkap: "Doni Hartanto",
-    panggilan: "Doni",
-    dojang: "Senayan Dojang",
-    sabuk: "Putih",
-    tanggalLahir: "2017-12-03",
-    noHandphone2: "0821-4433-2211",
-    warganegara: "Indonesia",
-    nikKtpPaspor: "3174120317120008",
-    alamatLengkap: "Jl. Senayan Trade Center No. 4, Jakarta Pusat",
-    kodePos: "10270",
-    tinggiBadan: 132,
-    beratBadan: 30,
-    ukuranSepatu: 33,
-    namaAyah: "Hartanto Wijaya",
-    namaIbu: "Indah Sari",
-    golDarah: "A",
-    alergi: "Kacang",
-    mulaiLatihan: "2024-08-01",
-    status: "Active",
-    updatedBy: "Carolina",
-    updateDate: "2025-12-10T10:00:00Z",
-  },
-];
-
-// store
-let _students: Student[] = [...INITIAL_STUDENTS];
+// store — starts empty; hydrated from the backend on first subscribe
+// (ensureStudentsLoaded). No mock seed, so the list shows a loading/empty state
+// rather than fabricated students when the backend is slow or unreachable.
+let _students: Student[] = [];
 const listeners = new Set<() => void>();
 function notify() {
   listeners.forEach((l) => l());
@@ -275,7 +82,14 @@ async function loadStudents(): Promise<void> {
     ...mapUserRow(r),
     status: r.FgStatus === "Y" ? "Active" : "Inactive",
   }));
+  _loaded = true; // set before notify so subscribers see the loaded state
   notify();
+}
+
+/** Whether the student list has hydrated at least once (lets edit screens tell
+ *  "still loading" apart from "genuinely not found"). */
+export function hasLoadedStudents(): boolean {
+  return _loaded;
 }
 
 /** One-time hydration of the student list from the backend. */
@@ -302,13 +116,6 @@ export async function reloadStudents(): Promise<void> {
 }
 export function getStudentByUsername(username: string): Student | null {
   return _students.find((s) => s.username === username) ?? null;
-}
-export function getNextStudentUsername(): string {
-  const max = _students.reduce((m, s) => {
-    const num = parseInt(s.username.replace(/^U/, ""), 10);
-    return Number.isFinite(num) && num > m ? num : m;
-  }, 0);
-  return `U${String(max + 1).padStart(4, "0")}`;
 }
 /** Create a student (save-user-data, UserTypeCode "S"), then reload. */
 export async function addStudent(

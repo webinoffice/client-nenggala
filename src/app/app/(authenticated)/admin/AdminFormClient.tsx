@@ -2,7 +2,7 @@
 "use client";
 import { getCurrentUsername } from "@/lib/current-user";
 
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -13,8 +13,9 @@ import {
   type Admin,
   type BloodType,
   addAdmin,
-  getAdminByUsername,
-  getNextUsername,
+  getAdmins,
+  hasLoadedAdmins,
+  subscribeAdmins,
   updateAdmin,
 } from "./_shared/admins";
 import {
@@ -62,6 +63,34 @@ interface AdminFormClientProps {
   username?: string;
 }
 
+function buildForm(a: Admin | null): FormState {
+  return {
+    username: a?.username ?? "",
+    namaLengkap: a?.namaLengkap ?? "",
+    panggilan: a?.panggilan ?? "",
+    email: a?.email ?? "",
+    gender: a?.gender ?? "",
+    password: "",
+    dojang: a?.dojang ?? "",
+    sabuk: a?.sabuk ?? "-",
+    tanggalLahir: a?.tanggalLahir ?? "",
+    noHandphone1: a?.noHandphone1 ?? "",
+    noHandphone2: a?.noHandphone2 ?? "",
+    warganegara: a?.warganegara ?? "Indonesia",
+    nikKtpPaspor: a?.nikKtpPaspor ?? "",
+    alamatLengkap: a?.alamatLengkap ?? "",
+    kodePos: a?.kodePos ?? "",
+    tinggiBadan: a ? String(a.tinggiBadan) : "",
+    beratBadan: a ? String(a.beratBadan) : "",
+    ukuranSepatu: a ? String(a.ukuranSepatu) : "",
+    namaAyah: a?.namaAyah ?? "",
+    namaIbu: a?.namaIbu ?? "",
+    golDarah: a?.golDarah ?? "-",
+    alergi: a?.alergi ?? "",
+    mulaiLatihan: a?.mulaiLatihan ?? "",
+  };
+}
+
 export default function AdminFormClient({
   mode,
   username,
@@ -71,44 +100,50 @@ export default function AdminFormClient({
   const dojangOptions = useDojangOptions();
   const sabukOptions = useSabukOptions();
 
-  // Read once on mount — both the target admin and the next free username.
-  const [editingAdmin] = useState<Admin | null>(() =>
-    isEditing && username ? getAdminByUsername(username) : null,
+  // Subscribe so the edit form works on a direct load / refresh: the record
+  // isn't necessarily hydrated at mount, so derive it live and seed the form
+  // once it arrives (instead of a one-shot read that finds nothing).
+  const admins = useSyncExternalStore(subscribeAdmins, getAdmins, getAdmins);
+  const loaded = useSyncExternalStore(
+    subscribeAdmins,
+    hasLoadedAdmins,
+    hasLoadedAdmins,
   );
-  const [initialUsername] = useState<string>(
-    () => editingAdmin?.username ?? getNextUsername(),
-  );
+  const editingAdmin =
+    isEditing && username
+      ? (admins.find((a) => a.username === username) ?? null)
+      : null;
 
-  const [form, setForm] = useState<FormState>(() => ({
-    username: initialUsername,
-    namaLengkap: editingAdmin?.namaLengkap ?? "",
-    panggilan: editingAdmin?.panggilan ?? "",
-    email: editingAdmin?.email ?? "",
-    gender: editingAdmin?.gender ?? "",
-    password: "",
-    dojang: editingAdmin?.dojang ?? "",
-    sabuk: editingAdmin?.sabuk ?? "-",
-    tanggalLahir: editingAdmin?.tanggalLahir ?? "",
-    noHandphone1: editingAdmin?.noHandphone1 ?? "",
-    noHandphone2: editingAdmin?.noHandphone2 ?? "",
-    warganegara: editingAdmin?.warganegara ?? "Indonesia",
-    nikKtpPaspor: editingAdmin?.nikKtpPaspor ?? "",
-    alamatLengkap: editingAdmin?.alamatLengkap ?? "",
-    kodePos: editingAdmin?.kodePos ?? "",
-    tinggiBadan: editingAdmin ? String(editingAdmin.tinggiBadan) : "",
-    beratBadan: editingAdmin ? String(editingAdmin.beratBadan) : "",
-    ukuranSepatu: editingAdmin ? String(editingAdmin.ukuranSepatu) : "",
-    namaAyah: editingAdmin?.namaAyah ?? "",
-    namaIbu: editingAdmin?.namaIbu ?? "",
-    golDarah: editingAdmin?.golDarah ?? "-",
-    alergi: editingAdmin?.alergi ?? "",
-    mulaiLatihan: editingAdmin?.mulaiLatihan ?? "",
-  }));
+  const [form, setForm] = useState<FormState>(() => buildForm(editingAdmin));
+  // Seed the form once the record hydrates. Adjusting state during render (the
+  // React-recommended alternative to a setState-in-effect) keyed on the loaded
+  // username: if the record was already present at mount, no re-seed happens.
+  const [seededUsername, setSeededUsername] = useState<string | null>(() =>
+    isEditing ? (editingAdmin?.username ?? null) : null,
+  );
+  if (isEditing && editingAdmin && seededUsername !== editingAdmin.username) {
+    setForm(buildForm(editingAdmin));
+    setSeededUsername(editingAdmin.username);
+  }
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Wait for hydration before deciding a record is missing.
+  if (isEditing && !editingAdmin && !loaded) {
+    return (
+      <>
+        <PageHeader title="Update Admin" />
+        <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
+          <p className="text-muted uppercase tracking-widest text-xs font-bold">
+            Loading…
+          </p>
+        </div>
+      </>
+    );
+  }
 
   // Edit-mode not-found state (after hooks, per rules of hooks).
   if (isEditing && !editingAdmin) {
@@ -222,7 +257,7 @@ export default function AdminFormClient({
         description={
           isEditing
             ? `Editing ${editingAdmin?.namaLengkap} (${form.username})`
-            : `New admin profile · ${form.username}`
+            : "New admin profile · No. Reg auto-generated on save"
         }
         actions={
           <Button variant="outline" onClick={handleCancel}>
