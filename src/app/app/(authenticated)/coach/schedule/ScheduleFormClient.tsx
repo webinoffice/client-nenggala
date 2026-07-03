@@ -174,6 +174,12 @@ export default function ScheduleFormClient({ mode, id }: Props) {
     () => (dojang ? periods.filter((p) => p.dojang === dojang) : periods),
     [dojang, periods],
   );
+  // The chosen period bounds the schedule's dates (backend enforces this too).
+  // periodEnd may be "" for an open-ended period → no upper bound.
+  const selectedPeriod = useMemo(
+    () => periods.find((p) => String(p.id) === periodId) ?? null,
+    [periods, periodId],
+  );
   const primaryCoachId = coachByUsername.get(primaryCoach)?.userDataId ?? 0;
   const availableAdditional = useMemo(
     () =>
@@ -236,6 +242,17 @@ export default function ScheduleFormClient({ mode, id }: Props) {
     if (!dateEnd) e.dateEnd = "Required";
     else if (dateStart && dateEnd && dateEnd < dateStart)
       e.dateEnd = "Must be after start";
+    // A schedule must stay within its period's date range.
+    if (selectedPeriod) {
+      if (dateStart && dateStart < selectedPeriod.periodStart)
+        e.dateStart = `Cannot be before period start (${selectedPeriod.periodStart})`;
+      if (
+        dateEnd &&
+        selectedPeriod.periodEnd &&
+        dateEnd > selectedPeriod.periodEnd
+      )
+        e.dateEnd = `Cannot be after period end (${selectedPeriod.periodEnd})`;
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -394,6 +411,8 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               onChange={(e) => setDateStart(e.target.value)}
               error={errors.dateStart}
               disabled={isEditing}
+              min={selectedPeriod?.periodStart || undefined}
+              max={selectedPeriod?.periodEnd || undefined}
             />
             <Input
               label="Date End"
@@ -401,6 +420,8 @@ export default function ScheduleFormClient({ mode, id }: Props) {
               value={dateEnd}
               onChange={(e) => setDateEnd(e.target.value)}
               error={errors.dateEnd}
+              min={dateStart || selectedPeriod?.periodStart || undefined}
+              max={selectedPeriod?.periodEnd || undefined}
             />
           </div>
         </FormSection>
