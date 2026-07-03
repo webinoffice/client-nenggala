@@ -3,78 +3,70 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Bell, ArrowUpRight } from "lucide-react";
-import { useSession } from "@/lib/session";
 import { useEvents, formatEventDate } from "@/lib/events";
-import { getStudents, subscribeStudents } from "../student/_shared/students";
-import { resultLabel } from "../student/_shared/scores";
+import { useBelts } from "../master/_shared/belts";
+import { passPercentage, resultLabel } from "../student/_shared/scores";
 import {
-  getSchedules,
-  subscribeSchedules,
-  getCurrentPeriod,
-} from "../coach/_shared/schedules";
-import {
-  ensureExamLoaded,
-  getExamRegistrations,
-  getExamVersion,
-  subscribeExam,
-} from "../student/_shared/exam";
+  fetchStudentDashboard,
+  type StudentDashboardData,
+} from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 import StudentExamCard from "./StudentExamCard";
 import JointTrainingHighlight from "../joint-training/_shared/JointTrainingHighlight";
 import UploadedImage from "@/components/app/UploadedImage";
 
-function formatJoinedDate(iso: string) {
-  if (!iso) return "-";
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(iso));
-}
-
 export default function StudentDashboard() {
-  const session = useSession();
-  const username = session?.noReg ?? "";
-  const userDataId = session?.userDataId ?? 0;
-
-  const students = useSyncExternalStore(
-    subscribeStudents,
-    getStudents,
-    getStudents,
-  );
-  const schedules = useSyncExternalStore(
-    subscribeSchedules,
-    getSchedules,
-    getSchedules,
-  );
-  useSyncExternalStore(subscribeExam, getExamVersion, getExamVersion);
   const events = useEvents();
+  // Belts hydrate the pass-score lookup that resultLabel() reads; subscribing
+  // re-renders the last-score badge once the belt master lands.
+  useBelts();
 
-  // Current period (from the student's own classes) → this period's exam score.
-  const enrolled = useMemo(
-    () => schedules.filter((s) => s.studentUsernames.includes(username)),
-    [schedules, username],
-  );
-  const currentPeriod = useMemo(() => getCurrentPeriod(enrolled), [enrolled]);
-  const periodId = currentPeriod?.id ?? 0;
+  // The student's own profile + last exam score come from the student-scoped
+  // dashboard endpoint (get-user-data is admin-only and 403s for a student).
+  const [profile, setProfile] = useState<StudentDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (periodId !== 0 && userDataId !== 0) {
-      ensureExamLoaded(periodId, userDataId);
-    }
-  }, [periodId, userDataId]);
+    let alive = true;
+    fetchStudentDashboard()
+      .then((data) => {
+        if (alive) setProfile(data);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const registrations = getExamRegistrations(periodId);
-  const lastScore = registrations.find((r) => r.assessed) ?? null;
-  const lastResult = lastScore
-    ? resultLabel(lastScore.totalScore, lastScore.beltMasterId)
+  const hasScore = (profile?.LastScore ?? 0) > 0;
+  const lastResult = profile
+    ? resultLabel(profile.LastScore, profile.MaxScore, profile.BeltMasterId)
     : "—";
+  // Headline score is normalised to 0–100 (curr / max × 100), matching the pass
+  // threshold; falls back to the raw total if the max is unknown.
+  const lastScoreDisplay = profile
+    ? passPercentage(profile.LastScore, profile.MaxScore) ?? profile.LastScore
+    : 0;
 
-  const student = students.find((s) => s.username === username);
+  if (loading) {
+    return (
+      <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
+        <p className="text-muted text-sm uppercase tracking-widest font-bold">
+          Loading…
+        </p>
+      </div>
+    );
+  }
 
-  if (!student) {
+  if (failed || !profile) {
     return (
       <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
         <p className="text-muted text-sm">
@@ -95,7 +87,7 @@ export default function StudentDashboard() {
       {/* Greeting */}
       <div>
         <h1 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-tight text-ink">
-          Welcome, {student.panggilan || student.namaLengkap}
+          Welcome, {profile.UserName}
         </h1>
         <p className="text-sm text-muted mt-1">
           You are very disciplined! Keep training, keep growing.
@@ -110,7 +102,7 @@ export default function StudentDashboard() {
             <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-sm overflow-hidden bg-paper-soft border border-ink/10">
               <Image
                 src="/images/coach-1.jpg"
-                alt={student.namaLengkap}
+                alt={profile.UserName}
                 fill
                 className="object-cover"
                 sizes="128px"
@@ -120,13 +112,10 @@ export default function StudentDashboard() {
 
           {/* Info */}
           <div className="space-y-2">
-            <InfoRow label="Name" value={student.namaLengkap} />
-            <InfoRow
-              label="Joined Since"
-              value={formatJoinedDate(student.mulaiLatihan)}
-            />
-            <InfoRow label="Club" value={student.dojang} />
-            <InfoRow label="Level" value={student.sabuk || "-"} />
+            <InfoRow label="Name" value={profile.UserName} />
+            <InfoRow label="No. Reg" value={profile.UserNoId} />
+            <InfoRow label="Club" value={profile.DojangName || "-"} />
+            <InfoRow label="Level" value={profile.BeltName || "-"} />
             <InfoRow
               label="Motivation"
               value="I want to be a Champion"
@@ -140,16 +129,16 @@ export default function StudentDashboard() {
               <p className="font-display text-[11px] font-bold uppercase tracking-widest text-muted">
                 Your Last Score
               </p>
-              {lastScore ? (
+              {hasScore ? (
                 <>
                   <p className="font-display text-5xl font-bold text-ink mt-2 leading-none">
-                    {lastScore.totalScore.toFixed(1)}
+                    {lastScoreDisplay.toFixed(1)}
                   </p>
                   <p className="text-[10px] uppercase tracking-widest text-muted mt-2">
-                    {currentPeriod?.title ?? "—"}
+                    {profile.PeriodTitle ?? "—"}
                   </p>
                   <p className="text-[10px] uppercase tracking-widest text-ink/70 mt-3 font-bold">
-                    {lastScore.beltName}
+                    {profile.BeltName}
                   </p>
                   <p
                     className={cn(

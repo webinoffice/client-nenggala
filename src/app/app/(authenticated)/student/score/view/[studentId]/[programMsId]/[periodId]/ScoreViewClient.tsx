@@ -14,6 +14,7 @@ import {
   getAssessResultFor,
   getAssessRow,
   getScoresVersion,
+  passPercentage,
   resultLabel,
   subscribeScores,
 } from "../../../../../_shared/scores";
@@ -62,7 +63,10 @@ export default function ScoreViewClient({
 
   const lowAttendance =
     row.FgLackAtd === "Y" || row.TotalAtd < MIN_ATTENDANCE;
-  const result = resultLabel(row.TotalScore, row.BeltMasterId);
+  const result = resultLabel(row.TotalScore, row.MaxScore, row.BeltMasterId);
+  // Final score = raw total normalised to a 0–100 scale (curr / max × 100), the
+  // value the pass threshold (BeltPassScore) is compared against.
+  const finalScore = passPercentage(row.TotalScore, row.MaxScore);
 
   // Two visual columns (figma layout).
   const half = Math.ceil(results.length / 2);
@@ -145,9 +149,14 @@ export default function ScoreViewClient({
               </div>
             </div>
             <div className="flex items-baseline justify-between py-2 border-b border-ink/5">
-              <div className="text-sm text-ink">Total</div>
+              <div className="text-sm text-ink">
+                Nilai Akhir
+                <span className="text-[11px] text-muted ml-1.5">
+                  ({row.TotalScore.toFixed(1)} / {row.MaxScore || "—"})
+                </span>
+              </div>
               <div className="font-display font-bold text-lg text-ink">
-                {row.TotalScore.toFixed(1)}
+                {finalScore != null ? finalScore.toFixed(1) : row.TotalScore.toFixed(1)}
               </div>
             </div>
           </div>

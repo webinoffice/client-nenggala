@@ -20,6 +20,7 @@ import {
   getAssessList,
   getScoresVersion,
   isAssessed,
+  passPercentage,
   resultLabel,
   subscribeScores,
 } from "../../student/_shared/scores";
@@ -65,13 +66,21 @@ export default function MyScoreClient() {
   const assessed = history.filter((h) => isAssessed(h.row.TotalScore));
   const totalPeriods = history.length;
   const totalPassed = assessed.filter(
-    (h) => resultLabel(h.row.TotalScore, h.row.BeltMasterId) === "Lulus",
+    (h) =>
+      resultLabel(h.row.TotalScore, h.row.MaxScore, h.row.BeltMasterId) ===
+      "Lulus",
   ).length;
   const passRate =
     assessed.length > 0 ? (totalPassed / assessed.length) * 100 : 0;
+  // Scores are shown normalised to a 0–100 scale (curr / max × 100), matching
+  // the pass threshold; the raw item-sum total is not directly comparable.
   const bestScore =
     assessed.length > 0
-      ? Math.max(...assessed.map((h) => h.row.TotalScore))
+      ? Math.max(
+          ...assessed.map(
+            (h) => passPercentage(h.row.TotalScore, h.row.MaxScore) ?? 0,
+          ),
+        )
       : 0;
 
   return (
@@ -140,7 +149,11 @@ export default function MyScoreClient() {
                 <tbody>
                   {history.map(({ row, periodId }) => {
                     const done = isAssessed(row.TotalScore);
-                    const result = resultLabel(row.TotalScore, row.BeltMasterId);
+                    const result = resultLabel(
+                      row.TotalScore,
+                      row.MaxScore,
+                      row.BeltMasterId,
+                    );
                     const passed = result === "Lulus";
                     return (
                       <tr
@@ -166,7 +179,12 @@ export default function MyScoreClient() {
                                 : "text-brand",
                           )}
                         >
-                          {done ? row.TotalScore.toFixed(1) : "—"}
+                          {done
+                            ? (
+                                passPercentage(row.TotalScore, row.MaxScore) ??
+                                row.TotalScore
+                              ).toFixed(1)
+                            : "—"}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span

@@ -113,6 +113,10 @@ export interface StudentAssessListRow {
   LackAtdDesc: string | null;
   /** SUM of AssessScore for this student/program/period (0 when not assessed). */
   TotalScore: number;
+  /** Maximum achievable total for this student's belt level (SUM of the
+   *  applicable items' MaxScore). Normalise TotalScore against this to a
+   *  percentage before comparing to the belt's pass score. 0 when unknown. */
+  MaxScore: number;
   /** Relative path to the uploaded payment proof (null for cash registrations). */
   ExamPaymentFile: string | null;
 }

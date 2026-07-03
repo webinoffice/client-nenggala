@@ -239,21 +239,37 @@ export function isAssessed(totalScore: number): boolean {
   return totalScore > 0;
 }
 
-/** Lulus when the total reaches the belt's pass score. null when unknown
- *  (belts not loaded / belt without a pass score). */
+/** Score as a 0–100 percentage of the maximum achievable total. null when the
+ *  max is unknown (0). Each item is scored 5–8, so the raw total tops out well
+ *  below 100 — it MUST be normalised before comparing to BeltPassScore. */
+export function passPercentage(
+  totalScore: number,
+  maxScore: number | null | undefined,
+): number | null {
+  if (!maxScore || maxScore <= 0) return null;
+  return (totalScore / maxScore) * 100;
+}
+
+/** Lulus when the normalised percentage reaches the belt's pass score
+ *  (BeltMaster.BeltPassScore, itself a percentage). null when unknown (belts not
+ *  loaded, belt without a pass score, or max total unknown). Strict `>=`. */
 export function isLulus(
   totalScore: number,
+  maxScore: number | null | undefined,
   beltMasterId: number | null,
 ): boolean | null {
   const pass = getBeltPassScore(beltMasterId);
   if (pass == null) return null;
-  return totalScore >= pass;
+  const pct = passPercentage(totalScore, maxScore);
+  if (pct == null) return null;
+  return pct >= pass;
 }
 
 export function resultLabel(
   totalScore: number,
+  maxScore: number | null | undefined,
   beltMasterId: number | null,
 ): "Lulus" | "Tidak Lulus" | "—" {
-  const v = isLulus(totalScore, beltMasterId);
+  const v = isLulus(totalScore, maxScore, beltMasterId);
   return v == null ? "—" : v ? "Lulus" : "Tidak Lulus";
 }

@@ -11,7 +11,6 @@ import {
   getCurrentPeriod,
   DAYS_OF_WEEK,
 } from "../../coach/_shared/schedules";
-import { getCoaches, subscribeCoaches } from "../../coach/_shared/coaches";
 import {
   getProgramById,
   getSubProgramById,
@@ -45,11 +44,6 @@ export default function ScheduleClient() {
     getSchedules,
     getSchedules,
   );
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
   // Re-render when a period's attendance lands in the cache.
   useSyncExternalStore(
     subscribeAttendance,
@@ -58,11 +52,6 @@ export default function ScheduleClient() {
   );
   // Re-render when the period's exam eligibility/registration lands in the cache.
   useSyncExternalStore(subscribeExam, getExamVersion, getExamVersion);
-
-  const coachByUsername = useMemo(
-    () => new Map(coaches.map((c) => [c.username, c])),
-    [coaches],
-  );
 
   // Every class this student is enrolled in (the store spans all periods)…
   const enrolled = useMemo(
@@ -159,7 +148,6 @@ export default function ScheduleClient() {
                 ) : (
                   mySchedules.map((s) => {
                     const program = getProgramById(s.programId);
-                    const coach = coachByUsername.get(s.primaryCoachUsername);
                     return (
                       <tr
                         key={s.id}
@@ -172,7 +160,7 @@ export default function ScheduleClient() {
                           {program?.name ?? s.programId}
                         </td>
                         <td className="px-4 py-3 text-ink/70">
-                          {coach?.namaLengkap ?? s.primaryCoachUsername}
+                          {s.primaryCoachName || s.primaryCoachUsername}
                         </td>
                         <td className="px-4 py-3 text-ink/70">{s.startTime}</td>
                         <td className="px-4 py-3 text-ink/70">{s.endTime}</td>

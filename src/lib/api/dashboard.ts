@@ -35,3 +35,38 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
     { auth: true },
   );
 }
+
+/**
+ * The logged-in student's own profile summary. Student-only (UserTypeCode "S");
+ * the backend self-scopes to the caller's UserDataId from the token, so no
+ * params are sent. This is the ONLY student-accessible read of their profile —
+ * get-user-data is admin/super-admin only and 403s for a student.
+ */
+export interface StudentDashboardData {
+  UserDataId: number;
+  UserNoId: string;
+  UserName: string;
+  BeltMasterId: number | null;
+  BeltName: string | null;
+  DojangId: number | null;
+  DojangName: string | null;
+  ProgramMsId: number | null;
+  SchPeriodId: number | null;
+  PeriodTitle: string | null;
+  /** SUM of the current period's exam scores (0 when not yet assessed). */
+  LastScore: number;
+  /** Maximum achievable total for the student's belt level (SUM of applicable
+   *  items' MaxScore). Normalise LastScore against this before comparing to the
+   *  belt's pass score. 0 when unknown. */
+  MaxScore: number;
+}
+
+/** POST /dashboard/get-dashboard-student — student-only. Null when the student
+ *  has no dojang/belt row yet (the backend returns no row). */
+export async function fetchStudentDashboard(): Promise<StudentDashboardData | null> {
+  return apiPost<StudentDashboardData | null>(
+    "/dashboard/get-dashboard-student",
+    {},
+    { auth: true },
+  );
+}
