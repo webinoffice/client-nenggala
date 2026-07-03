@@ -10,7 +10,9 @@ export function getCurrentUsername(): string {
   return getSession()?.noReg ?? "";
 }
 
-/** Best-available display label for the authenticated user (No.Reg for now). */
+/** Best-available display label for the authenticated user: the full name from
+ *  the session token, falling back to the No.Reg when the token has no name. */
 export function getCurrentDisplayName(): string {
-  return getSession()?.noReg ?? "";
+  const s = getSession();
+  return s?.fullName || s?.noReg || "";
 }

@@ -388,15 +388,21 @@ export default function StudentFormClient({ mode, username }: Props) {
             <Input
               label="No Handphone 1"
               type="tel"
+              inputMode="tel"
               value={form.noHandphone1}
-              onChange={(e) => update("noHandphone1", e.target.value)}
+              onChange={(e) =>
+                update("noHandphone1", e.target.value.replace(/[^\d+()\-\s]/g, ""))
+              }
               placeholder="e.g. 0878-1234-5678"
             />
             <Input
               label="No Handphone 2"
               type="tel"
+              inputMode="tel"
               value={form.noHandphone2}
-              onChange={(e) => update("noHandphone2", e.target.value)}
+              onChange={(e) =>
+                update("noHandphone2", e.target.value.replace(/[^\d+()\-\s]/g, ""))
+              }
               placeholder="e.g. 0878-1234-5678"
             />
             <Input

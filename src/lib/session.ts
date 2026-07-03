@@ -25,6 +25,8 @@ const USER_TYPE_TO_ROLE: Record<string, Role> = {
 export interface Session {
   /** UserNoId — the login username and canonical identity (e.g. "NS00001"). */
   noReg: string;
+  /** UserName — the person's full display name (e.g. "Cibaido Sensei"). */
+  fullName: string;
   role: Role;
   userId: number;
   userDataId: number;
@@ -35,6 +37,8 @@ export interface Session {
 interface TokenPayload {
   UserId: number;
   UserName: string;
+  /** The person's full name (login token also carries this alongside UserName). */
+  UserFullName?: string;
   UserDataId: number;
   UserTypeCode: string;
   DojangId: number | null;
@@ -60,6 +64,7 @@ function parseToken(token: string): Session | null {
     if (!role || !payload.UserName) return null;
     return {
       noReg: payload.UserName,
+      fullName: payload.UserFullName ?? "",
       role,
       userId: payload.UserId,
       userDataId: payload.UserDataId,

@@ -49,6 +49,7 @@ export default function JointTrainingAttendanceModal({
           key={event.ScheduleMergeHdId}
           event={event}
           editable={editable}
+          onClose={onClose}
         />
       )}
     </Modal>
@@ -58,9 +59,11 @@ export default function JointTrainingAttendanceModal({
 function AttendanceBody({
   event,
   editable,
+  onClose,
 }: {
   event: ScheduleMergeHdRow;
   editable: boolean;
+  onClose: () => void;
 }) {
   const hdId = event.ScheduleMergeHdId;
   // The roster isn't viewable until the event day; on/after it's a checklist of
@@ -156,28 +159,6 @@ function AttendanceBody({
       return next;
     });
 
-  const reload = async () => {
-    const [present, absent] = await Promise.all([
-      fetchMergeAtdDisplay(hdId),
-      fetchMergeParticipantsToAtd(hdId),
-    ]);
-    const presentIds = new Set((present ?? []).map((p) => p.UserDataId));
-    setAtdIdByUser(
-      new Map(
-        (present ?? [])
-          .filter((p) => p.ScheduleMergeAtdId != null)
-          .map((p) => [p.UserDataId, p.ScheduleMergeAtdId as number]),
-      ),
-    );
-    setRoster(
-      [...(present ?? []), ...(absent ?? [])].sort((a, b) =>
-        (a.UserName ?? "").localeCompare(b.UserName ?? ""),
-      ),
-    );
-    setChecked(new Set(presentIds));
-    setBaseline(new Set(presentIds));
-  };
-
   const handleSave = async () => {
     const toAdd = [...checked].filter((id) => !baseline.has(id));
     const toRemove = [...baseline]
@@ -189,10 +170,10 @@ function AttendanceBody({
     try {
       if (toAdd.length) await saveScheduleMergeAtd(hdId, toAdd);
       if (toRemove.length) await deleteScheduleMergeAtd(toRemove);
-      await reload();
+      // Saved successfully → close the modal (better UX than leaving it open).
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan kehadiran");
-    } finally {
       setSaving(false);
     }
   };

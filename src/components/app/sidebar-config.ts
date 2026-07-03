@@ -63,8 +63,12 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: Calendar,
     roles: STUDENT_ONLY,
     children: [
-      { label: "Schedule", href: "/app/me/schedule", roles: STUDENT_ONLY },
-      { label: "E-Book", href: "/app/me/ebook", roles: STUDENT_ONLY },
+      { label: "Class Schedule", href: "/app/me/schedule", roles: STUDENT_ONLY },
+      {
+        label: "E-Book Taekwondo Guides",
+        href: "/app/me/ebook",
+        roles: STUDENT_ONLY,
+      },
     ],
   },
   {
@@ -72,8 +76,12 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: Trophy,
     roles: STUDENT_ONLY,
     children: [
-      { label: "Score", href: "/app/me/score", roles: STUDENT_ONLY },
-      { label: "Certificate", href: "/app/me/certificate", roles: STUDENT_ONLY },
+      { label: "My Taekwondo Score", href: "/app/me/score", roles: STUDENT_ONLY },
+      {
+        label: "Your Certification",
+        href: "/app/me/certificate",
+        roles: STUDENT_ONLY,
+      },
     ],
   },
   {
@@ -93,13 +101,21 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: Calendar,
     roles: COACH_ONLY,
     children: [
-      { label: "Schedule", href: "/app/coach-me/schedule", roles: COACH_ONLY },
-      { label: "Report", href: "/app/coach-me/report", roles: COACH_ONLY },
-      { label: "E-Book", href: "/app/coach-me/ebook", roles: COACH_ONLY },
+      {
+        label: "Coaching Schedule",
+        href: "/app/coach-me/schedule",
+        roles: COACH_ONLY,
+      },
+      { label: "Attendance Report", href: "/app/coach-me/report", roles: COACH_ONLY },
+      {
+        label: "E-Book Taekwondo Guides",
+        href: "/app/coach-me/ebook",
+        roles: COACH_ONLY,
+      },
     ],
   },
   {
-    label: "Certificate",
+    label: "Your Certification",
     icon: Trophy,
     href: "/app/coach-me/certificate",
     roles: COACH_ONLY,
@@ -120,22 +136,22 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     roles: ADMIN_PLUS,
     children: [
       {
-        label: "Data",
+        label: "Student's Data",
         href: "/app/student/data",
         roles: ADMIN_PLUS,
       },
       {
-        label: "Attendance",
+        label: "Attendance Report",
         href: "/app/student/attendance",
         roles: ADMIN_PLUS,
       },
       {
-        label: "Score",
+        label: "Score Management",
         href: "/app/student/score",
         roles: ADMIN_PLUS,
       },
       {
-        label: "Change Password",
+        label: "Reset Student Password",
         href: "/app/student/change-password",
         roles: ADMIN_PLUS,
       },
@@ -146,18 +162,26 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: UserCog,
     roles: ADMIN_PLUS,
     children: [
-      { label: "Data", href: "/app/coach/data", roles: ADMIN_PLUS },
-      { label: "Schedule", href: "/app/coach/schedule", roles: ADMIN_PLUS },
-      { label: "Attendance", href: "/app/coach/attendance", roles: ADMIN_PLUS },
+      { label: "Coach's Data", href: "/app/coach/data", roles: ADMIN_PLUS },
       {
-        label: "Recommendation",
+        label: "Schedule Management",
+        href: "/app/coach/schedule",
+        roles: ADMIN_PLUS,
+      },
+      {
+        label: "Coach Attendance Report",
+        href: "/app/coach/attendance",
+        roles: ADMIN_PLUS,
+      },
+      {
+        label: "Student Recommendation",
         href: "/app/coach/recommendation",
         roles: ADMIN_PLUS,
       },
     ],
   },
   {
-    label: "Certificate",
+    label: "Add Certificate",
     icon: Award,
     href: "/app/certificate",
     roles: ADMIN_PLUS,
@@ -169,7 +193,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     roles: SUPER,
   },
   {
-    label: "Admin Management",
+    label: "Admin Data",
     icon: ShieldCheck,
     href: "/app/admin",
     roles: SUPER,
@@ -179,15 +203,15 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: Database,
     roles: ADMIN_PLUS,
     children: [
-      { label: "Program", href: "/app/master/program", roles: SUPER },
-      { label: "Sub Program", href: "/app/master/sub-program", roles: SUPER },
-      { label: "E-Book", href: "/app/master/ebook", roles: SUPER },
-      { label: "Grading Belt", href: "/app/master/grading-belt", roles: SUPER },
-      { label: "Dojang", href: "/app/master/dojang", roles: SUPER },
-      { label: "Product", href: "/app/master/product", roles: SUPER },
-      { label: "Roles", href: "/app/master/roles", roles: SUPER },
+      { label: "Master Program", href: "/app/master/program", roles: SUPER },
+      { label: "Master Sub Program", href: "/app/master/sub-program", roles: SUPER },
+      { label: "Master E-Book", href: "/app/master/ebook", roles: SUPER },
+      { label: "Master Belt", href: "/app/master/grading-belt", roles: SUPER },
+      { label: "Master Dojang", href: "/app/master/dojang", roles: SUPER },
+      { label: "Master Product", href: "/app/master/product", roles: SUPER },
+      { label: "Master Roles", href: "/app/master/roles", roles: SUPER },
       {
-        label: "Schedule Period",
+        label: "Schedule Period Management",
         href: "/app/master/schedule-period",
         roles: ADMIN_PLUS,
       },
