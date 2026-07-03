@@ -17,7 +17,6 @@ import {
   subscribeCoaches,
   toggleCoachStatus,
 } from "../_shared/coaches";
-import { useDojangOptions } from "../../master/_shared/dojangs";
 import { useSabukOptions } from "../../master/_shared/belts";
 
 const PAGE_SIZE = 10;
@@ -41,17 +40,14 @@ export default function CoachListClient() {
     getCoaches,
     getCoaches,
   );
-  const dojangOptions = useDojangOptions();
   const sabukOptions = useSabukOptions();
 
   const [namaInput, setNamaInput] = useState("");
   const [sabukInput, setSabukInput] = useState("All");
-  const [dojangInput, setDojangInput] = useState("All");
   const [noInput, setNoInput] = useState("");
   const [applied, setApplied] = useState({
     nama: "",
     sabuk: "All",
-    dojang: "All",
     no: "",
   });
   const [page, setPage] = useState(1);
@@ -79,11 +75,10 @@ export default function CoachListClient() {
             .toLowerCase()
             .includes(applied.nama.toLowerCase().trim());
         const mSabuk = applied.sabuk === "All" || c.sabuk === applied.sabuk;
-        const mDojang = applied.dojang === "All" || c.dojang === applied.dojang;
         const mNo =
           applied.no === "" ||
           c.username.toLowerCase().includes(applied.no.toLowerCase().trim());
-        return mNama && mSabuk && mDojang && mNo;
+        return mNama && mSabuk && mNo;
       }),
     [coaches, applied],
   );
@@ -98,7 +93,6 @@ export default function CoachListClient() {
   const hasFilter =
     applied.nama !== "" ||
     applied.sabuk !== "All" ||
-    applied.dojang !== "All" ||
     applied.no !== "";
 
   return (
@@ -121,18 +115,6 @@ export default function CoachListClient() {
             onChange={(e) => setNamaInput(e.target.value)}
             placeholder="e.g. Marvin Hadi"
           />
-          <Select
-            label="Dojang"
-            value={dojangInput}
-            onChange={(e) => setDojangInput(e.target.value)}
-          >
-            <option value="All">All</option>
-            {dojangOptions.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </Select>
           <Select
             label="Sabuk"
             value={sabukInput}
@@ -160,9 +142,8 @@ export default function CoachListClient() {
               onClick={() => {
                 setNamaInput("");
                 setSabukInput("All");
-                setDojangInput("All");
                 setNoInput("");
-                setApplied({ nama: "", sabuk: "All", dojang: "All", no: "" });
+                setApplied({ nama: "", sabuk: "All", no: "" });
                 setPage(1);
               }}
             >
@@ -175,7 +156,6 @@ export default function CoachListClient() {
               setApplied({
                 nama: namaInput,
                 sabuk: sabukInput,
-                dojang: dojangInput,
                 no: noInput,
               });
               setPage(1);
@@ -197,7 +177,6 @@ export default function CoachListClient() {
                   "No. Reg",
                   "Nama Lengkap",
                   "Panggilan",
-                  "Dojang",
                   "Sabuk",
                   "Tanggal Lahir",
                   "No Handphone 2",
@@ -230,7 +209,7 @@ export default function CoachListClient() {
               {paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={23}
+                    colSpan={22}
                     className="text-center px-4 py-16 text-muted uppercase tracking-widest text-xs font-bold"
                   >
                     No coaches found
@@ -277,9 +256,6 @@ export default function CoachListClient() {
                       </td>
                       <td className="px-4 py-3 text-ink whitespace-nowrap">
                         {c.panggilan || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-ink whitespace-nowrap">
-                        {c.dojang}
                       </td>
                       <td className="px-4 py-3 text-ink whitespace-nowrap">
                         {c.sabuk || "-"}

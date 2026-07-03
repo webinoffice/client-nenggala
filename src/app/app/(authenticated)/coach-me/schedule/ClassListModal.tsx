@@ -8,22 +8,17 @@ import {
   useAcademic,
 } from "../../student/_shared/academic";
 import type { Schedule } from "../../coach/_shared/schedules";
-import type { Coach } from "../../coach/_shared/coaches";
-import type { Student } from "../../student/_shared/students";
 
 interface Props {
   schedule: Schedule | null;
   onClose: () => void;
-  coachByUsername: Map<string, Coach>;
-  studentByUsername: Map<string, Student>;
 }
 
-export default function ClassListModal({
-  schedule,
-  onClose,
-  coachByUsername,
-  studentByUsername,
-}: Props) {
+// Member/coach details come straight off the schedule (get-schedule-mbr /
+// get-schedule-coach), which a logged-in coach is allowed to read — the old
+// coach/student lookup maps relied on get-user-data, which the backend blocks
+// for coaches, so this view would render blank names for them.
+export default function ClassListModal({ schedule, onClose }: Props) {
   // Subscribe so the title's program/sub-program names stay fresh (3c hydrate).
   useAcademic();
   if (!schedule) {
@@ -36,7 +31,6 @@ export default function ClassListModal({
 
   const program = getProgramById(schedule.programId);
   const subProgram = getSubProgramById(schedule.subProgramId);
-  const primaryCoach = coachByUsername.get(schedule.primaryCoachUsername);
 
   return (
     <Modal
@@ -54,32 +48,16 @@ export default function ClassListModal({
           <div className="bg-paper-soft rounded-sm border border-ink/10 p-3 space-y-2">
             <CoachRow
               role="Primary"
-              name={primaryCoach?.namaLengkap ?? schedule.primaryCoachUsername}
-              sabuk={primaryCoach?.sabuk}
+              name={schedule.primaryCoachName || schedule.primaryCoachUsername}
             />
-            {schedule.secondaryCoachUsernames.map((u) => {
-              const c = coachByUsername.get(u);
-              return (
-                <CoachRow
-                  key={u}
-                  role="Secondary"
-                  name={c?.namaLengkap ?? u}
-                  sabuk={c?.sabuk}
-                />
-              );
-            })}
-            {schedule.assistantUsernames.map((u) => {
-              const c = coachByUsername.get(u);
-              const s = studentByUsername.get(u);
-              return (
-                <CoachRow
-                  key={u}
-                  role={c ? "Assistant (Coach)" : "Assistant (Student)"}
-                  name={c?.namaLengkap ?? s?.namaLengkap ?? u}
-                  sabuk={c?.sabuk ?? s?.sabuk}
-                />
-              );
-            })}
+            {schedule.additionalCoaches.map((c) => (
+              <CoachRow
+                key={c.scheduleCoachId}
+                role="Secondary"
+                name={c.name || c.username}
+                sabuk={c.belt}
+              />
+            ))}
           </div>
         </div>
 
@@ -89,7 +67,7 @@ export default function ClassListModal({
             Students ({schedule.studentUsernames.length})
           </h3>
           <div className="border border-ink/10 rounded-sm overflow-hidden">
-            {schedule.studentUsernames.length === 0 ? (
+            {schedule.members.length === 0 ? (
               <div className="text-center py-8 text-muted uppercase tracking-widest text-xs font-bold">
                 No students enrolled
               </div>
@@ -104,23 +82,18 @@ export default function ClassListModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {schedule.studentUsernames.map((u) => {
-                    const s = studentByUsername.get(u);
-                    return (
-                      <tr key={u} className="border-t border-ink/5">
-                        <td className="px-3 py-2 font-medium text-ink">{u}</td>
-                        <td className="px-3 py-2 text-ink">
-                          {s?.namaLengkap ?? "-"}
-                        </td>
-                        <td className="px-3 py-2 text-ink/70">
-                          {s?.sabuk ?? "-"}
-                        </td>
-                        <td className="px-3 py-2 text-ink/70">
-                          {s?.dojang ?? "-"}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {schedule.members.map((m) => (
+                    <tr key={m.scheduleMbrId} className="border-t border-ink/5">
+                      <td className="px-3 py-2 font-medium text-ink">
+                        {m.username}
+                      </td>
+                      <td className="px-3 py-2 text-ink">{m.name || "-"}</td>
+                      <td className="px-3 py-2 text-ink/70">{m.belt || "-"}</td>
+                      <td className="px-3 py-2 text-ink/70">
+                        {m.dojang || "-"}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}

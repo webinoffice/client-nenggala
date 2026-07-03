@@ -11,8 +11,6 @@ import {
   DAYS_OF_WEEK,
   type Schedule,
 } from "../../coach/_shared/schedules";
-import { getCoaches, subscribeCoaches } from "../../coach/_shared/coaches";
-import { getStudents, subscribeStudents } from "../../student/_shared/students";
 import {
   getProgramById,
   getSubProgramById,
@@ -29,26 +27,6 @@ export default function CoachScheduleClient() {
     subscribeSchedules,
     getSchedules,
     getSchedules,
-  );
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
-  const students = useSyncExternalStore(
-    subscribeStudents,
-    getStudents,
-    getStudents,
-  );
-
-  // Lookup maps
-  const coachByUsername = useMemo(
-    () => new Map(coaches.map((c) => [c.username, c])),
-    [coaches],
-  );
-  const studentByUsername = useMemo(
-    () => new Map(students.map((s) => [s.username, s])),
-    [students],
   );
 
   // Every class this coach is involved in (primary or additional), across all
@@ -170,8 +148,6 @@ export default function CoachScheduleClient() {
       <ClassListModal
         schedule={viewingClass}
         onClose={() => setViewingClass(null)}
-        coachByUsername={coachByUsername}
-        studentByUsername={studentByUsername}
       />
 
       <SubmitAttendanceModal

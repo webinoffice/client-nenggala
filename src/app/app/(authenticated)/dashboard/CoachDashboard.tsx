@@ -1,9 +1,8 @@
 // src/app/app/(authenticated)/dashboard/CoachDashboard.tsx
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ArrowRight, ArrowUpRight, Bell } from "lucide-react";
 import { getCurrentUsername } from "@/lib/current-user";
 import { useEvents, formatEventDate } from "@/lib/events";
@@ -13,7 +12,8 @@ import {
   getCurrentPeriod,
   DAYS_OF_WEEK,
 } from "../coach/_shared/schedules";
-import { getCoaches, subscribeCoaches } from "../coach/_shared/coaches";
+import { fetchCoachDashboard, type CoachDashboardData } from "@/lib/api/dashboard";
+import { dmyToIso } from "@/lib/api/dates";
 import {
   getProgramById,
   getSubProgramById,
@@ -21,6 +21,7 @@ import {
 } from "../student/_shared/academic";
 import JointTrainingHighlight from "../joint-training/_shared/JointTrainingHighlight";
 import UploadedImage from "@/components/app/UploadedImage";
+import { fileUrl } from "@/lib/api/file-url";
 
 function formatJoinedDate(iso: string) {
   if (!iso) return "-";
@@ -40,13 +41,27 @@ export default function CoachDashboard() {
     getSchedules,
     getSchedules,
   );
-  const coaches = useSyncExternalStore(
-    subscribeCoaches,
-    getCoaches,
-    getCoaches,
-  );
 
-  const coach = coaches.find((c) => c.username === username);
+  // The coach's own profile — get-user-data is admin/super-admin only, so a coach
+  // must read it via the self-scoped get-dashboard-coach endpoint.
+  const [coach, setCoach] = useState<CoachDashboardData | null>(null);
+  const [coachLoaded, setCoachLoaded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetchCoachDashboard()
+      .then((d) => {
+        if (alive) setCoach(d);
+      })
+      .catch(() => {
+        if (alive) setCoach(null);
+      })
+      .finally(() => {
+        if (alive) setCoachLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const events = useEvents();
 
@@ -84,7 +99,7 @@ export default function CoachDashboard() {
     [involved, periodId],
   );
 
-  if (!coach) {
+  if (coachLoaded && !coach) {
     return (
       <div className="bg-paper rounded-sm border border-ink/10 p-10 text-center">
         <p className="text-muted text-sm">
@@ -94,12 +109,16 @@ export default function CoachDashboard() {
     );
   }
 
+  const joinedSince = coach?.UserJoinDate
+    ? formatJoinedDate(dmyToIso(coach.UserJoinDate))
+    : "-";
+
   return (
     <div className="space-y-8">
       {/* Greeting */}
       <div>
         <h1 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-tight text-ink">
-          Welcome, {coach.panggilan || coach.namaLengkap}
+          Welcome, {coach?.UserNickname || coach?.UserName || username}
         </h1>
         <p className="text-sm text-muted mt-1">
           {currentPeriod?.title ?? "—"} · Let&apos;s shape the next champions.
@@ -111,24 +130,19 @@ export default function CoachDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6 md:gap-8 items-center">
           <div className="flex justify-center lg:justify-start">
             <div className="relative h-28 w-28 md:h-32 md:w-32 rounded-sm overflow-hidden bg-paper-soft border border-ink/10">
-              <Image
-                src="/images/coach-1.jpg"
-                alt={coach.namaLengkap}
-                fill
-                className="object-cover"
-                sizes="128px"
+              <UploadedImage
+                src={fileUrl(coach?.UserPhoto) || "/images/coach-1.jpg"}
+                alt={coach?.UserName ?? ""}
+                loading="eager"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
           </div>
           <div className="space-y-2">
-            <InfoRow label="Name" value={coach.namaLengkap} />
-            <InfoRow
-              label="Joined Since"
-              value={formatJoinedDate(coach.mulaiLatihan)}
-            />
-            <InfoRow label="Dojang" value={coach.dojang} />
-            <InfoRow label="Level" value={coach.sabuk} />
-            <InfoRow label="Phone" value={coach.noHandphone2 || "-"} />
+            <InfoRow label="Name" value={coach?.UserName ?? "-"} />
+            <InfoRow label="Joined Since" value={joinedSince} />
+            <InfoRow label="Level" value={coach?.BeltName ?? "-"} />
+            <InfoRow label="Phone" value={coach?.UserPhoneNumber2 || "-"} />
           </div>
         </div>
       </section>

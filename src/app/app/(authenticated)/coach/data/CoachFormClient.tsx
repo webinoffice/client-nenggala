@@ -23,7 +23,6 @@ import {
   GOL_DARAH_OPTIONS,
 } from "@/lib/reference";
 import { fileUrl } from "@/lib/api/file-url";
-import { useDojangOptions } from "../../master/_shared/dojangs";
 import { useSabukOptions } from "../../master/_shared/belts";
 
 
@@ -35,7 +34,6 @@ type FormState = {
   email: string;
   gender: string;
   password: string;
-  dojang: string;
   sabuk: string;
   tanggalLahir: string;
   noHandphone1: string;
@@ -68,7 +66,6 @@ function buildForm(c: Coach | null): FormState {
     email: c?.email ?? "",
     gender: c?.gender ?? "",
     password: "",
-    dojang: c?.dojang ?? "",
     sabuk: c?.sabuk ?? "-",
     tanggalLahir: c?.tanggalLahir ?? "",
     noHandphone1: c?.noHandphone1 ?? "",
@@ -91,7 +88,6 @@ function buildForm(c: Coach | null): FormState {
 export default function CoachFormClient({ mode, username }: Props) {
   const router = useRouter();
   const isEditing = mode === "edit";
-  const dojangOptions = useDojangOptions();
   const sabukOptions = useSabukOptions();
 
   // Subscribe so the edit form works on a direct load / refresh: the record
@@ -176,7 +172,6 @@ export default function CoachFormClient({ mode, username }: Props) {
     if (!isEditing && !form.password) next.password = "Required";
     else if (!isEditing && form.password.length < 6)
       next.password = "Min 6 characters";
-    if (!form.dojang) next.dojang = "Required";
     if (!form.tanggalLahir) next.tanggalLahir = "Required";
     if (!form.warganegara) next.warganegara = "Required";
     if (!form.nikKtpPaspor.trim()) next.nikKtpPaspor = "Required";
@@ -209,7 +204,6 @@ export default function CoachFormClient({ mode, username }: Props) {
       email: form.email.trim(),
       gender: form.gender,
       noHandphone1: form.noHandphone1.trim(),
-      dojang: form.dojang,
       sabuk: form.sabuk,
       tanggalLahir: form.tanggalLahir,
       noHandphone2: form.noHandphone2.trim(),
@@ -330,21 +324,8 @@ export default function CoachFormClient({ mode, username }: Props) {
           </div>
         </FormSection>
 
-        <FormSection title="Dojang & Sabuk">
+        <FormSection title="Sabuk & Latihan">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <Select
-              label="Dojang"
-              value={form.dojang}
-              onChange={(e) => update("dojang", e.target.value)}
-              error={errors.dojang}
-            >
-              <option value="">Pilih Dojang</option>
-              {dojangOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </Select>
             <Select
               label="Sabuk"
               value={form.sabuk}

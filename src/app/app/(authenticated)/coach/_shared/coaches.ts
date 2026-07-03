@@ -18,7 +18,8 @@ export type Coach = {
   gender?: string;
   photo?: string;            // UserPhoto path (display on edit); "" when none
   noHandphone1?: string;
-  dojang: string;
+  // Coaches are not dojang-scoped — no dojang is stored for them (sent null to
+  // the backend). Deliberately omitted from the coach model.
   sabuk: string;
   tanggalLahir: string;
   noHandphone2: string;

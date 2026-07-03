@@ -70,3 +70,37 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardData | nu
     { auth: true },
   );
 }
+
+/**
+ * The logged-in coach's own profile summary. Coach-only (UserTypeCode "I"); the
+ * backend self-scopes to the caller's UserDataId from the token, so no params are
+ * sent. This is the ONLY coach-accessible read of their profile — get-user-data
+ * is admin/super-admin only and 403s for a coach. Coaches carry no dojang.
+ * Dates come "dd/mm/yyyy" like get-user-data.
+ */
+export interface CoachDashboardData {
+  UserDataId: number;
+  UserNoId: string;
+  UserName: string | null;
+  UserNickname: string | null;
+  UserPhoneNumber1: string | null;
+  UserPhoneNumber2: string | null;
+  UserEmailAddress: string | null;
+  UserGender: string | null;
+  UserPhoto: string | null;
+  BeltMasterId: number | null;
+  BeltName: string | null;
+  /** "dd/mm/yyyy" */
+  UserJoinDate: string | null;
+}
+
+/** POST /dashboard/get-dashboard-coach — coach-only. Empty object when the
+ *  caller has no coach profile row (the backend returns {}). */
+export async function fetchCoachDashboard(): Promise<CoachDashboardData | null> {
+  const data = await apiPost<CoachDashboardData | Record<string, never>>(
+    "/dashboard/get-dashboard-coach",
+    {},
+    { auth: true },
+  );
+  return data && "UserDataId" in data ? (data as CoachDashboardData) : null;
+}

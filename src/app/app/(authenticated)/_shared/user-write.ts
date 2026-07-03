@@ -18,7 +18,8 @@ export interface PersonInput {
   panggilan: string;
   email?: string;
   gender?: string;
-  dojang: string;
+  /** Optional — coaches carry no dojang (resolves to null in {@link buildInput}). */
+  dojang?: string;
   sabuk: string;
   warganegara: string;
   nikKtpPaspor: string;

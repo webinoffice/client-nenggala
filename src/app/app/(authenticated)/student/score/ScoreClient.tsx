@@ -266,7 +266,7 @@ export default function ScoreClient() {
                     Attendance
                   </th>
                   <th className="text-left px-4 py-3.5 whitespace-nowrap">
-                    Bukti Bayar
+                    Pembayaran
                   </th>
                   <th className="text-right px-4 py-3.5 whitespace-nowrap">
                     Total Score
@@ -324,18 +324,23 @@ export default function ScoreClient() {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {proof ? (
-                            <a
-                              href={proof}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-accent hover:underline"
-                            >
-                              <FileText size={12} />
-                              Lihat
-                            </a>
+                            <span className="inline-flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-500/10 border border-emerald-500/20 rounded-sm px-1.5 py-0.5">
+                                Transfer
+                              </span>
+                              <a
+                                href={proof}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-accent hover:underline"
+                              >
+                                <FileText size={12} />
+                                Lihat
+                              </a>
+                            </span>
                           ) : (
-                            <span className="text-[10px] uppercase tracking-widest text-muted font-bold">
-                              Cash / —
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted bg-paper-soft border border-ink/10 rounded-sm px-1.5 py-0.5">
+                              Cash
                             </span>
                           )}
                         </td>
